@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 1.2
+version: 1.3
 created: 2026-11-11
 updated: 2026-11-24
 ---
 
-# logmo: Product Requirements (v1.2)
+# logmo: Product Requirements (v1.3)
 
 ## Vision and outcome
 
@@ -56,6 +56,8 @@ Empty fields stay empty. A day with nothing entered is not saved.
 - The first weigh-in seeds the trend. Days without a weigh-in carry the previous trend forward.
 
 **FR-6. Local-first and control.** All data is stored on the device and works offline. The user can delete all data from Settings. Nothing is sent to any service.
+
+**FR-7. Export.** From Settings, export all logs as a CSV file through the iOS share sheet (save to Files, AirDrop, etc.). One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, water_ml` and the seven ratings. Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 (for example 0 ml water) stays distinguishable from missing. Export is user-initiated and is the only way data leaves the phone in v1. It is a backup, not an import path.
 
 ## Extensibility (provisions, not features)
 

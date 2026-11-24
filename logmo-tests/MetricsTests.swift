@@ -35,4 +35,14 @@ final class MetricsTests: XCTestCase {
     func testNoWeightsNoTrend() {
         XCTAssertTrue(Metrics.weightTrend([snap(1)], through: day(3), calendar: cal).isEmpty)
     }
+
+    func testCSVExportBlanksAndOrder() {
+        let rows = [
+            ExportRow(day: day(2), weightKg: nil, calories: 2000, proteinG: nil, waterMl: 0, ratings: ["soreness": 4]),
+            ExportRow(day: day(1), weightKg: 80.25, calories: nil, proteinG: 150, waterMl: nil, ratings: [:]),
+        ]
+        let lines = CSVExport.render(rows, calendar: cal).split(separator: "\n", omittingEmptySubsequences: false)
+        XCTAssertEqual(lines[1], "2026-11-01,80.250,,150,,,,,,,,")
+        XCTAssertEqual(lines[2], "2026-11-02,,2000,,0,,,,,,,4")
+    }
 }

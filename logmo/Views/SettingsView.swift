@@ -6,6 +6,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
     @Environment(\.modelContext) private var context
     @State private var confirmDelete = false
+    @Query(sort: \DayLog.day) private var logs: [DayLog]
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,15 @@ struct SettingsView: View {
                 Section("Connections") {
                     LabeledContent("Apple Health", value: "Not yet available")
                     LabeledContent("Cloud sync", value: "Not yet available")
+                }
+                Section {
+                    ShareLink(item: CSVDocument(text: CSVExport.render(logs.map(\.exportRow))),
+                              preview: SharePreview("logmo-export.csv")) {
+                        Label("Export data as CSV", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(logs.isEmpty)
+                } header: { Text("Backup") } footer: {
+                    Text("Data lives only on this iPhone. Export saves a copy you can keep in Files or iCloud Drive.")
                 }
                 Section {
                     Button("Delete all data", role: .destructive) { confirmDelete = true }

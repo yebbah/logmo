@@ -106,4 +106,11 @@ final class DayLog {
     var snapshot: DaySnapshot {
         DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers)
     }
+
+    var exportRow: ExportRow {
+        var r: [String: Int] = [:]
+        for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
+        return ExportRow(day: day, weightKg: weightKg, calories: calories,
+                         proteinG: proteinG, waterMl: waterMl, ratings: r)
+    }
 }
