@@ -1,0 +1,11 @@
+# BMAD tooling and installed agent customizations
+/_bmad/
+/.agents/skills/bmad-*/
+/.claude/skills/bmad-*/
+/.github/agents/bmad-*.agent.md
+
+# Local workbook
+/S3 - Athletic Foundation.xlsx
+
+# Keep BMAD output available for version control
+!/_bmad-output/
