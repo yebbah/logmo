@@ -11,6 +11,9 @@ struct ExternalSample: Equatable {
     var waterMl: Int?
     var calories: Int?
     var proteinG: Int?
+    var fatG: Int?
+    var carbsG: Int?
+    var steps: Int?
     var source: String
 }
 
@@ -30,7 +33,10 @@ struct DayRecord: Codable, Equatable {
     var weightKg: Double?
     var calories: Int?
     var proteinG: Int?
+    var fatG: Int?
+    var carbsG: Int?
     var waterMl: Int?
+    var steps: Int?
     var ratings: [String: Int]
 }
 

@@ -2,13 +2,14 @@ import Foundation
 
 /// The things a user can log in a day.
 enum Tracker: String, CaseIterable, Identifiable {
-    case weight, food, water, checkIn
+    case weight, food, water, steps, checkIn
     var id: String { rawValue }
     var title: String {
         switch self {
         case .weight: "Weight"
         case .food: "Food"
         case .water: "Water"
+        case .steps: "Steps"
         case .checkIn: "Check-in"
         }
     }
@@ -16,10 +17,66 @@ enum Tracker: String, CaseIterable, Identifiable {
 
 /// Plain-value view of one day's log. Keeps the maths independent of SwiftData.
 struct DaySnapshot: Equatable {
-    var date: Date                // any time on the day; normalised by callers
+    var date: Date                  // any time on the day; normalised by callers
     var weightKg: Double?
-    var logged: Set<Tracker>
+    var logged: Set<Tracker>        // anything entered for that tracker
+    var complete: Set<Tracker> = [] // every field of that tracker entered
+    var calories: Int? = nil
+    var proteinG: Int? = nil
+    var waterMl: Int? = nil
+    var steps: Int? = nil
+    var ratings: [String: Int] = [:]
 }
+
+// MARK: - Goals
+
+/// Goals for one week. Calories are a weekly total; the rest are per day.
+struct GoalSet: Equatable {
+    var caloriesWeekly: Int?
+    var caloriesAtOrUnder: Bool = true   // false = the weekly total should reach the goal
+    var proteinDaily: Int?
+    var stepsDaily: Int?
+    var waterDailyMl: Int?
+    var hasDailyGoals: Bool { proteinDaily != nil || stepsDaily != nil || waterDailyMl != nil }
+}
+
+/// Goals keyed by the Monday that starts their week. A week without its own goals
+/// inherits the most recent earlier ones.
+struct GoalTimeline: Equatable {
+    var byWeek: [Date: GoalSet] = [:]
+    func goals(forWeekStarting ws: Date) -> GoalSet? {
+        guard let key = byWeek.keys.filter({ $0 <= ws }).max() else { return nil }
+        return byWeek[key]
+    }
+    func inheritedFrom(_ ws: Date) -> Date? {
+        guard byWeek[ws] == nil else { return nil }
+        return byWeek.keys.filter { $0 <= ws }.max()
+    }
+}
+
+/// nil = no goal set for that metric. A goal with no value logged counts as not met.
+struct DayGoalStatus: Equatable {
+    var protein: Bool?
+    var steps: Bool?
+    var water: Bool?
+    var allMet: Bool {
+        let g = [protein, steps, water].compactMap { $0 }
+        return !g.isEmpty && g.allSatisfy { $0 }
+    }
+}
+
+enum WeekOutcome: Equatable { case noGoal, inProgress, met, missed }
+
+struct WeekStatus: Equatable {
+    var weekStart: Date
+    var goal: Int?
+    var atOrUnder: Bool
+    var total: Int
+    var daysWithCalories: Int
+    var outcome: WeekOutcome
+}
+
+// MARK: - Series
 
 struct TrendPoint: Identifiable, Equatable {
     var date: Date
@@ -28,11 +85,19 @@ struct TrendPoint: Identifiable, Equatable {
     var id: Date { date }
 }
 
+struct ValuePoint: Identifiable, Equatable {
+    var date: Date
+    var value: Double?
+    var trend: Double
+    var id: Date { date }
+}
+
 struct Compliance: Equatable {
-    var windowDays: Int
-    var daysLogged: Int                 // days with at least one tracker logged
-    var perTracker: [Tracker: Int]      // days each tracker was logged
-    var rate: Double { windowDays == 0 ? 0 : Double(daysLogged) / Double(windowDays) }
+    var windowDays: Int                 // days evaluated; today is left out while still in progress
+    var compliedDays: Int
+    var perTracker: [Tracker: Int]      // days each tracker was fully logged
+    var goalDays: Int                   // days whose daily goals were all met
+    var rate: Double { windowDays == 0 ? 0 : Double(compliedDays) / Double(windowDays) }
     func rate(for t: Tracker) -> Double {
         windowDays == 0 ? 0 : Double(perTracker[t, default: 0]) / Double(windowDays)
     }
@@ -48,67 +113,192 @@ enum Metrics {
         return out
     }
 
-    /// Current and longest run of consecutive days with at least one tracker logged.
-    /// Today not being logged *yet* does not break the current streak.
-    static func streak(_ days: [DaySnapshot], today: Date, calendar cal: Calendar = .current)
+    private static func addDays(_ n: Int, to d: Date, _ cal: Calendar) -> Date {
+        cal.date(byAdding: .day, value: n, to: d)!
+    }
+
+    /// Monday of the week containing `date` (weeks run Monday to Sunday).
+    static func weekStart(of date: Date, calendar cal: Calendar = .current) -> Date {
+        let d = cal.startOfDay(for: date)
+        let offset = (cal.component(.weekday, from: d) + 5) % 7   // Mon = 0 … Sun = 6
+        return addDays(-offset, to: d, cal)
+    }
+
+    // MARK: Streaks
+
+    /// Current and longest run of consecutive qualifying days. Today not qualifying
+    /// *yet* does not break the current streak.
+    static func streak(of qualifying: Set<Date>, today: Date, calendar cal: Calendar = .current)
         -> (current: Int, longest: Int)
     {
-        let map = byDay(days, cal).filter { !$0.value.logged.isEmpty }
         let t = cal.startOfDay(for: today)
-
         var current = 0
-        var cursor = map[t] != nil ? t : cal.date(byAdding: .day, value: -1, to: t)!
-        while map[cursor] != nil {
+        var cursor = qualifying.contains(t) ? t : addDays(-1, to: t, cal)
+        while qualifying.contains(cursor) {
             current += 1
-            cursor = cal.date(byAdding: .day, value: -1, to: cursor)!
+            cursor = addDays(-1, to: cursor, cal)
         }
-
         var longest = 0, run = 0
         var prev: Date?
-        for d in map.keys.sorted() {
-            if let p = prev, cal.date(byAdding: .day, value: 1, to: p) == d { run += 1 } else { run = 1 }
+        for d in qualifying.sorted() {
+            if let p = prev, addDays(1, to: p, cal) == d { run += 1 } else { run = 1 }
             longest = max(longest, run)
             prev = d
         }
         return (current, longest)
     }
 
-    /// Compliance over the last `windowDays` days, ending today inclusive.
+    /// Logging streak: days with at least one tracker logged.
+    static func streak(_ days: [DaySnapshot], today: Date, calendar cal: Calendar = .current)
+        -> (current: Int, longest: Int)
+    {
+        let set = Set(days.filter { !$0.logged.isEmpty }.map { cal.startOfDay(for: $0.date) })
+        return streak(of: set, today: today, calendar: cal)
+    }
+
+    /// Daily-goal streak: days on which every daily goal that was set was met.
+    static func goalStreak(_ days: [DaySnapshot], timeline: GoalTimeline, today: Date,
+                           calendar cal: Calendar = .current) -> (current: Int, longest: Int) {
+        var set = Set<Date>()
+        for s in days {
+            let d = cal.startOfDay(for: s.date)
+            let goals = timeline.goals(forWeekStarting: weekStart(of: d, calendar: cal))
+            if dayGoalStatus(s, goals: goals).allMet { set.insert(d) }
+        }
+        return streak(of: set, today: today, calendar: cal)
+    }
+
+    /// Weekly-goal streak: consecutive *finished* weeks whose calorie goal was met.
+    /// The week in progress never breaks or extends the streak.
+    static func weeklyStreak(_ days: [DaySnapshot], timeline: GoalTimeline, today: Date,
+                             calendar cal: Calendar = .current) -> (current: Int, longest: Int) {
+        guard let first = timeline.byWeek.keys.min() else { return (0, 0) }
+        let thisWeek = weekStart(of: today, calendar: cal)
+        var results: [Bool] = []
+        var ws = first
+        while ws < thisWeek {
+            let st = weekStatus(days, weekStart: ws, goals: timeline.goals(forWeekStarting: ws),
+                                today: today, calendar: cal)
+            results.append(st.outcome == .met)
+            ws = addDays(7, to: ws, cal)
+        }
+        var current = 0
+        for r in results.reversed() { if r { current += 1 } else { break } }
+        var longest = 0, run = 0
+        for r in results { run = r ? run + 1 : 0; longest = max(longest, run) }
+        return (current, longest)
+    }
+
+    // MARK: Goal evaluation
+
+    /// Protein, steps and water are met at or above the goal.
+    static func dayGoalStatus(_ s: DaySnapshot?, goals: GoalSet?) -> DayGoalStatus {
+        guard let goals else { return DayGoalStatus() }
+        func check(_ value: Int?, _ goal: Int?) -> Bool? {
+            guard let goal else { return nil }
+            guard let value else { return false }
+            return value >= goal
+        }
+        return DayGoalStatus(protein: check(s?.proteinG, goals.proteinDaily),
+                             steps: check(s?.steps, goals.stepsDaily),
+                             water: check(s?.waterMl, goals.waterDailyMl))
+    }
+
+    /// Weekly calories. A finished week only counts as met if calories were logged on
+    /// all seven days, otherwise the total would be understated.
+    static func weekStatus(_ days: [DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
+                           calendar cal: Calendar = .current) -> WeekStatus {
+        let map = byDay(days, cal)
+        var total = 0, n = 0
+        for i in 0..<7 {
+            if let c = map[addDays(i, to: ws, cal)]?.calories { total += c; n += 1 }
+        }
+        let under = goals?.caloriesAtOrUnder ?? true
+        guard let goal = goals?.caloriesWeekly else {
+            return WeekStatus(weekStart: ws, goal: nil, atOrUnder: under, total: total,
+                              daysWithCalories: n, outcome: .noGoal)
+        }
+        let finished = cal.startOfDay(for: today) > addDays(6, to: ws, cal)
+        let outcome: WeekOutcome
+        if finished {
+            outcome = (n == 7 && (under ? total <= goal : total >= goal)) ? .met : .missed
+        } else if under && total > goal {
+            outcome = .missed
+        } else {
+            outcome = .inProgress
+        }
+        return WeekStatus(weekStart: ws, goal: goal, atOrUnder: under, total: total,
+                          daysWithCalories: n, outcome: outcome)
+    }
+
+    // MARK: Compliance
+
+    /// Complied = every required tracker fully logged AND every daily goal met.
+    static func dayComplied(_ s: DaySnapshot?, required: Set<Tracker>, goals: GoalSet?) -> Bool {
+        guard let s, !s.logged.isEmpty else { return false }
+        guard required.isSubset(of: s.complete) else { return false }
+        if goals?.hasDailyGoals == true { return dayGoalStatus(s, goals: goals).allMet }
+        return true
+    }
+
+    /// Over the last `windowDays` days ending today. Today is left out of the
+    /// denominator until it is complied, so an unfinished day isn't counted as a miss.
     static func compliance(_ days: [DaySnapshot], today: Date, windowDays: Int,
+                           required: Set<Tracker>, timeline: GoalTimeline,
                            calendar cal: Calendar = .current) -> Compliance {
         let map = byDay(days, cal)
         let t = cal.startOfDay(for: today)
-        var logged = 0
+        var evaluated = 0, complied = 0, goalDays = 0
         var per: [Tracker: Int] = [:]
         for offset in 0..<windowDays {
-            let d = cal.date(byAdding: .day, value: -offset, to: t)!
-            guard let s = map[d], !s.logged.isEmpty else { continue }
-            logged += 1
-            for tr in s.logged { per[tr, default: 0] += 1 }
+            let d = addDays(-offset, to: t, cal)
+            let s = map[d]
+            let goals = timeline.goals(forWeekStarting: weekStart(of: d, calendar: cal))
+            let ok = dayComplied(s, required: required, goals: goals)
+            if offset == 0 && !ok { continue }
+            evaluated += 1
+            if ok { complied += 1 }
+            if dayGoalStatus(s, goals: goals).allMet { goalDays += 1 }
+            for tr in s?.complete ?? [] { per[tr, default: 0] += 1 }
         }
-        return Compliance(windowDays: windowDays, daysLogged: logged, perTracker: per)
+        return Compliance(windowDays: evaluated, compliedDays: complied, perTracker: per, goalDays: goalDays)
     }
 
-    /// Exponentially smoothed weight. Missing days carry the previous trend forward
-    /// (never treated as zero). Series runs from the first weigh-in to `through`.
-    static func weightTrend(_ days: [DaySnapshot], through: Date, smoothingDays: Int = 16,
-                            calendar cal: Calendar = .current) -> [TrendPoint] {
-        let map = byDay(days, cal)
-        let weighed = map.values.filter { $0.weightKg != nil }.map { cal.startOfDay(for: $0.date) }.sorted()
-        guard let first = weighed.first else { return [] }
+    // MARK: Trends
+
+    /// Exponential smoothing over a sparse daily series. Missing days carry the previous
+    /// value forward (never treated as zero). Runs from the first value to `through`.
+    static func smoothed(_ values: [Date: Double], through: Date, smoothingDays: Int,
+                         calendar cal: Calendar = .current) -> [ValuePoint] {
+        guard let first = values.keys.min() else { return [] }
         let a = alpha(forDays: smoothingDays)
         let end = max(cal.startOfDay(for: through), first)
-
-        var out: [TrendPoint] = []
+        var out: [ValuePoint] = []
         var trend: Double?
         var cursor = first
         while cursor <= end {
-            let w = map[cursor]?.weightKg
-            if let w { trend = trend.map { a * w + (1 - a) * $0 } ?? w }
-            if let trend { out.append(TrendPoint(date: cursor, weightKg: w, trendKg: trend)) }
-            cursor = cal.date(byAdding: .day, value: 1, to: cursor)!
+            let v = values[cursor]
+            if let v { trend = trend.map { a * v + (1 - a) * $0 } ?? v }
+            if let trend { out.append(ValuePoint(date: cursor, value: v, trend: trend)) }
+            cursor = addDays(1, to: cursor, cal)
         }
         return out
+    }
+
+    static func weightTrend(_ days: [DaySnapshot], through: Date, smoothingDays: Int = 16,
+                            calendar cal: Calendar = .current) -> [TrendPoint] {
+        var vals: [Date: Double] = [:]
+        for s in days { if let w = s.weightKg { vals[cal.startOfDay(for: s.date)] = w } }
+        return smoothed(vals, through: through, smoothingDays: smoothingDays, calendar: cal)
+            .map { TrendPoint(date: $0.date, weightKg: $0.value, trendKg: $0.trend) }
+    }
+
+    /// Smoothed trend for one biofeedback rating (1–5).
+    static func ratingTrend(_ days: [DaySnapshot], rating: String, through: Date,
+                            smoothingDays: Int = 7, calendar cal: Calendar = .current) -> [ValuePoint] {
+        var vals: [Date: Double] = [:]
+        for s in days { if let r = s.ratings[rating] { vals[cal.startOfDay(for: s.date)] = Double(r) } }
+        return smoothed(vals, through: through, smoothingDays: smoothingDays, calendar: cal)
     }
 
     /// Change in trend weight versus `days` days earlier; nil until enough history exists.

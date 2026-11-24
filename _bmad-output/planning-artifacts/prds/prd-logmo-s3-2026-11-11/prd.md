@@ -1,16 +1,16 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 1.3
+version: 2.0
 created: 2026-11-11
 updated: 2026-11-24
 ---
 
-# logmo: Product Requirements (v1.3)
+# logmo: Product Requirements (v2.0)
 
 ## Vision and outcome
 
-A personal iPhone app for logging weight, food, water and daily biofeedback (the 1–5 check-in ratings from the S3 Athletic Foundation workbook), with a dashboard showing logging compliance, logging streak and weight trend. Data stays on the phone. The design leaves room for Apple Health and cloud sync later.
+A personal iPhone app for logging weight, food (calories and macros), water, steps and daily biofeedback (the 1–5 check-in ratings from the S3 Athletic Foundation workbook), with weekly goals and a dashboard showing goal status, three streaks, compliance, and the weight trend with optional biofeedback trend lines. Data stays on the phone. The design leaves room for Apple Health and cloud sync later.
 
 Success means the user can log a full day in under a minute and see at a glance whether they are keeping up and where their weight is heading.
 
@@ -20,15 +20,19 @@ Success means the user can log a full day in under a minute and see at a glance 
 
 - **Day log:** one record per calendar day holding any of the values below. A value never entered is *missing*, never zero.
 - **Logged day:** a day on which at least one tracker has a value.
-- **Trackers:** weight, food, water, check-in.
+- **Trackers:** weight, food, water, steps, check-in.
+- **Fully logged:** every field of a tracker is entered. Food needs calories, protein, carbs and fat; check-in needs all seven ratings; weight, water and steps need their one value.
+- **Week:** Monday to Sunday.
+- **Weekly goals:** one set of goals per week (see FR-3).
 - **Trend weight:** exponentially smoothed weight, distinct from a measured weight.
 
-## Requirements (v1.0)
+## Requirements (v2.0)
 
 **FR-1. Log a day.** Choose any date up to today and view or edit that day's values:
 - Weight (kg or lb).
-- Food: calories (kcal) and protein (g).
+- Food: calories (kcal), protein (g), carbs (g), fat (g).
 - Water: total in ml, with quick-add buttons (+250, +500, +750).
+- Steps.
 - Biofeedback: seven ratings, each 1–5 (scale below). Tap a selected rating again to clear it. The app shows the meaning of 1 and 5 under every rating.
 
 | Rating | 1 | 5 |
@@ -43,21 +47,41 @@ Success means the user can log a full day in under a minute and see at a glance 
 
 Direction differs by category: higher is better for sleep and training performance, and higher means "more" for the rest. Values 2–4 are the steps between. All seven anchors are confirmed by the user (D6).
 
-Empty fields stay empty. A day with nothing entered is not saved.
+Empty fields stay empty. A day with nothing entered is not saved. Where a goal exists, the empty field shows it as a hint (for example "goal 140").
 
 **FR-2. Units.** The user chooses kg or lb. Weight is stored in kg, so switching units never alters data.
 
-**FR-3. Streak.** Show the current and longest run of consecutive logged days. A day that has not been logged *yet* today does not break the current streak.
+**FR-3. Weekly goals.** Goals are set per week and are expected to be set each Sunday for the coming Monday–Sunday week. A goal set has:
+- **Calories:** a weekly total (kcal), with a direction: *at or under* (default) or *at or over*.
+- **Protein:** grams per day.
+- **Steps:** per day.
+- **Water:** ml per day.
 
-**FR-4. Logging compliance.** Show, for the last 7 or 30 days (today inclusive): the share of days logged, and for each tracker the number of days it was logged.
+Every goal is optional; an empty field means no goal. A week with no goals of its own inherits the most recent earlier week's, and the editor says so. The dashboard prompts for goals on Sundays, and when none exist yet. The editor can open the current or next week, not later.
 
-**FR-5. Weight trend.** Chart measured weights and the smoothed trend over 30 days, 90 days or 1 year. Show the latest trend value and its 7-day change (hidden until a week of history exists).
-- Smoothing: `trend = α × weight + (1 − α) × previous trend`, α = 2 / (N + 1). Default N = 16, matching the workbook's value for male input; the user can choose 7, 10, 14, 16 or 20.
-- The first weigh-in seeds the trend. Days without a weigh-in carry the previous trend forward.
+**FR-4. Goal status.**
+- **Daily:** protein, steps and water are each met at or above the goal. A goal with no value logged is not met. A day's goals are met when every goal that was set is met; with no daily goals set, nothing counts as met.
+- **Weekly calories:** the sum of the week's calories against the goal.
+  - A *finished* week is met only if calories were logged on all seven days *and* the total satisfies the direction (at or under / at or over). A total exactly at the goal counts as met.
+  - A week in progress shows as in progress, or as missed early once an at-or-under goal is exceeded.
+- The dashboard shows today's daily goals with progress, this week's calorie total, calories left or over, and how many days are logged. It also shows the last 7 days of daily goals and the last 4 weeks of the weekly calorie goal.
 
-**FR-6. Local-first and control.** All data is stored on the device and works offline. The user can delete all data from Settings. Nothing is sent to any service.
+**FR-5. Streaks.** Three, each with current and best:
+- **Logging:** consecutive days with anything logged.
+- **Daily goals:** consecutive days whose daily goals were all met.
+- **Weekly goal:** consecutive *finished* weeks whose calorie goal was met. The week in progress neither extends nor breaks it.
 
-**FR-7. Export.** From Settings, export all logs as a CSV file through the iOS share sheet (save to Files, AirDrop, etc.). One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, water_ml` and the seven ratings. Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 (for example 0 ml water) stays distinguishable from missing. Export is user-initiated and is the only way data leaves the phone in v1. It is a backup, not an import path.
+For logging and daily goals, a day not yet logged *today* does not break the current streak.
+
+**FR-6. Compliance.** A day is **complied** when every *required* tracker is fully logged *and* every daily goal that was set is met. Required trackers are chosen in Settings, all five by default. Over a 7- or 30-day window (today inclusive) the dashboard shows the share of days complied and, per tracker, the days it was fully logged. Today is left out of the count until it is complied, so an unfinished day is not a miss.
+
+**FR-7. Weight trend and biofeedback.** Chart measured weights and the smoothed trend over 30 days, 90 days or 1 year, with the latest trend value and its 7-day change (hidden until a week of history exists).
+- Smoothing: `trend = α × weight + (1 − α) × previous trend`, α = 2 / (N + 1). Default N = 16, matching the workbook's value for male input; the user can choose 7, 10, 14, 16 or 20. The first weigh-in seeds the trend, and days without a weigh-in carry the previous trend forward.
+- **Biofeedback overlay:** a switch adds one smoothed trend line per rating beside the weight line, each with its own tick box to show or hide it. Ratings use a right-hand 1–5 axis and a fixed 7-day smoothing. The choices are remembered on the device.
+
+**FR-8. Local-first and control.** All data is stored on the device and works offline. The user can delete all data (logs and goals) from Settings. Nothing is sent to any service.
+
+**FR-9. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps` and the seven ratings. Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Goals are not included. Export is user-initiated and is the only way data leaves the phone in v2.0. It is a backup, not an import path.
 
 ## Extensibility (provisions, not features)
 
@@ -65,9 +89,9 @@ Empty fields stay empty. A day with nothing entered is not saved.
 - **Cloud sync:** the data model is compatible with CloudKit (defaulted fields, no unique constraints, per-record id and `updatedAt`). A `SyncBackend` interface exists for another backend.
 - Neither is user-visible in v1; Settings shows "Not yet available".
 
-## Out of scope for v1.0
+## Out of scope for v2.0
 
-Social features, Android, accounts, notifications, goals and targets, and everything listed under Later phases.
+Social features, Android, accounts, notifications, and everything listed under Later phases. A new visual theme is planned but not yet specified: mockups are pending the user's choice.
 
 ## Later phases (carried over from the draft PRD)
 
@@ -77,23 +101,33 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 2. **Cloud sync:** CloudKit or another backend, last-write-wins on `updatedAt`.
 3. **Workbook import:** historical entries, previewed before commit, matched by date (not by row position), with the workbook's broken references reported rather than reproduced.
 4. **Nutrition integration:** MyFitnessPal API access is currently closed to new requests; Apple Health nutrition and manual entry are the fallback. No scraping.
-5. **Targets and estimates:** calorie, protein and step targets; setup-based maintenance and calorie ranges; estimated maintenance (TDEE) from trend-weight change. Requires a safety review of the workbook's formulas before any recommendation is shown.
+5. **Estimates:** setup-based maintenance and calorie ranges, and estimated maintenance (TDEE) from trend-weight change. Requires a safety review of the workbook's formulas before any recommendation is shown. (Goals themselves are in v2.0; the user sets them, they are not calculated.)
 6. **Run log, weekly summaries and weekly assessment**, and the workbook's hidden sheets (Measurements, Weight Record, Weekly Check-Ins, Training Plan), whose intended role is unconfirmed.
 7. **Overrides and conflict resolution** between synced sources and manual values.
 
 ## Quality and privacy
 
 - Weight, nutrition and menstrual-related data is sensitive; do not log it, and request no permissions in v1.
-- Streak, compliance and trend calculations are unit-tested, including missing days, a day not yet logged, window edges and no-data cases.
-- Calculations never substitute a plausible value for missing data: no trend without a weigh-in, no 7-day change without 7 days of history.
+- Streak, goal, compliance and trend calculations are unit-tested, including missing days, a day not yet logged, goals exactly at the limit, finished weeks with an unlogged day, week boundaries, and no-data cases.
+- Calculations never substitute a plausible value for missing data: no trend without a weigh-in, no 7-day change without 7 days of history, and a week with an unlogged day is never "met".
 
 ## Decisions and assumptions
 
 | # | Decision | Status |
 |---|---|---|
 | D1 | Native SwiftUI, iOS 17+, SwiftData storage | Decided |
-| D2 | v1 is the lean scope above; the larger draft scope is deferred | Decided |
-| D3 | A logged day means *any* tracker logged (alternative: all of weight, food and water) | Assumption: revisit after use |
+| D2 | Lean scope; the larger draft scope is deferred (Later phases) | Decided |
+| D3 | A *logged* day (for the logging streak) means any tracker logged | Assumption: revisit after use |
 | D4 | Default smoothing 16-day, user-adjustable | Assumption: workbook picks 16 or 20 by sex input |
 | D5 | Water is tracked in ml only | Assumption |
-| D6 | Rating anchors for all seven ratings (table in FR-1) | Decided: confirmed by the user |
+| D6 | Rating anchors for all seven ratings | Decided: confirmed by the user |
+| D7 | Goals are set each Sunday for the coming week; weeks run Monday to Sunday | Decided |
+| D8 | Weekly calorie goal is judged "at or under" by default, switchable to "at or over". The user said "meets the goal" without saying which way | Assumption: confirm |
+| D9 | Daily protein, steps and water goals are met at or above the goal | Assumption |
+| D10 | A week with any day lacking calories can't be "met" | Assumption |
+| D11 | A week with no goals inherits the latest earlier goals | Assumption |
+| D12 | Complied = every required tracker fully logged and every set daily goal met; required trackers are toggles, all on by default | Decided |
+| D13 | Today is left out of compliance until complied | Assumption |
+| D14 | Biofeedback lines use fixed 7-day smoothing | Assumption |
+| D15 | Weekly calories are not part of a single day's compliance | Assumption |
+| D16 | Goals are not in the CSV export | Assumption: backing up goals is a gap |

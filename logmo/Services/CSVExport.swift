@@ -8,13 +8,16 @@ struct ExportRow: Equatable {
     var weightKg: Double?
     var calories: Int?
     var proteinG: Int?
+    var fatG: Int?
+    var carbsG: Int?
     var waterMl: Int?
+    var steps: Int?
     var ratings: [String: Int]      // keyed by Rating.rawValue
 }
 
 enum CSVExport {
     static let ratingColumns = ["sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness"]
-    static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "water_ml"] + ratingColumns)
+    static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns)
         .joined(separator: ",")
 
     /// One line per day, oldest first. Missing values are empty cells, never 0.
@@ -31,7 +34,10 @@ enum CSVExport {
             fields.append(r.weightKg.map { String(format: "%.3f", $0) } ?? "")
             fields.append(cell(r.calories))
             fields.append(cell(r.proteinG))
+            fields.append(cell(r.fatG))
+            fields.append(cell(r.carbsG))
             fields.append(cell(r.waterMl))
+            fields.append(cell(r.steps))
             for key in ratingColumns { fields.append(cell(r.ratings[key])) }
             lines.append(fields.joined(separator: ","))
         }

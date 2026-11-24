@@ -6,11 +6,15 @@ struct DayDraft: Equatable {
     var weight = ""
     var calories = ""
     var protein = ""
+    var fat = ""
+    var carbs = ""
     var water = ""
+    var steps = ""
     var ratings: [Rating: Int] = [:]
 
     var isEmpty: Bool {
-        weight.isEmpty && calories.isEmpty && protein.isEmpty && water.isEmpty && ratings.isEmpty
+        weight.isEmpty && calories.isEmpty && protein.isEmpty && fat.isEmpty && carbs.isEmpty
+            && water.isEmpty && steps.isEmpty && ratings.isEmpty
     }
 
     init() {}
@@ -20,7 +24,10 @@ struct DayDraft: Equatable {
         if let w = log.weightKg { weight = String(format: "%.1f", unit.fromKg(w)) }
         calories = log.calories.map(String.init) ?? ""
         protein = log.proteinG.map(String.init) ?? ""
+        fat = log.fatG.map(String.init) ?? ""
+        carbs = log.carbsG.map(String.init) ?? ""
         water = log.waterMl.map(String.init) ?? ""
+        steps = log.steps.map(String.init) ?? ""
         for r in Rating.allCases { if let v = log.rating(r) { ratings[r] = v } }
     }
 
@@ -34,7 +41,10 @@ struct DayDraft: Equatable {
         }
         log.calories = Int(calories)
         log.proteinG = Int(protein)
+        log.fatG = Int(fat)
+        log.carbsG = Int(carbs)
         log.waterMl = Int(water)
+        log.steps = Int(steps)
         for r in Rating.allCases { log.setRating(r, ratings[r]) }
         log.updatedAt = Date()
     }
@@ -44,6 +54,7 @@ struct LogView: View {
     @Environment(\.modelContext) private var context
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @Query(sort: \DayLog.day) private var logs: [DayLog]
+    @Query private var weekGoals: [WeekGoal]
 
     @State private var date = Calendar.current.startOfDay(for: Date())
     @State private var draft = DayDraft()
@@ -51,6 +62,13 @@ struct LogView: View {
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
+
+    /// Goals in force for the day being edited, shown as hints in the empty fields.
+    private var goals: GoalSet? {
+        GoalTimeline(weekGoals).goals(forWeekStarting: Metrics.weekStart(of: date))
+    }
+
+    private func hint(_ goal: Int?) -> String { goal.map { "goal \($0.formatted())" } ?? "—" }
 
     private func existing(_ day: Date) -> DayLog? {
         logs.first { Calendar.current.isDate($0.day, inSameDayAs: day) }
@@ -74,34 +92,28 @@ struct LogView: View {
                 }
 
                 Section("Weight") {
-                    LabeledContent("Weight (\(unit.rawValue))") {
-                        TextField("—", text: $draft.weight)
-                            .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
-                    }
+                    field("Weight (\(unit.rawValue))", $draft.weight, "—", decimal: true)
                 }
 
                 Section("Food") {
-                    LabeledContent("Calories (kcal)") {
-                        TextField("—", text: $draft.calories)
-                            .keyboardType(.numberPad).multilineTextAlignment(.trailing)
-                    }
-                    LabeledContent("Protein (g)") {
-                        TextField("—", text: $draft.protein)
-                            .keyboardType(.numberPad).multilineTextAlignment(.trailing)
-                    }
+                    field("Calories (kcal)", $draft.calories, "—")
+                    field("Protein (g)", $draft.protein, hint(goals?.proteinDaily))
+                    field("Carbs (g)", $draft.carbs, "—")
+                    field("Fat (g)", $draft.fat, "—")
                 }
 
                 Section("Water") {
-                    LabeledContent("Total (ml)") {
-                        TextField("—", text: $draft.water)
-                            .keyboardType(.numberPad).multilineTextAlignment(.trailing)
-                    }
+                    field("Total (ml)", $draft.water, hint(goals?.waterDailyMl))
                     HStack {
                         ForEach([250, 500, 750], id: \.self) { ml in
                             Button("+\(ml)") { addWater(ml) }
                                 .buttonStyle(.bordered).frame(maxWidth: .infinity)
                         }
                     }
+                }
+
+                Section("Activity") {
+                    field("Steps", $draft.steps, hint(goals?.stepsDaily))
                 }
 
                 Section("Check-in (1–5, tap again to clear)") {
@@ -120,6 +132,13 @@ struct LogView: View {
             .onAppear { load(date) }
             .onChange(of: date) { old, new in save(day: old); load(new) }
             .onDisappear { save() }
+        }
+    }
+
+    private func field(_ title: String, _ text: Binding<String>, _ placeholder: String, decimal: Bool = false) -> some View {
+        LabeledContent(title) {
+            TextField(placeholder, text: text)
+                .keyboardType(decimal ? .decimalPad : .numberPad).multilineTextAlignment(.trailing)
         }
     }
 
@@ -163,16 +182,16 @@ struct RatingRow: View {
                 Text(title)
                 Spacer()
                 HStack(spacing: 6) {
-                ForEach(1...5, id: \.self) { n in
-                    Button { set(value == n ? nil : n) } label: {
-                        Text("\(n)").font(.callout.weight(.semibold))
-                            .frame(width: 32, height: 32)
-                            .background(value == n ? Color.accentColor : Color(.secondarySystemFill), in: Circle())
-                            .foregroundStyle(value == n ? .white : .primary)
+                    ForEach(1...5, id: \.self) { n in
+                        Button { set(value == n ? nil : n) } label: {
+                            Text("\(n)").font(.callout.weight(.semibold))
+                                .frame(width: 32, height: 32)
+                                .background(value == n ? Color.accentColor : Color(.secondarySystemFill), in: Circle())
+                                .foregroundStyle(value == n ? .white : .primary)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("\(title) \(n): \(n == 1 ? low : n == 5 ? high : "")")
                     }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("\(title) \(n): \(n == 1 ? low : n == 5 ? high : "")")
-                }
                 }
             }
             Text("1 = \(low) · 5 = \(high)").font(.caption).foregroundStyle(.secondary)

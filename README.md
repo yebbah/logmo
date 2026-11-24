@@ -2,7 +2,7 @@
 
 ## logmo iPhone app (SwiftUI, iOS 17+)
 
-Log weight, food (kcal/protein), water and the workbook's 1–5 check-in ratings. The dashboard shows logging streak, compliance (7/30 days, per tracker) and the smoothed weight trend.
+Log weight, food (calories, protein, carbs, fat), water, steps and the workbook's 1–5 check-in ratings against weekly goals. The dashboard shows goal status, three streaks, compliance and the weight trend with optional biofeedback lines.
 
 ### Run it
 1. Install Xcode, then `brew install xcodegen`

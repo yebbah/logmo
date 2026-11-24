@@ -56,7 +56,10 @@ final class DayLog {
 
     var calories: Int?
     var proteinG: Int?
+    var fatG: Int?
+    var carbsG: Int?
     var waterMl: Int?
+    var steps: Int?
 
     var sleep: Int?
     var fatigue: Int?
@@ -94,23 +97,40 @@ final class DayLog {
         }
     }
 
+    /// Trackers with anything entered.
     var loggedTrackers: Set<Tracker> {
         var s: Set<Tracker> = []
         if weightKg != nil { s.insert(.weight) }
-        if calories != nil || proteinG != nil { s.insert(.food) }
+        if calories != nil || proteinG != nil || fatG != nil || carbsG != nil { s.insert(.food) }
         if waterMl != nil { s.insert(.water) }
+        if steps != nil { s.insert(.steps) }
         if Rating.allCases.contains(where: { rating($0) != nil }) { s.insert(.checkIn) }
         return s
     }
 
+    /// Trackers with every field entered: food needs all four macros, check-in all seven ratings.
+    var completeTrackers: Set<Tracker> {
+        var s: Set<Tracker> = []
+        if weightKg != nil { s.insert(.weight) }
+        if calories != nil && proteinG != nil && fatG != nil && carbsG != nil { s.insert(.food) }
+        if waterMl != nil { s.insert(.water) }
+        if steps != nil { s.insert(.steps) }
+        if Rating.allCases.allSatisfy({ rating($0) != nil }) { s.insert(.checkIn) }
+        return s
+    }
+
     var snapshot: DaySnapshot {
-        DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers)
+        var r: [String: Int] = [:]
+        for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
+        return DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers,
+                           complete: completeTrackers, calories: calories, proteinG: proteinG,
+                           waterMl: waterMl, steps: steps, ratings: r)
     }
 
     var exportRow: ExportRow {
         var r: [String: Int] = [:]
         for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
-        return ExportRow(day: day, weightKg: weightKg, calories: calories,
-                         proteinG: proteinG, waterMl: waterMl, ratings: r)
+        return ExportRow(day: day, weightKg: weightKg, calories: calories, proteinG: proteinG,
+                         fatG: fatG, carbsG: carbsG, waterMl: waterMl, steps: steps, ratings: r)
     }
 }
