@@ -106,7 +106,7 @@ struct LogView: View {
 
                 Section("Check-in (1–5, tap again to clear)") {
                     ForEach(Rating.allCases) { r in
-                        RatingRow(title: r.title, value: draft.ratings[r]) { draft.ratings[r] = $0 }
+                        RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r]) { draft.ratings[r] = $0 }
                     }
                 }
             }
@@ -152,14 +152,17 @@ struct LogView: View {
 
 struct RatingRow: View {
     let title: String
+    let low: String
+    let high: String
     let value: Int?
     let set: (Int?) -> Void
 
     var body: some View {
-        HStack {
-            Text(title)
-            Spacer()
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                Spacer()
+                HStack(spacing: 6) {
                 ForEach(1...5, id: \.self) { n in
                     Button { set(value == n ? nil : n) } label: {
                         Text("\(n)").font(.callout.weight(.semibold))
@@ -168,9 +171,11 @@ struct RatingRow: View {
                             .foregroundStyle(value == n ? .white : .primary)
                     }
                     .buttonStyle(.borderless)
-                    .accessibilityLabel("\(title) \(n)")
+                    .accessibilityLabel("\(title) \(n): \(n == 1 ? low : n == 5 ? high : "")")
+                }
                 }
             }
+            Text("1 = \(low) · 5 = \(high)").font(.caption).foregroundStyle(.secondary)
         }
     }
 }

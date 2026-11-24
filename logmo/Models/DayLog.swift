@@ -2,7 +2,9 @@ import Foundation
 import SwiftData
 
 /// Subjective 1–5 ratings carried over from the workbook's Data Input tab.
-/// The workbook doesn't define what 1 or 5 mean, so the UI shows numbers only.
+/// The workbook doesn't define the scale, so the anchors below are ours (PRD v1.1).
+/// Direction differs by category: for sleep and performance 5 is good; for
+/// fatigue, stress, hunger and soreness 5 is "more". Always show the anchors.
 enum Rating: String, CaseIterable, Identifiable {
     case sleep, fatigue, stress, hunger, performance, appetite, soreness
     var id: String { rawValue }
@@ -10,6 +12,32 @@ enum Rating: String, CaseIterable, Identifiable {
         switch self {
         case .performance: "Training performance"
         default: rawValue.capitalized
+        }
+    }
+
+    /// Meaning of 1.
+    var low: String {
+        switch self {
+        case .sleep: "Lowest quality"
+        case .fatigue: "Fresh, no fatigue"
+        case .stress: "Calm, no stress"
+        case .hunger: "Not hungry"
+        case .performance: "Very poor session"
+        case .appetite: "No appetite"
+        case .soreness: "Not sore"
+        }
+    }
+
+    /// Meaning of 5.
+    var high: String {
+        switch self {
+        case .sleep: "Best quality"
+        case .fatigue: "Exhausted"
+        case .stress: "Extremely stressed"
+        case .hunger: "Ravenous"
+        case .performance: "Excellent, a best"
+        case .appetite: "Very strong appetite"
+        case .soreness: "Severe, can't train"
         }
     }
 }

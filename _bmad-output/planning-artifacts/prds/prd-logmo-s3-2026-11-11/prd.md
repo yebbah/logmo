@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 1.0
+version: 1.1
 created: 2026-11-11
 updated: 2026-11-24
 ---
 
-# logmo: Product Requirements (v1.0)
+# logmo: Product Requirements (v1.1)
 
 ## Vision and outcome
 
@@ -29,7 +29,19 @@ Success means the user can log a full day in under a minute and see at a glance 
 - Weight (kg or lb).
 - Food: calories (kcal) and protein (g).
 - Water: total in ml, with quick-add buttons (+250, +500, +750).
-- Biofeedback: sleep, fatigue, stress, hunger, training performance, appetite, soreness, each rated 1–5. Tap a selected rating again to clear it. The workbook does not define what 1 or 5 mean, so the app shows numbers only.
+- Biofeedback: seven ratings, each 1–5 (scale below). Tap a selected rating again to clear it. The app shows the meaning of 1 and 5 under every rating.
+
+| Rating | 1 | 5 |
+|---|---|---|
+| Sleep | Lowest quality | Best quality |
+| Fatigue | Fresh, no fatigue | Exhausted |
+| Stress | Calm, no stress | Extremely stressed |
+| Hunger | Not hungry | Ravenous |
+| Training performance | Very poor session | Excellent, a best |
+| Appetite | No appetite | Very strong appetite |
+| Soreness | Not sore | Severe, can't train |
+
+Direction differs by category: higher is better for sleep and training performance, and higher means "more" for the rest. Values 2–4 are the steps between. Sleep and soreness anchors were set by the user; the other five are proposed and pending confirmation (D6).
 
 Empty fields stay empty. A day with nothing entered is not saved.
 
@@ -82,4 +94,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D3 | A logged day means *any* tracker logged (alternative: all of weight, food and water) | Assumption: revisit after use |
 | D4 | Default smoothing 16-day, user-adjustable | Assumption: workbook picks 16 or 20 by sex input |
 | D5 | Water is tracked in ml only | Assumption |
-| D6 | Rating anchors (what 1 and 5 mean) are undefined | Open: numbers only for now |
+| D6 | Rating anchors: sleep and soreness defined by the user; fatigue, stress, hunger, performance and appetite proposed | Confirm the five proposed rows |
