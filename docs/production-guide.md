@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v16.1 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v17.0 and app version 1.0.0 (build 1).
 
 ---
 
@@ -56,7 +56,7 @@ User preferences live in `UserDefaults` (via `@AppStorage`), keys in `SettingsKe
 - `DayLog.importedFields` and `overriddenFields` record where each value came from, and saving a Log edit (`DayDraft.apply`) moves a changed or cleared Health value to overridden;
 - zero or missing readings are never imported; future days are ignored; no record is created for a day with nothing.
 
-Besides the fields that merge (weight, calories and macros, water, steps, and the cycle's period flag), Health also fills read-only context on `DayLog`: `healthSleepMinutes`, `healthRestingHR`, `healthHRV`, `healthBodyFat`, `healthLeanKg`, `healthWorkoutMinutes`. Sleep is the union of asleep intervals per wake-up day. The cycle topic starts off and is dropped from a sync unless cycle tracking is on. Resting heart rate and HRV feed `WeekSummary` and can soften a good recovery reading and add a caution, never a target change.
+Besides the fields that merge (weight, calories and macros, water, steps, and the cycle's period flag), Health also fills read-only context on `DayLog`: `healthSleepMinutes`, `healthRestingHR`, `healthHRV`, `healthBodyFat`, `healthLeanKg`, `healthWorkoutMinutes`. Sleep is the union of asleep intervals per wake-up day, with time awake during the night and deep plus REM when stages exist. `SleepScore` (pure, tested) turns that into the 1 to 5 sleep rating: duration tiers, minus one at most for efficiency under 80% or deep plus REM under 20% (nights of 6 h or more), scored only after 11:00 on the night's own day. The score is a `HealthField.sleep` value, so it follows the same typed-wins and Sync rules as the other fields. Thresholds are constants in `SleepScore.swift`; changing one means updating `SleepScoreTests`. The cycle topic starts off and is dropped from a sync unless cycle tracking is on. Resting heart rate and HRV feed `WeekSummary` and can soften a good recovery reading and add a caution, never a target change.
 
 `HealthSync.window` decides how far back a sync reads: the last `days` (7 by default; 30 on first connection; up to 365 on request), stretched back to an older day open on the Log screen. `HealthSettings.currentAuthVersion` is bumped whenever a release reads a new type; a connection whose stored version is lower calls `requestAuthorization` once (iOS prompts only for undecided types).
 
@@ -102,7 +102,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (189 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (200 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 

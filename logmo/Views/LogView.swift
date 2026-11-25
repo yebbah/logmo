@@ -33,6 +33,7 @@ struct DayDraft: Equatable {
         case .water: water
         case .steps: steps
         case .period: onPeriod == true ? "yes" : ""
+        case .sleep: ratings[.sleep].map(String.init) ?? ""
         }
     }
 
@@ -277,10 +278,7 @@ struct LogView: View {
                 }
 
                 Section("Check-in (1–5, tap again to clear)") {
-                    if let m = existing(date)?.healthSleepMinutes {
-                        Label("Health recorded \(m / 60) h \(m % 60) min asleep", systemImage: "heart.fill")
-                            .font(.caption).foregroundStyle(Color.pink).labelStyle(.titleAndIcon)
-                    }
+                    sleepHealthNote
                     // Training performance comes last: it is the one that can be "not a lifting day".
                     ForEach(checkInOrder) { r in
                         RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r],
@@ -385,6 +383,32 @@ struct LogView: View {
     }
 
     // MARK: Apple Health
+
+    /// What Health recorded for the night, how it was scored, and why. The score fills the sleep rating below it.
+    @ViewBuilder private var sleepHealthNote: some View {
+        if let log = existing(date), let m = log.healthSleepMinutes {
+            let res = SleepScore.score(asleepMinutes: m, awakeMinutes: log.healthSleepAwakeMinutes, deepRemMinutes: log.healthSleepDeepRemMinutes)
+            let finished = SleepScore.isFinished(day: date, now: Date())
+            VStack(alignment: .leading, spacing: 5) {
+                switch healthSource(.sleep) {
+                case .health:
+                    Label("Health · \(res.headline)", systemImage: "heart.fill").font(.caption.weight(.semibold)).foregroundStyle(Color.pink)
+                case .edited:
+                    HStack(spacing: 6) {
+                        Text("Edited by you · Health recorded \(SleepScore.hm(m)), which scores \(res.score) of 5").font(.caption.weight(.semibold)).foregroundStyle(theme.accent)
+                        if healthConnected { Button("Use Health's") { useHealths(.sleep) }.font(.caption.weight(.semibold)).buttonStyle(.borderless) }
+                    }
+                case .typed:
+                    Label(finished ? "Health recorded \(SleepScore.hm(m)) asleep, which would score \(res.score) of 5"
+                                   : "Health recorded \(SleepScore.hm(m)) asleep so far. It is scored after 11:00.",
+                          systemImage: "heart.fill").font(.caption.weight(.semibold)).foregroundStyle(Color.pink)
+                }
+                if finished { Text(res.detail).font(.caption).foregroundStyle(theme.muted) }
+                if finished, let c = res.caveat { Text(c).font(.caption).foregroundStyle(theme.warn) }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
     private func bodyCompositionText(_ log: DayLog) -> String {
         var parts: [String] = []

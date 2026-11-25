@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 16.1
+version: 17.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v16.1)
+# logmo: Product Requirements (v17.0)
 
 ## Vision and outcome
 
@@ -191,7 +191,12 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 **FR-25. Apple Health (read only).** Settings → Connections → **Apple Health** opens a screen to connect and choose what to bring in. logmo only **reads** from Health and never writes to it; everything stays on the phone.
 - **Connect.** A **Connect Apple Health** button asks iOS for read access; iOS asks one type at a time. A type the user declines looks the same as no data, so the screen says where to check (Health → Sharing → Apps → logmo) and offers **Open Health settings**. **Disconnect** stops updates and leaves imported values in the logs.
 - **What comes in.** Each type has its own switch. **Weight** (the day's last body-mass reading), **Steps** (the day's total), **Water**, **Food** (calories, protein, carbs, fat; needs a nutrition app that writes to Health), **Strength workouts** (traditional or functional strength training, as a question, below), **Sleep hours**, **Cycle**, **Resting heart rate and HRV**, and **Body fat and lean mass**. Cycle starts off (it is sensitive) and only works while "Track my menstrual cycle" is on; the others start on once Health is connected. Turning on a type asks iOS for the types it hasn't been asked about yet.
-- **Sleep hours** (asleep time credited to the day the sleep ended; time in bed and awake don't count; overlapping watch and phone records are merged): a line on the Log screen's check-in, "Health recorded 6 h 40 min asleep". It is a hint beside the sleep rating and **never fills the rating**.
+- **Sleep hours, scored.** Health gives how long you slept (and, when the watch records stages, time awake and time in deep and REM sleep), not a score, so logmo works one out and fills the **Sleep rating** with it as a Health value (marked, changeable, with the same typed-wins and Sync rules as other imported fields). Asleep time is credited to the day the sleep ended; time in bed doesn't count; overlapping watch and phone records are merged. The scale:
+  - **Duration sets the score:** 7 h 30 min to 9 h 30 min = 5; 6 h 45 min to 7 h 29 min = 4 (also a night longer than 9 h 30 min); 6 h to 6 h 44 min = 3; 4 h 30 min to 5 h 59 min = 2; under 4 h 30 min = 1.
+  - **Quality can lower it by one, never more and never raise it:** awake for more than 20% of the night (asleep ÷ asleep-plus-awake under 80%), or, for nights of 6 h or more with stage data, deep plus REM under 20% of the sleep.
+  - **Timing:** a night is scored once the morning is over (after 11:00 today; any earlier day straight away); before that the Log screen shows the hours so far.
+  - **Very short nights** (under 3 h) are scored but flagged: "it may be an incomplete recording or just a nap. Change the rating if that is the case."
+  - The Log screen shows, above the sleep rating, what Health recorded, the score and why (for example "2 h 46 min asleep: 1 of 5. That is far under the 7 to 9 hours adults usually need."). If the user changes the rating, the note says what Health would have scored and offers **Use Health's**. The score is an estimate of quality from the numbers, not a measure of how rested the user feels. Sleep stage minutes are in the full backup.
 - **Cycle:** menstrual flow (light, medium, heavy or unspecified) on a day fills "on your period" with Yes, with the same rules as other imported values (a typed No stands against automatic refreshes; Sync overwrites). Health recording no flow is not read as "No".
 - **Resting heart rate and HRV:** kept per day as recovery context. They appear in the weekly suggestion's preview and facts (this week's average and the change on the week before) and as evidence. If resting heart rate is up by at least 5 bpm and HRV down by at least 15% on the week before, a caution is added and a "good" recovery reading is softened to "mixed". They never change lifting, steps or calories on their own, and the suggestion never calls training safe or unsafe.
 - **Body fat and lean mass** (the day's last reading): shown under the weight field on the Log screen and as a **Body composition** card on the Dashboard (latest value and change since the first reading in the period shown), so the user can see whether a cut or bulk is fat or muscle. Lean mass follows the weight unit.
@@ -341,3 +346,6 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D104 | Body fat and lean mass are shown on the Log screen and as a Dashboard card, not used in suggestions | Assumption |
 | D105 | Health reads reach back beyond a week for the day being viewed, for a first connection (30 days) and on request (up to a year); automatic refreshes stay at seven days | Decided: a day the user opens should show its Health data |
 | D106 | A bumped authorization version makes an existing connection ask iOS for newly read types once, because switches that are already on never re-ask | Decided: fixes new types silently returning nothing |
+| D107 | Sleep from Health is scored 1 to 5 by logmo and fills the sleep rating as a changeable Health value (supersedes D101, which kept it a hint only) | Decided: the user asked for sleep to be scored |
+| D108 | The score is duration first (7 h 30 min to 9 h 30 min is the top), with at most one point off for a broken night or low deep and REM; it is never raised above its duration tier | Decided: simple, explainable, and stage data from a watch is an estimate |
+| D109 | A night is not scored before 11:00 on its own day, and nights under 3 h carry a caveat | Decided: Health may still be adding to it, and very short records are often partial |

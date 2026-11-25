@@ -75,7 +75,9 @@ final class DayLog {
     var overriddenFields: String = ""     // Health fields the user typed over: Health no longer touches them
     var healthWorkoutMinutes: Int?        // minutes of strength training Health recorded that day
     var healthPromptDismissed: Bool = false   // the "rate today's training?" question was answered
-    var healthSleepMinutes: Int?          // asleep time Health recorded, shown as a hint beside the sleep rating
+    var healthSleepMinutes: Int?          // asleep time Health recorded; scored into the sleep rating
+    var healthSleepAwakeMinutes: Int?     // awake time during the night, when Health has it
+    var healthSleepDeepRemMinutes: Int?   // deep plus REM, when Health has sleep stages
     var healthRestingHR: Int?             // bpm
     var healthHRV: Int?                   // SDNN, ms
     var healthBodyFat: Double?            // percent
@@ -143,10 +145,10 @@ final class DayLog {
 
     var healthValues: HealthFieldValues {
         get { HealthFieldValues(weightKg: weightKg, calories: calories, proteinG: proteinG, carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps,
-                                onPeriod: onPeriod) }          // a typed "No" counts as typed: Health doesn't overwrite it
+                                onPeriod: onPeriod, sleep: sleep) }          // a typed "No" counts as typed: Health doesn't overwrite it
         set { weightKg = newValue.weightKg; calories = newValue.calories; proteinG = newValue.proteinG; carbsG = newValue.carbsG
               fatG = newValue.fatG; waterMl = newValue.waterMl; steps = newValue.steps
-              onPeriod = newValue.onPeriod }
+              onPeriod = newValue.onPeriod; sleep = newValue.sleep }
     }
     var imported: Set<HealthField> {
         get { HealthMerge.decode(importedFields) }

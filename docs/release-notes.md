@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 1)**, built to PRD v16.1, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 1)**, built to PRD v17.0, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -41,7 +41,7 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 - **Updates** on app start, when the app comes forward, when the Log screen opens, and with **Sync** and **Update now** buttons; steps and food keep updating while the day is open.
 - **The last action wins.** Automatic updates never overwrite what you typed; **Sync** on the Log screen replaces what you typed on that day with Health's values. Imported fields show a **Health** mark; **Use Health's** hands one field back. Zero or missing readings are never imported.
 - **Strength workouts ask** whether to rate the day or mark it not a lifting day; nothing is rated automatically.
-- **Sleep hours** as a hint beside the sleep rating, **cycle** filling "on your period" (off by default, needs cycle tracking), **resting heart rate and HRV** as recovery context in the weekly suggestion, and **body fat and lean mass** under weight and on a Dashboard card. Sleep, heart rate and body composition are in the backup and the CSV.
+- **Sleep, scored:** Health's hours (and stages, when recorded) are turned into a 1 to 5 sleep rating with a plain explanation, filled in as a changeable Health value. Also **cycle** filling "on your period" (off by default, needs cycle tracking), **resting heart rate and HRV** as recovery context in the weekly suggestion, and **body fat and lean mass** under weight and on a Dashboard card. Sleep, heart rate and body composition are in the backup and the CSV.
 - Imported values count for goals, streaks, compliance, reminders and the weekly suggestion like typed ones.
 
 ### Weekly suggestion (Apple Intelligence)
@@ -94,3 +94,4 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 | v14 | Evidence-based suggestions with confidence and safer rules, roomier Goals card and setup prompt |
 | v15 – v15.1 | Apple Health: weight, steps, water, food and strength workouts, read only; Sync overwrites the day, Rate it fixed |
 | v16 – v16.1 | Apple Health: sleep hours, cycle, resting heart rate and HRV, body fat and lean mass; older days and earlier history import; new types asked of iOS once |
+| v17 | Sleep from Health scored 1 to 5 and filled in as the sleep rating |

@@ -56,7 +56,14 @@ enum AppleHealth {
             for (d, v) in await averages(.heartRateVariabilitySDNN, .secondUnit(with: .milli), start, end) { edit(d) { $0.hrv = Int(v.rounded()) } }
         }
         if topics.contains(.sleep) {
-            for (d, m) in await sleepMinutes(start, end) { edit(d) { $0.sleepMinutes = m } }
+            let now = Date()
+            for (d, n) in await sleepNights(start, end) {
+                edit(d) {
+                    $0.sleepMinutes = n.asleep; $0.sleepAwakeMinutes = n.awake; $0.sleepDeepRemMinutes = n.deepRem
+                    // Scored once the morning is over; until then only the hours are shown.
+                    $0.sleepScore = SleepScore.isFinished(day: d, now: now) ? SleepScore.score(asleepMinutes: n.asleep, awakeMinutes: n.awake, deepRemMinutes: n.deepRem).score : nil
+                }
+            }
         }
         if topics.contains(.cycle) {
             for d in await periodDays(start, end) { edit(d) { $0.periodDay = true } }
@@ -126,33 +133,53 @@ enum AppleHealth {
         }
     }
 
-    /// Minutes asleep for each day (credited to the day the sleep ended). Overlapping records from a watch and a
-    /// phone are merged, so the same night isn't counted twice. Time in bed and awake time don't count.
-    private static func sleepMinutes(_ start: Date, _ end: Date) async -> [Date: Int] {
+    /// One night as Health records it, credited to the day the sleep ended.
+    struct SleepNight: Equatable { var asleep: Int; var awake: Int?; var deepRem: Int? }
+
+    /// Minutes asleep, awake during the night, and in deep plus REM (when Health has stages). Overlapping records from a
+    /// watch and a phone are merged, so the same night isn't counted twice. Time in bed doesn't count as sleep.
+    private static func sleepNights(_ start: Date, _ end: Date) async -> [Date: SleepNight] {
         let cal = Calendar.current
         let from = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: start))!
         let to = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: end))!
         let asleep: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue, HKCategoryValueSleepAnalysis.asleepCore.rawValue,
                                 HKCategoryValueSleepAnalysis.asleepDeep.rawValue, HKCategoryValueSleepAnalysis.asleepREM.rawValue]
+        let restorative: Set<Int> = [HKCategoryValueSleepAnalysis.asleepDeep.rawValue, HKCategoryValueSleepAnalysis.asleepREM.rawValue]
+        let awakeValue = HKCategoryValueSleepAnalysis.awake.rawValue
+        func total(_ spans: [(Date, Date)]) -> Int {
+            var sum: TimeInterval = 0
+            var cur: (Date, Date)?
+            for sp in spans.sorted(by: { $0.0 < $1.0 }) {
+                if let c = cur, sp.0 <= c.1 { cur = (c.0, max(c.1, sp.1)) }
+                else { if let c = cur { sum += c.1.timeIntervalSince(c.0) }; cur = sp }
+            }
+            if let c = cur { sum += c.1.timeIntervalSince(c.0) }
+            return Int((sum / 60).rounded())
+        }
         return await withCheckedContinuation { cont in
             let q = HKSampleQuery(sampleType: HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
                                   predicate: HKQuery.predicateForSamples(withStart: from, end: to), limit: HKObjectQueryNoLimit,
                                   sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, _ in
-                var byDay: [Date: [(Date, Date)]] = [:]
-                for s in (samples as? [HKCategorySample]) ?? [] where asleep.contains(s.value) {
-                    byDay[cal.startOfDay(for: s.endDate), default: []].append((s.startDate, s.endDate))
-                }
-                var out: [Date: Int] = [:]
-                for (day, spans) in byDay {
-                    var total: TimeInterval = 0
-                    var cur: (Date, Date)?
-                    for sp in spans.sorted(by: { $0.0 < $1.0 }) {
-                        if let c = cur, sp.0 <= c.1 { cur = (c.0, max(c.1, sp.1)) }
-                        else { if let c = cur { total += c.1.timeIntervalSince(c.0) }; cur = sp }
+                var sleepSpans: [Date: [(Date, Date)]] = [:], remSpans: [Date: [(Date, Date)]] = [:], awakeSpans: [Date: [(Date, Date)]] = [:]
+                var stages = Set<Date>()
+                for s in (samples as? [HKCategorySample]) ?? [] {
+                    let day = cal.startOfDay(for: s.endDate)
+                    if asleep.contains(s.value) {
+                        sleepSpans[day, default: []].append((s.startDate, s.endDate))
+                        if restorative.contains(s.value) { remSpans[day, default: []].append((s.startDate, s.endDate)) }
+                        if s.value != HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue { stages.insert(day) }
+                    } else if s.value == awakeValue {
+                        awakeSpans[day, default: []].append((s.startDate, s.endDate))
                     }
-                    if let c = cur { total += c.1.timeIntervalSince(c.0) }
-                    let m = Int((total / 60).rounded())
-                    if m > 0 { out[day] = m }
+                }
+                var out: [Date: SleepNight] = [:]
+                for (day, spans) in sleepSpans {
+                    let m = total(spans)
+                    guard m > 0 else { continue }
+                    let first = spans.map(\.0).min()!, last = spans.map(\.1).max()!
+                    let inNight = (awakeSpans[day] ?? []).filter { $0.0 >= first && $0.1 <= last }      // awake time between falling asleep and waking
+                    out[day] = SleepNight(asleep: m, awake: stages.contains(day) ? total(inNight) : nil,
+                                          deepRem: stages.contains(day) ? total(remSpans[day] ?? []) : nil)
                 }
                 cont.resume(returning: out)
             }
@@ -270,6 +297,8 @@ enum HealthSync {
                 if on, let new, new != cur { assign(new); derived = true }
             }
             setIf(topics.contains(.sleep), h.sleepMinutes, log.healthSleepMinutes) { log.healthSleepMinutes = $0 }
+            setIf(topics.contains(.sleep), h.sleepAwakeMinutes, log.healthSleepAwakeMinutes) { log.healthSleepAwakeMinutes = $0 }
+            setIf(topics.contains(.sleep), h.sleepDeepRemMinutes, log.healthSleepDeepRemMinutes) { log.healthSleepDeepRemMinutes = $0 }
             setIf(topics.contains(.recovery), h.restingHR, log.healthRestingHR) { log.healthRestingHR = $0 }
             setIf(topics.contains(.recovery), h.hrv, log.healthHRV) { log.healthHRV = $0 }
             setIf(topics.contains(.body), h.bodyFatPercent, log.healthBodyFat) { log.healthBodyFat = $0 }
