@@ -32,6 +32,7 @@ struct DayDraft: Equatable {
         case .fat: fat
         case .water: water
         case .steps: steps
+        case .period: onPeriod == true ? "yes" : ""
         }
     }
 
@@ -212,6 +213,10 @@ struct LogView: View {
                 if showTop {
                     Section("Weight") {
                         field("Weight (\(unit.rawValue))", $draft.weight, "—", decimal: true, health: .weight)
+                        if let log = existing(date), log.healthBodyFat != nil || log.healthLeanKg != nil {
+                            Label(bodyCompositionText(log), systemImage: "heart.fill")
+                                .font(.caption).foregroundStyle(Color.pink).labelStyle(.titleAndIcon)
+                        }
                     }
                     .listRowBackground(theme.card)
 
@@ -246,6 +251,7 @@ struct LogView: View {
                     Section("Cycle") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Are you on your period today?")
+                            sourceTag(.period)
                             HStack(spacing: 10) {
                                 cycleChoice("Yes", value: true)
                                 cycleChoice("No", value: false)
@@ -271,6 +277,10 @@ struct LogView: View {
                 }
 
                 Section("Check-in (1–5, tap again to clear)") {
+                    if let m = existing(date)?.healthSleepMinutes {
+                        Label("Health recorded \(m / 60) h \(m % 60) min asleep", systemImage: "heart.fill")
+                            .font(.caption).foregroundStyle(Color.pink).labelStyle(.titleAndIcon)
+                    }
                     // Training performance comes last: it is the one that can be "not a lifting day".
                     ForEach(checkInOrder) { r in
                         RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r],
@@ -375,6 +385,13 @@ struct LogView: View {
     }
 
     // MARK: Apple Health
+
+    private func bodyCompositionText(_ log: DayLog) -> String {
+        var parts: [String] = []
+        if let f = log.healthBodyFat { parts.append(String(format: "Body fat %.1f%%", f)) }
+        if let l = log.healthLeanKg { parts.append(String(format: "lean mass %.1f %@", unit.fromKg(l), unit.rawValue)) }
+        return parts.joined(separator: " · ")
+    }
 
     enum FieldSource { case typed, health, edited }
 

@@ -551,3 +551,37 @@ struct OverallJourneyCard: View {
         }.font(.caption).foregroundStyle(theme.muted)
     }
 }
+
+
+/// Body fat and lean mass from Apple Health, over the period being shown: the latest reading and how it moved.
+struct BodyCompositionCard: View {
+    @Environment(\.theme) private var theme
+    let logs: [DayLog]
+    let scope: DateScope
+    let unit: WeightUnit
+
+    var body: some View {
+        let inScope = logs.filter { $0.day >= scope.start && $0.day <= scope.end }.sorted { $0.day < $1.day }
+        let fat = inScope.compactMap { $0.healthBodyFat }
+        let lean = inScope.compactMap { $0.healthLeanKg }.map { unit.fromKg($0) }
+        if !fat.isEmpty || !lean.isEmpty {
+            Card(title: "Body composition") {
+                HStack(alignment: .top, spacing: 16) {
+                    if let last = fat.last { tile(String(format: "%.1f%%", last), "Body fat", change: fat.count > 1 ? last - fat[0] : nil, suffix: "%") }
+                    if let last = lean.last { tile(String(format: "%.1f %@", last, unit.rawValue), "Lean mass", change: lean.count > 1 ? last - lean[0] : nil, suffix: " \(unit.rawValue)") }
+                }
+                Text("From Apple Health. Change is since the first reading in this period, so you can see whether a cut or bulk is fat or muscle.")
+                    .font(.caption).foregroundStyle(theme.muted)
+            }
+        }
+    }
+
+    private func tile(_ value: String, _ caption: String, change: Double?, suffix: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value).font(.system(size: 26, weight: .bold, design: .rounded))
+            Text(caption).font(.caption).foregroundStyle(theme.muted)
+            if let change { Text(String(format: "%+.1f%@ since first reading", change, suffix)).font(.caption2).foregroundStyle(theme.muted) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}

@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 15.1
+version: 16.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v15.1)
+# logmo: Product Requirements (v16.0)
 
 ## Vision and outcome
 
@@ -190,7 +190,12 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 
 **FR-25. Apple Health (read only).** Settings → Connections → **Apple Health** opens a screen to connect and choose what to bring in. logmo only **reads** from Health and never writes to it; everything stays on the phone.
 - **Connect.** A **Connect Apple Health** button asks iOS for read access; iOS asks one type at a time. A type the user declines looks the same as no data, so the screen says where to check (Health → Sharing → Apps → logmo) and offers **Open Health settings**. **Disconnect** stops updates and leaves imported values in the logs.
-- **What comes in (first release).** Each can be switched on or off: **Weight** (the day's last body-mass reading), **Steps** (the day's total), **Water**, **Food** (calories, protein, carbs, fat; needs a nutrition app that writes to Health), and **Strength workouts** (traditional or functional strength training). Sleep, cycle, heart rate and HRV, and body composition are listed as planned, not built.
+- **What comes in.** Each type has its own switch. **Weight** (the day's last body-mass reading), **Steps** (the day's total), **Water**, **Food** (calories, protein, carbs, fat; needs a nutrition app that writes to Health), **Strength workouts** (traditional or functional strength training, as a question, below), **Sleep hours**, **Cycle**, **Resting heart rate and HRV**, and **Body fat and lean mass**. Cycle starts off (it is sensitive) and only works while "Track my menstrual cycle" is on; the others start on once Health is connected. Turning on a type asks iOS for the types it hasn't been asked about yet.
+- **Sleep hours** (asleep time credited to the day the sleep ended; time in bed and awake don't count; overlapping watch and phone records are merged): a line on the Log screen's check-in, "Health recorded 6 h 40 min asleep". It is a hint beside the sleep rating and **never fills the rating**.
+- **Cycle:** menstrual flow (light, medium, heavy or unspecified) on a day fills "on your period" with Yes, with the same rules as other imported values (a typed No stands against automatic refreshes; Sync overwrites). Health recording no flow is not read as "No".
+- **Resting heart rate and HRV:** kept per day as recovery context. They appear in the weekly suggestion's preview and facts (this week's average and the change on the week before) and as evidence. If resting heart rate is up by at least 5 bpm and HRV down by at least 15% on the week before, a caution is added and a "good" recovery reading is softened to "mixed". They never change lifting, steps or calories on their own, and the suggestion never calls training safe or unsafe.
+- **Body fat and lean mass** (the day's last reading): shown under the weight field on the Log screen and as a **Body composition** card on the Dashboard (latest value and change since the first reading in the period shown), so the user can see whether a cut or bulk is fat or muscle. Lean mass follows the weight unit.
+- **Sleep, heart rate, HRV, body fat and lean mass are in the full backup and the daily-logs CSV** (`sleep_hours_health, resting_hr_bpm, hrv_ms, body_fat_pct, lean_mass_kg`).
 - **When it updates.** On app start, whenever the app comes to the foreground, when the Log screen opens, with **Update now** in Settings, and with a **Sync** button on the Log screen showing when it last updated. The last seven days are refreshed, so steps and food keep updating while the day is open.
 - **The last action wins.** The automatic refreshes (on start, on coming forward, when the Log screen opens) fill a field only if it is empty or already holds a Health value, so they never overwrite what the user typed. If the user changes or clears a Health value it becomes theirs and those refreshes leave it alone for that day. Pressing **Sync** on the Log screen is an explicit action: it **overwrites the typed values of the day on screen** with Health's (for every field Health has a reading for), after saving any edit still being typed. Typing afterwards is later still, so it stands until the next press of Sync. **Update now** in Settings is a general refresh and does not overwrite typed values; **Use Health's** on a field hands back just that field.
 - **Never zero.** A reading of zero or no reading is not imported; a day with no Health data stays empty and no record is created for it. Future days are ignored.
@@ -212,7 +217,7 @@ Social features, Android, accounts, push notifications from a server (the app on
 
 These were in the earlier draft and are deliberately deferred. Open questions are in the workbook analysis.
 
-1. **Apple Health, remaining types:** sleep hours (as a hint for the sleep rating), menstrual flow, resting heart rate and HRV (recovery signals for the weekly suggestion), body fat and lean mass. (Weight, steps, water, nutrition and strength workouts are built, FR-25.)
+1. **Apple Health:** built (FR-25). Possible later: sleep stages, workouts other than strength, writing nothing back.
 2. **Cloud sync:** CloudKit or another backend, last-write-wins on `updatedAt`.
 3. **Workbook import:** historical entries, previewed before commit, matched by date (not by row position), with the workbook's broken references reported rather than reproduced.
 4. **Nutrition integration:** MyFitnessPal API access is currently closed to new requests; Apple Health nutrition and manual entry are the fallback. No scraping.
@@ -330,3 +335,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D98 | Health imports are on a per-type switch; sleep, cycle, heart rate and HRV, and body composition are left for later | Decided |
 | D99 | Pressing Sync on the Log screen overwrites typed values for the day shown; automatic refreshes and Update now never overwrite typed values | Decided: the user asked that the last action, sync or manual entry, counts |
 | D100 | A manual edit made after a sync stands against automatic refreshes until Sync is pressed again | Decided |
+| D101 | Sleep from Health is a hint beside the sleep rating and never fills it, because the rating is about quality, not duration | Decided |
+| D102 | Cycle from Health starts off and needs cycle tracking on; recorded flow means Yes, no record is not read as No | Decided |
+| D103 | Resting heart rate and HRV add context and a caution to the weekly suggestion but never change a target on their own | Decided: noisy signals, and self-reports and sensors can't show that training is safe |
+| D104 | Body fat and lean mass are shown on the Log screen and as a Dashboard card, not used in suggestions | Assumption |

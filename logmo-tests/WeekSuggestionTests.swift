@@ -12,7 +12,8 @@ final class WeekSuggestionTests: XCTestCase {
     /// Daily logs from `from` to 22 Nov. A nil value means "not logged that day", never zero.
     func data(from: Int = 2, weightPerDay: Double = -0.07, calories: Int? = 2100, steps: Int? = 10000,
               ratings: [String: Int]? = nil, sick: Set<Int> = [], period: Set<Int> = [],
-              weighOn: (Int) -> Bool = { _ in true }, jitter: (Int) -> Double = { _ in 0 }) -> [DaySnapshot] {
+              weighOn: (Int) -> Bool = { _ in true }, jitter: (Int) -> Double = { _ in 0 },
+              hr: (Int) -> Int? = { _ in nil }, hrv: (Int) -> Int? = { _ in nil }, sleep: Int? = nil) -> [DaySnapshot] {
         (from...22).map { n in
             var logged: Set<Tracker> = []
             let w: Double? = weighOn(n) ? 80 + weightPerDay * Double(n - 2) + jitter(n) : nil
@@ -23,6 +24,7 @@ final class WeekSuggestionTests: XCTestCase {
                                 carbsG: calories == nil ? nil : 220, fatG: calories == nil ? nil : 60, waterMl: 2500, steps: steps, ratings: ratings ?? calm)
             if !s.ratings.isEmpty { s.logged.insert(.checkIn) }
             s.isSick = sick.contains(n); s.onPeriod = period.contains(n)
+            s.restingHR = hr(n); s.hrv = hrv(n); s.sleepMinutes = sleep
             return s
         }
     }
@@ -207,6 +209,35 @@ final class WeekSuggestionTests: XCTestCase {
         let p = suggestion(.cut, data(weightPerDay: -0.07, ratings: hungry))
         XCTAssertEqual(p.caloriesPerDay, 2200)
         XCTAssertTrue(p.cautions.contains { $0.contains("Hunger and fatigue are both high") })
+    }
+
+    // MARK: Health context
+
+    func testHealthSleepAndHeartRateAppearAsEvidence() {
+        let p = suggestion(.cut, data(hr: { _ in 56 }, hrv: { _ in 48 }, sleep: 420))
+        let t = text(p)
+        XCTAssertTrue(t.contains("average of 7.0 hours asleep on 7 nights"), t)
+        XCTAssertTrue(t.contains("Resting heart rate averaged 56 bpm"), t)
+    }
+
+    func testRisingHeartRateAndFallingHRVSoftenRecoveryButDoNotChangeTraining() {
+        let worse = data(hr: { $0 >= 16 ? 62 : 55 }, hrv: { $0 >= 16 ? 38 : 50 })       // this week vs the week before
+        let s = summary(.cut, worse)
+        let a = SuggestionRules.assess(s)
+        XCTAssertEqual(s.restingHRChange!, 7, accuracy: 0.01)
+        XCTAssertEqual(a.recovery, .mixed)                                               // would otherwise be good
+        XCTAssertTrue(a.cautions.contains { $0.contains("context, not a verdict on training") })
+        let p = SuggestionRules.baseline(s)
+        XCTAssertEqual(p.workoutDays, 4); XCTAssertEqual(p.caloriesPerDay, 2100)         // nothing is changed on this alone
+        let steady = SuggestionRules.assess(summary(.cut, data(hr: { _ in 56 }, hrv: { _ in 48 })))
+        XCTAssertEqual(steady.recovery, .good)
+    }
+
+    func testTheModelSeesTheHealthFacts() {
+        let s = summary(.cut, data(hr: { _ in 56 }, hrv: { _ in 48 }, sleep: 420))
+        let t = AIAdvisor.facts(s, SuggestionRules.assess(s))
+        XCTAssertTrue(t.contains("resting heart rate bpm: average 56")); XCTAssertTrue(t.contains("hrv ms: average 48"))
+        XCTAssertTrue(t.contains("sleep recorded by Health: 7.0 hours"))
     }
 
     // MARK: Adherence is not miscalibration

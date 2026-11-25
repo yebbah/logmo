@@ -16,6 +16,11 @@ struct ExportRow: Equatable {
     var performanceNA: Bool = false
     var onPeriod: Bool?
     var isSick: Bool?
+    var sleepMinutes: Int?                     // from Apple Health
+    var restingHR: Int?
+    var hrv: Int?
+    var bodyFatPercent: Double?
+    var leanKg: Double?
     // Context for the day, so the file stands on its own: the campaign it belongs to and that week's goals.
     var campaignNumber: Int?
     var campaign: String = ""
@@ -25,7 +30,7 @@ struct ExportRow: Equatable {
 
 enum CSVExport {
     static let ratingColumns = ["sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness"]
-    static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns + ["performance_na", "on_period", "sick", "campaign_number", "campaign", "campaign_kind",
+    static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns + ["performance_na", "on_period", "sick", "sleep_hours_health", "resting_hr_bpm", "hrv_ms", "body_fat_pct", "lean_mass_kg", "campaign_number", "campaign", "campaign_kind",
                                                                                        "goal_calories_per_day", "goal_calories_basis", "goal_protein_g", "goal_steps", "goal_steps_basis",
                                                                                        "goal_water_ml", "goal_workout_days", "goal_carbs_g", "goal_fat_g"])
         .joined(separator: ",")
@@ -92,6 +97,9 @@ enum CSVExport {
             fields.append(r.performanceNA ? "true" : "")
             fields.append(r.onPeriod.map { $0 ? "true" : "false" } ?? "")
             fields.append(r.isSick.map { $0 ? "true" : "false" } ?? "")
+            fields.append(r.sleepMinutes.map { String(format: "%.2f", Double($0) / 60) } ?? "")
+            fields.append(cell(r.restingHR)); fields.append(cell(r.hrv))
+            fields.append(r.bodyFatPercent.map { String(format: "%.1f", $0) } ?? ""); fields.append(r.leanKg.map { String(format: "%.2f", $0) } ?? "")
             fields.append(cell(r.campaignNumber)); fields.append(quote(r.campaign)); fields.append(r.campaignKind)
             fields.append(contentsOf: goalCells(r.goals))
             lines.append(fields.joined(separator: ","))

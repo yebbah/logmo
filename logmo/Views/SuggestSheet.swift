@@ -97,6 +97,9 @@ struct SuggestSheet: View {
                 row("Days with daily goals met", "\(s.dailyGoalDaysMet) of \(s.daysCovered)")
                 row("Logged on", "calories \(s.calorieDays) · steps \(s.stepsDays) · check-in \(s.ratingDays) of \(s.daysCovered) days")
                 row("Check-in averages", ratingsText(s))
+                if let hr = s.avgRestingHR { row("Resting heart rate", "\(hr) bpm", goal: s.restingHRChange.map { String(format: "%+.0f on the week before", $0) }) }
+                if let h = s.avgHRV { row("Heart rate variability", "\(h) ms", goal: s.hrvChangePercent.map { String(format: "%+.0f%% on the week before", $0) }) }
+                if let m = s.avgSleepMinutes { row("Sleep recorded", String(format: "%.1f h", Double(m) / 60), goal: "\(s.sleepNights) nights") }
                 if trackCycle {
                     Toggle(isOn: $includeCycle) { VStack(alignment: .leading) { Text("Include cycle"); Text("\(s.periodDays ?? 0) period days").font(.caption).foregroundStyle(theme.muted) } }
                 }

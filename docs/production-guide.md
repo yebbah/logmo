@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v15.1 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v16.0 and app version 1.0.0 (build 1).
 
 ---
 
@@ -56,6 +56,8 @@ User preferences live in `UserDefaults` (via `@AppStorage`), keys in `SettingsKe
 - `DayLog.importedFields` and `overriddenFields` record where each value came from, and saving a Log edit (`DayDraft.apply`) moves a changed or cleared Health value to overridden;
 - zero or missing readings are never imported; future days are ignored; no record is created for a day with nothing.
 
+Besides the fields that merge (weight, calories and macros, water, steps, and the cycle's period flag), Health also fills read-only context on `DayLog`: `healthSleepMinutes`, `healthRestingHR`, `healthHRV`, `healthBodyFat`, `healthLeanKg`, `healthWorkoutMinutes`. Sleep is the union of asleep intervals per wake-up day. The cycle topic starts off and is dropped from a sync unless cycle tracking is on. Resting heart rate and HRV feed `WeekSummary` and can soften a good recovery reading and add a caution, never a target change.
+
 Syncs run on app start, on foreground, when the Log screen opens, and from the Sync and Update now buttons (20-second throttle unless forced), over the last seven days. Disconnecting only stops syncing. Health access can't be read back, so a declined type looks like no data. The entitlement signed correctly with a free personal team in this project.
 
 ### Notifications
@@ -98,7 +100,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (181 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (188 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 
@@ -153,7 +155,7 @@ Mock-ups for screen changes are made first on the design canvas and agreed befor
 
 - **Free Apple account:** the signed app expires after 7 days and must be reinstalled; at most 3 sideloaded apps; no TestFlight or App Store. A paid account removes the 7-day limit.
 - **No cloud sync.** Data exists on one phone. The model is CloudKit-ready but sync is a later phase.
-- **Apple Health is read-only and partial:** weight, steps, water, nutrition and strength workouts. Sleep, cycle, heart rate and HRV, and body composition are not built. `SyncBackend` for cloud sync is still only a protocol.
+- **Apple Health is read-only.** `SyncBackend` for cloud sync is still only a protocol.
 - **AI suggestion availability:** needs iOS 26+, a supported iPhone and Apple Intelligence turned on; otherwise the rule-based suggestion is used. The on-device model is small, so its numbers are clamped and are advice, not medical advice.
 - **Daily reminders** for days the app isn't opened are scheduled a week at a time; if the app is not opened for over a week they stop until it is opened again.
 - **Reminders depend on iOS permission.** If refused, the switches go back off.

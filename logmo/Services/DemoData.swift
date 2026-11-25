@@ -35,6 +35,11 @@ enum DemoData {
             if i % 7 == 3 { log.soreness = nil }    // some incomplete check-ins
             if i % 3 == 0 { log.performance = nil; log.performanceNA = true }   // rest days
             log.onPeriod = (i % 28 >= 3 && i % 28 <= 7) ? true : (i % 4 == 0 ? false : nil)   // used when cycle tracking is on
+            if i % 3 == 0 {                         // body composition readings from Health, every third day
+                log.healthBodyFat = 20.4 - 2.1 * progress + (rnd() - 0.5) * 0.3
+                log.healthLeanKg = 63.0 + 0.5 * progress + (rnd() - 0.5) * 0.2
+            }
+            log.healthSleepMinutes = 380 + Int(rnd() * 90); log.healthRestingHR = 55 + Int(rnd() * 5); log.healthHRV = 44 + Int(rnd() * 10)
             if i == 0 {                             // today: some values from Health, one typed over, and a workout to ask about
                 log.imported = [.steps, .calories, .protein, .carbs, .fat, .water]
                 log.overridden = [.weight]

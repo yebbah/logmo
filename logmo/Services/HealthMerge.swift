@@ -2,13 +2,15 @@ import Foundation
 
 /// The fields Apple Health can fill. Each can come from Health, from the user, or be a Health value the user typed over.
 enum HealthField: String, CaseIterable {
-    case weight, calories, protein, carbs, fat, water, steps
+    case weight, calories, protein, carbs, fat, water, steps, period
 }
 
 /// What the user can switch on in Settings → Apple Health.
 enum HealthTopic: String, CaseIterable, Identifiable {
-    case weight, steps, water, food, workouts
+    case weight, steps, water, food, workouts, sleep, cycle, recovery, body
     var id: String { rawValue }
+    /// Cycle is sensitive, so it starts off; everything else starts on once Health is connected.
+    var defaultOn: Bool { self != .cycle }
     var title: String {
         switch self {
         case .weight: "Weight"
@@ -16,6 +18,10 @@ enum HealthTopic: String, CaseIterable, Identifiable {
         case .water: "Water"
         case .food: "Food"
         case .workouts: "Strength workouts"
+        case .sleep: "Sleep hours"
+        case .cycle: "Cycle"
+        case .recovery: "Resting heart rate and HRV"
+        case .body: "Body fat and lean mass"
         }
     }
     var detail: String {
@@ -25,6 +31,10 @@ enum HealthTopic: String, CaseIterable, Identifiable {
         case .water: "Needs an app that writes water to Health"
         case .food: "Calories, protein, carbs and fat. Needs a nutrition app that writes to Health"
         case .workouts: "Suggests a lifting day; you decide what to rate"
+        case .sleep: "A hint beside your sleep rating, never the rating itself"
+        case .cycle: "Menstrual flow fills \"on your period\". Needs cycle tracking switched on"
+        case .recovery: "Recovery context for the weekly suggestion"
+        case .body: "Shown on the Dashboard, to see whether a cut or bulk is fat or muscle"
         }
     }
     var fields: [HealthField] {
@@ -33,7 +43,8 @@ enum HealthTopic: String, CaseIterable, Identifiable {
         case .steps: [.steps]
         case .water: [.water]
         case .food: [.calories, .protein, .carbs, .fat]
-        case .workouts: []
+        case .workouts, .sleep, .recovery, .body: []
+        case .cycle: [.period]
         }
     }
 }
@@ -49,9 +60,16 @@ struct HealthDay: Equatable {
     var carbsG: Int?
     var fatG: Int?
     var strengthMinutes: Int?
+    var sleepMinutes: Int?
+    var restingHR: Int?
+    var hrv: Int?
+    var bodyFatPercent: Double?
+    var leanKg: Double?
+    var periodDay: Bool?                       // Health recorded menstrual flow that day
 
     var isEmpty: Bool {
         weightKg == nil && steps == nil && waterMl == nil && calories == nil && proteinG == nil && carbsG == nil && fatG == nil && strengthMinutes == nil
+            && sleepMinutes == nil && restingHR == nil && hrv == nil && bodyFatPercent == nil && leanKg == nil && periodDay != true
     }
 }
 
@@ -64,6 +82,7 @@ struct HealthFieldValues: Equatable {
     var fatG: Int?
     var waterMl: Int?
     var steps: Int?
+    var onPeriod: Bool?
 
     mutating func clear(_ f: HealthField) {
         switch f {
@@ -74,6 +93,7 @@ struct HealthFieldValues: Equatable {
         case .fat: fatG = nil
         case .water: waterMl = nil
         case .steps: steps = nil
+        case .period: onPeriod = nil
         }
     }
 
@@ -86,6 +106,7 @@ struct HealthFieldValues: Equatable {
         case .fat: fatG != nil
         case .water: waterMl != nil
         case .steps: steps != nil
+        case .period: onPeriod != nil
         }
     }
 }
@@ -105,6 +126,7 @@ enum HealthMerge {
         case .fat: v = h.fatG.map(Double.init)
         case .water: v = h.waterMl.map(Double.init)
         case .steps: v = h.steps.map(Double.init)
+        case .period: v = h.periodDay == true ? 1 : nil
         }
         guard let v, v > 0 else { return nil }
         return v
@@ -132,6 +154,7 @@ enum HealthMerge {
             case .fat: v.fatG = Int(hv.rounded())
             case .water: v.waterMl = Int(hv.rounded())
             case .steps: v.steps = Int(hv.rounded())
+            case .period: v.onPeriod = true
             }
             if v != before { changed = true }
             if !imported.contains(f) { imported.insert(f); changed = true }
@@ -151,6 +174,7 @@ enum HealthMerge {
             case .fat: same = old.fatG == new.fatG
             case .water: same = old.waterMl == new.waterMl
             case .steps: same = old.steps == new.steps
+            case .period: same = old.onPeriod == new.onPeriod
             }
             if !same { imported.remove(f); overridden.insert(f) }
         }

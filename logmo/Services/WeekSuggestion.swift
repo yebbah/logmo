@@ -50,6 +50,12 @@ struct WeekSummary: Equatable {
     var dailyGoalDaysMet: Int
     var ratingAverages: [String: Double]       // this window, by rating
     var ratingChange: [String: Double]         // this window minus the one before, where both exist
+    var avgRestingHR: Int?                     // from Apple Health, over the assessed days
+    var restingHRChange: Double?               // bpm, against the week before
+    var avgHRV: Int?
+    var hrvChangePercent: Double?              // against the week before
+    var sleepNights: Int                       // nights Health recorded sleep
+    var avgSleepMinutes: Int?
     var periodDays: Int?                       // nil when not shared
     var sickDays: Int?                         // nil when not shared
     var current: GoalSet                       // the goals in force this week
@@ -179,6 +185,13 @@ enum SuggestionRules {
         if recentPts.count >= 3, let f = fit(recentPts), (recentPts.map(\.x).max()! - recentPts.map(\.x).min()!) >= 4, f.mean > 0 {
             recent = f.slope * 7 / f.mean * 100
         }
+        func avgD(_ ds: [Date], _ pick: (DaySnapshot) -> Int?) -> Double? {
+            let v = ds.compactMap { map[$0].flatMap(pick) }
+            return v.isEmpty ? nil : Double(v.reduce(0, +)) / Double(v.count)
+        }
+        let hr = avgD(days) { $0.restingHR }, hrPrev = avgD(before) { $0.restingHR }
+        let hv = avgD(days) { $0.hrv }, hvPrev = avgD(before) { $0.hrv }
+        let sleep = avgD(days) { $0.sleepMinutes }
         let calorieDays = count(\.calories)
         var maintenance: Int?
         if let a = avg(\.calories), let w = perWeek, calorieDays >= 3, span >= 7 { maintenance = Int((Double(a) - w * 1100).rounded()) }
@@ -193,6 +206,9 @@ enum SuggestionRules {
                            ratingDays: inWindow.filter { !$0.ratings.isEmpty }.count,
                            workoutDays: inWindow.filter { $0.ratings["performance"] != nil }.count,
                            dailyGoalDaysMet: met, ratingAverages: now, ratingChange: change,
+                           avgRestingHR: hr.map { Int($0.rounded()) }, restingHRChange: hr.flatMap { h in hrPrev.map { h - $0 } },
+                           avgHRV: hv.map { Int($0.rounded()) }, hrvChangePercent: hv.flatMap { h in hvPrev.map { $0 > 0 ? (h - $0) / $0 * 100 : 0 } },
+                           sleepNights: inWindow.filter { $0.sleepMinutes != nil }.count, avgSleepMinutes: sleep.map { Int($0.rounded()) },
                            periodDays: includeCycle ? inWindow.filter(\.onPeriod).count : nil,
                            sickDays: includeSick ? inWindow.filter(\.isSick).count : nil, current: goals)
     }
@@ -322,6 +338,19 @@ enum SuggestionRules {
             evidence.append("Check-ins (\(s.ratingDays) \(s.ratingDays == 1 ? "day" : "days")): \(parts.joined(separator: ", ")).")
         } else {
             needMore.append("Fill in the daily check-in on a few days so recovery can be read.")
+        }
+        // Objective context from Health. It can add a caution and soften "good" recovery, but never changes training on its own.
+        if let m = s.avgSleepMinutes {
+            evidence.append(String(format: "Health recorded an average of %.1f hours asleep on %d %@.", Double(m) / 60, s.sleepNights, s.sleepNights == 1 ? "night" : "nights"))
+        }
+        if let hrv = s.avgRestingHR {
+            var line = "Resting heart rate averaged \(hrv) bpm" + (s.restingHRChange.map { abs($0) >= 1 ? String(format: " (%+.0f on the week before)", $0) : "" } ?? "")
+            if let v = s.avgHRV { line += " and HRV \(v) ms" + (s.hrvChangePercent.map { abs($0) >= 5 ? String(format: " (%+.0f%%)", $0) : "" } ?? "") }
+            evidence.append(line + ".")
+        }
+        if (s.restingHRChange ?? 0) >= 5, (s.hrvChangePercent ?? 0) <= -15 {
+            cautions.append("Resting heart rate is up and HRV is down on the week before. That can go with poor recovery or illness. It is context, not a verdict on training.")
+            if recovery == .good { recovery = .mixed }
         }
         if sick > 0 { evidence.append("You were sick on \(sick) \(sick == 1 ? "day" : "days") this week.") }
         if let p = s.periodDays, p > 0 { evidence.append("\(p) period \(p == 1 ? "day" : "days") this week, which can hold water and blur the scale.") }

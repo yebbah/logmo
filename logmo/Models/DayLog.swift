@@ -75,6 +75,11 @@ final class DayLog {
     var overriddenFields: String = ""     // Health fields the user typed over: Health no longer touches them
     var healthWorkoutMinutes: Int?        // minutes of strength training Health recorded that day
     var healthPromptDismissed: Bool = false   // the "rate today's training?" question was answered
+    var healthSleepMinutes: Int?          // asleep time Health recorded, shown as a hint beside the sleep rating
+    var healthRestingHR: Int?             // bpm
+    var healthHRV: Int?                   // SDNN, ms
+    var healthBodyFat: Double?            // percent
+    var healthLeanKg: Double?
 
     init(day: Date) {
         self.day = Calendar.current.startOfDay(for: day)
@@ -132,13 +137,16 @@ final class DayLog {
         for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
         return DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers,
                            complete: completeTrackers, calories: calories, proteinG: proteinG,
-                           carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA, onPeriod: onPeriod == true, isSick: isSick == true)
+                           carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA, onPeriod: onPeriod == true, isSick: isSick == true,
+                           restingHR: healthRestingHR, hrv: healthHRV, sleepMinutes: healthSleepMinutes)
     }
 
     var healthValues: HealthFieldValues {
-        get { HealthFieldValues(weightKg: weightKg, calories: calories, proteinG: proteinG, carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps) }
+        get { HealthFieldValues(weightKg: weightKg, calories: calories, proteinG: proteinG, carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps,
+                                onPeriod: onPeriod) }          // a typed "No" counts as typed: Health doesn't overwrite it
         set { weightKg = newValue.weightKg; calories = newValue.calories; proteinG = newValue.proteinG; carbsG = newValue.carbsG
-              fatG = newValue.fatG; waterMl = newValue.waterMl; steps = newValue.steps }
+              fatG = newValue.fatG; waterMl = newValue.waterMl; steps = newValue.steps
+              onPeriod = newValue.onPeriod }
     }
     var imported: Set<HealthField> {
         get { HealthMerge.decode(importedFields) }
@@ -154,6 +162,7 @@ final class DayLog {
         for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
         return ExportRow(day: day, weightKg: weightKg, calories: calories, proteinG: proteinG,
                          fatG: fatG, carbsG: carbsG, waterMl: waterMl, steps: steps, ratings: r,
-                         performanceNA: performanceNA, onPeriod: onPeriod, isSick: isSick)
+                         performanceNA: performanceNA, onPeriod: onPeriod, isSick: isSick, sleepMinutes: healthSleepMinutes,
+                         restingHR: healthRestingHR, hrv: healthHRV, bodyFatPercent: healthBodyFat, leanKg: healthLeanKg)
     }
 }

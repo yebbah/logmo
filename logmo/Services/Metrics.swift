@@ -31,6 +31,9 @@ struct DaySnapshot: Equatable {
     var performanceNA: Bool = false      // "not a lifting day": training performance answered as n/a
     var onPeriod: Bool = false           // answered "yes" to being on the cycle that day
     var isSick: Bool = false             // answered "yes" to being sick that day
+    var restingHR: Int? = nil            // from Apple Health, bpm
+    var hrv: Int? = nil                  // from Apple Health, ms
+    var sleepMinutes: Int? = nil         // asleep time from Apple Health
 }
 
 // MARK: - Goals

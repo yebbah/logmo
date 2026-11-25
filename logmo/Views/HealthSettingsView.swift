@@ -12,13 +12,16 @@ struct HealthSettingsView: View {
     @State private var failed = false
 
     private func binding(_ t: HealthTopic) -> Binding<Bool> {
-        Binding(get: { HealthSettings.isOn(t) }, set: { on in UserDefaults.standard.set(on, forKey: HealthSettings.key(t)); if on { update() } })
+        Binding(get: { HealthSettings.isOn(t) }, set: { on in
+            UserDefaults.standard.set(on, forKey: HealthSettings.key(t))
+            if on { Task { try? await AppleHealth.requestAuthorization(); update() } }      // iOS only asks about types it hasn't been asked about
+        })
     }
 
     var body: some View {
         Form {
             Section {
-                Text("logmo only **reads** from Health and never writes to it. Pick what to bring in. Anything you type yourself always wins over an imported value, and everything stays on this iPhone.")
+                Text("logmo only **reads** from Health and never writes to it. Pick what to bring in. Automatic updates never overwrite what you type; the Sync button on the Log screen does. Everything stays on this iPhone.")
                     .font(.footnote).foregroundStyle(theme.muted)
             }
             .listRowBackground(theme.card)
@@ -42,7 +45,7 @@ struct HealthSettingsView: View {
                         }
                     }
                 } header: { Text("Bring in") } footer: {
-                    Text("Steps and food keep updating while the day is open. Values already imported stay if you switch a type off.")
+                    Text("Steps and food keep updating while the day is open. Values already imported stay if you switch a type off. Cycle also needs \"Track my menstrual cycle\" switched on in Settings.")
                 }
                 .listRowBackground(theme.card)
 
@@ -65,11 +68,6 @@ struct HealthSettingsView: View {
                 } footer: { Text("Disconnecting stops updates. Values already imported stay in your logs.") }
                 .listRowBackground(theme.card)
             }
-
-            Section {
-                ForEach(["Sleep hours", "Cycle", "Resting heart rate and HRV", "Body fat and lean mass"], id: \.self) { Text($0).foregroundStyle(theme.muted) }
-            } header: { Text("Later") } footer: { Text("Planned, not in this version.") }
-            .listRowBackground(theme.card)
         }
         .scrollContentBackground(.hidden)
         .background(theme.bg)

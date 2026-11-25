@@ -99,6 +99,24 @@ final class HealthMergeTests: XCTestCase {
         XCTAssertEqual(over, [.weight, .steps])
     }
 
+    func testHealthFlowFillsAnEmptyPeriodButNeverATypedNo() {
+        var v = HealthFieldValues(); var imp = Set<HealthField>()
+        var day = health(); day.periodDay = true
+        XCTAssertTrue(merge(day, &v, &imp))
+        XCTAssertEqual(v.onPeriod, true); XCTAssertTrue(imp.contains(.period))
+        var typedNo = HealthFieldValues(onPeriod: false); var imp2 = Set<HealthField>()
+        XCTAssertFalse(merge(day, &typedNo, &imp2))                                  // the user said No: that stands
+        XCTAssertEqual(typedNo.onPeriod, false)
+        XCTAssertTrue(merge(day, &typedNo, &imp2, overwriting: true))                // unless they press Sync
+        XCTAssertEqual(typedNo.onPeriod, true)
+    }
+
+    func testCycleOnlyComesInWhenItsTopicIsOn() {
+        XCTAssertFalse(HealthMerge.enabledFields(Set(HealthTopic.allCases).subtracting([.cycle])).contains(.period))
+        XCTAssertTrue(HealthMerge.enabledFields([.cycle]).contains(.period))
+        XCTAssertFalse(HealthTopic.cycle.defaultOn); XCTAssertTrue(HealthTopic.sleep.defaultOn)
+    }
+
     func testMarkersRoundTrip() {
         let s: Set<HealthField> = [.carbs, .weight]
         XCTAssertEqual(HealthMerge.decode(HealthMerge.encode(s)), s)
@@ -157,6 +175,32 @@ final class HealthSyncTests: XCTestCase {
         var d = DayDraft(log, unit: .kg); d.weight = "82.5"; d.apply(to: log, unit: .kg)
         HealthSync.apply(h, to: context, topics: topics, today: today)
         XCTAssertEqual(log.weightKg, 82.5)
+    }
+
+    func testSleepHeartRateAndBodyCompositionAreStoredOnlyForTopicsSwitchedOn() throws {
+        let context = try makeContext()
+        var h = HealthDay(day: today, sleepMinutes: 400, restingHR: 56, hrv: 48, bodyFatPercent: 18.2, leanKg: 61.4)
+        h.periodDay = true
+        HealthSync.apply([h], to: context, topics: [.sleep, .body], today: today)
+        let log = try context.fetch(FetchDescriptor<DayLog>())[0]
+        XCTAssertEqual(log.healthSleepMinutes, 400); XCTAssertEqual(log.healthBodyFat, 18.2); XCTAssertEqual(log.healthLeanKg, 61.4)
+        XCTAssertNil(log.healthRestingHR); XCTAssertNil(log.healthHRV)               // recovery topic is off
+        XCTAssertNil(log.onPeriod)                                                   // cycle topic is off
+        HealthSync.apply([h], to: context, topics: Set(HealthTopic.allCases), today: today)
+        XCTAssertEqual(log.healthRestingHR, 56); XCTAssertEqual(log.healthHRV, 48); XCTAssertEqual(log.onPeriod, true)
+    }
+
+    func testNewHealthDataSurvivesBackupAndAppearsInTheExport() throws {
+        let context = try makeContext()
+        let h = HealthDay(day: today, sleepMinutes: 400, restingHR: 56, hrv: 48, bodyFatPercent: 18.2, leanKg: 61.4)
+        HealthSync.apply([h], to: context, topics: Set(HealthTopic.allCases), today: today)
+        let data = try Backup.encode(try Backup.make(context))
+        try DataReset.deleteAll(context)
+        try Backup.restore(try Backup.decode(data), into: context)
+        let back = try context.fetch(FetchDescriptor<DayLog>())[0]
+        XCTAssertEqual(back.healthSleepMinutes, 400); XCTAssertEqual(back.healthHRV, 48); XCTAssertEqual(back.healthLeanKg, 61.4)
+        let csv = CSVExport.render([back.exportRow])
+        XCTAssertTrue(csv.contains(",6.67,56,48,18.2,61.40,"), csv)
     }
 
     func testStrengthWorkoutMinutesAreRecordedForTheQuestion() throws {

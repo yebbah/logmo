@@ -129,13 +129,17 @@ Choose what to look at with **Showing**: your current campaign, **Overall (all t
 **Settings → Connections → Apple Health** brings in what you already track elsewhere, so you type less. logmo only **reads** from Health and never writes to it, and nothing leaves your iPhone.
 
 1. Tap **Connect Apple Health**. iOS asks which types logmo may read, one at a time.
-2. Choose what to bring in: **Weight**, **Steps**, **Water**, **Food** (calories and macros, if a nutrition app writes them to Health) and **Strength workouts**.
+2. Choose what to bring in: **Weight**, **Steps**, **Water**, **Food** (calories and macros, if a nutrition app writes them to Health), **Strength workouts**, **Sleep hours**, **Cycle**, **Resting heart rate and HRV**, and **Body fat and lean mass**. Cycle starts off and only works if "Track my menstrual cycle" is on.
 
 - **Updates:** logmo updates when it opens, whenever you come back to it, and when you open the Log screen. Steps and food keep updating while the day is open. Tap **Sync** on the Log screen, or **Update now** in Settings, to do it right away.
 - **Health marks:** an imported value shows a small **Health** mark on the Log screen.
 - **The last action wins:** the automatic updates never overwrite what you typed, and if you change or clear an imported value, Health leaves it alone for that day. Pressing **Sync** on the Log screen is different: it replaces what you typed on the day you're viewing with Health's values. Type something afterwards and yours stands until you press Sync again. **Use Health's** under a field hands back just that field.
 - **Nothing is invented:** a zero or missing reading is never imported, and a day with no Health data stays empty.
 - **Strength workouts:** if Health recorded one and you haven't rated the day, logmo asks. **Rate it** takes you to the Training performance row; **Not a lifting day** marks training performance as n/a. It never rates for you.
+- **Sleep hours** show as a hint beside your sleep rating ("Health recorded 6 h 40 min asleep"). You still give the rating.
+- **Cycle** fills "on your period" with Yes on days Health has menstrual flow recorded.
+- **Resting heart rate and HRV** go into the weekly suggestion as recovery context: if heart rate is up and HRV is down on the week before, it says so. They never change your targets on their own.
+- **Body fat and lean mass** show under your weight on the Log screen and as a Body composition card on the Dashboard, with the change since the first reading in the period.
 - **Missing something?** iOS lets you decline a type without telling logmo. Open **Health → Sharing → Apps → logmo** to check.
 
 Imported values count for everything else exactly like typed ones: Still to log, goals, streaks, compliance, reminders and the weekly suggestion.

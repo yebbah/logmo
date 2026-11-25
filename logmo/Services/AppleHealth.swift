@@ -11,7 +11,9 @@ enum AppleHealth {
 
     static var readTypes: Set<HKObjectType> {
         [quantity(.bodyMass), quantity(.stepCount), quantity(.dietaryWater), quantity(.dietaryEnergyConsumed),
-         quantity(.dietaryProtein), quantity(.dietaryCarbohydrates), quantity(.dietaryFatTotal), HKObjectType.workoutType()]
+         quantity(.dietaryProtein), quantity(.dietaryCarbohydrates), quantity(.dietaryFatTotal), HKObjectType.workoutType(),
+         HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!, HKObjectType.categoryType(forIdentifier: .menstrualFlow)!,
+         quantity(.restingHeartRate), quantity(.heartRateVariabilitySDNN), quantity(.bodyFatPercentage), quantity(.leanBodyMass)]
     }
 
     /// Asks iOS for read access, one type at a time in its own sheet. Declined types look like "no data".
@@ -43,7 +45,21 @@ enum AppleHealth {
             for (d, v) in await sums(.dietaryFatTotal, .gram(), start, end) { edit(d) { $0.fatG = Int(v.rounded()) } }
         }
         if topics.contains(.weight) {
-            for (d, v) in await latestWeights(start, end) { edit(d) { $0.weightKg = v } }
+            for (d, v) in await latest(.bodyMass, .gramUnit(with: .kilo), start, end) { edit(d) { $0.weightKg = v } }
+        }
+        if topics.contains(.body) {
+            for (d, v) in await latest(.bodyFatPercentage, .percent(), start, end) where v > 0 { edit(d) { $0.bodyFatPercent = v * 100 } }
+            for (d, v) in await latest(.leanBodyMass, .gramUnit(with: .kilo), start, end) { edit(d) { $0.leanKg = v } }
+        }
+        if topics.contains(.recovery) {
+            for (d, v) in await averages(.restingHeartRate, HKUnit.count().unitDivided(by: .minute()), start, end) { edit(d) { $0.restingHR = Int(v.rounded()) } }
+            for (d, v) in await averages(.heartRateVariabilitySDNN, .secondUnit(with: .milli), start, end) { edit(d) { $0.hrv = Int(v.rounded()) } }
+        }
+        if topics.contains(.sleep) {
+            for (d, m) in await sleepMinutes(start, end) { edit(d) { $0.sleepMinutes = m } }
+        }
+        if topics.contains(.cycle) {
+            for d in await periodDays(start, end) { edit(d) { $0.periodDay = true } }
         }
         if topics.contains(.workouts) {
             for (d, m) in await strengthMinutes(start, end) { edit(d) { $0.strengthMinutes = m } }
@@ -73,18 +89,87 @@ enum AppleHealth {
         }
     }
 
-    /// The last weigh-in of each day, in kg.
-    private static func latestWeights(_ start: Date, _ end: Date) async -> [Date: Double] {
+    /// The last reading of each day of a quantity (weight, body fat, lean mass).
+    private static func latest(_ id: HKQuantityTypeIdentifier, _ unit: HKUnit, _ start: Date, _ end: Date) async -> [Date: Double] {
         let cal = Calendar.current
         let from = cal.startOfDay(for: start)
         let to = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: end))!
         return await withCheckedContinuation { cont in
-            let q = HKSampleQuery(sampleType: quantity(.bodyMass), predicate: HKQuery.predicateForSamples(withStart: from, end: to),
+            let q = HKSampleQuery(sampleType: quantity(id), predicate: HKQuery.predicateForSamples(withStart: from, end: to),
                                   limit: HKObjectQueryNoLimit, sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: true)]) { _, samples, _ in
                 var out: [Date: Double] = [:]
                 for s in (samples as? [HKQuantitySample]) ?? [] {
-                    out[cal.startOfDay(for: s.endDate)] = s.quantity.doubleValue(for: .gramUnit(with: .kilo))     // ascending: the last one wins
+                    out[cal.startOfDay(for: s.endDate)] = s.quantity.doubleValue(for: unit)     // ascending: the last one wins
                 }
+                cont.resume(returning: out)
+            }
+            store.execute(q)
+        }
+    }
+
+    /// Daily averages of a quantity (resting heart rate, HRV).
+    private static func averages(_ id: HKQuantityTypeIdentifier, _ unit: HKUnit, _ start: Date, _ end: Date) async -> [Date: Double] {
+        let cal = Calendar.current
+        let from = cal.startOfDay(for: start)
+        let to = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: end))!
+        return await withCheckedContinuation { cont in
+            let q = HKStatisticsCollectionQuery(quantityType: quantity(id), quantitySamplePredicate: HKQuery.predicateForSamples(withStart: from, end: to),
+                                                options: .discreteAverage, anchorDate: from, intervalComponents: DateComponents(day: 1))
+            q.initialResultsHandler = { _, results, _ in
+                var out: [Date: Double] = [:]
+                results?.enumerateStatistics(from: from, to: to) { s, _ in
+                    if let v = s.averageQuantity()?.doubleValue(for: unit), v > 0 { out[s.startDate] = v }
+                }
+                cont.resume(returning: out)
+            }
+            store.execute(q)
+        }
+    }
+
+    /// Minutes asleep for each day (credited to the day the sleep ended). Overlapping records from a watch and a
+    /// phone are merged, so the same night isn't counted twice. Time in bed and awake time don't count.
+    private static func sleepMinutes(_ start: Date, _ end: Date) async -> [Date: Int] {
+        let cal = Calendar.current
+        let from = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: start))!
+        let to = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: end))!
+        let asleep: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue, HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                                HKCategoryValueSleepAnalysis.asleepDeep.rawValue, HKCategoryValueSleepAnalysis.asleepREM.rawValue]
+        return await withCheckedContinuation { cont in
+            let q = HKSampleQuery(sampleType: HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
+                                  predicate: HKQuery.predicateForSamples(withStart: from, end: to), limit: HKObjectQueryNoLimit,
+                                  sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, _ in
+                var byDay: [Date: [(Date, Date)]] = [:]
+                for s in (samples as? [HKCategorySample]) ?? [] where asleep.contains(s.value) {
+                    byDay[cal.startOfDay(for: s.endDate), default: []].append((s.startDate, s.endDate))
+                }
+                var out: [Date: Int] = [:]
+                for (day, spans) in byDay {
+                    var total: TimeInterval = 0
+                    var cur: (Date, Date)?
+                    for sp in spans.sorted(by: { $0.0 < $1.0 }) {
+                        if let c = cur, sp.0 <= c.1 { cur = (c.0, max(c.1, sp.1)) }
+                        else { if let c = cur { total += c.1.timeIntervalSince(c.0) }; cur = sp }
+                    }
+                    if let c = cur { total += c.1.timeIntervalSince(c.0) }
+                    let m = Int((total / 60).rounded())
+                    if m > 0 { out[day] = m }
+                }
+                cont.resume(returning: out)
+            }
+            store.execute(q)
+        }
+    }
+
+    /// Days Health has menstrual flow recorded (light, medium, heavy or unspecified; "none" doesn't count).
+    private static func periodDays(_ start: Date, _ end: Date) async -> Set<Date> {
+        let cal = Calendar.current
+        let from = cal.startOfDay(for: start)
+        let to = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: end))!
+        return await withCheckedContinuation { cont in
+            let q = HKSampleQuery(sampleType: HKObjectType.categoryType(forIdentifier: .menstrualFlow)!,
+                                  predicate: HKQuery.predicateForSamples(withStart: from, end: to), limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
+                var out = Set<Date>()
+                for s in (samples as? [HKCategorySample]) ?? [] where (1...4).contains(s.value) { out.insert(cal.startOfDay(for: s.startDate)) }
                 cont.resume(returning: out)
             }
             store.execute(q)
@@ -118,7 +203,7 @@ enum HealthSettings {
     static let connected = "healthConnected"
     static let lastSync = "healthLastSync"
     static func key(_ t: HealthTopic) -> String { "health.\(t.rawValue)" }
-    static func isOn(_ t: HealthTopic, _ d: UserDefaults = .standard) -> Bool { d.object(forKey: key(t)) as? Bool ?? true }
+    static func isOn(_ t: HealthTopic, _ d: UserDefaults = .standard) -> Bool { d.object(forKey: key(t)) as? Bool ?? t.defaultOn }
     static func topics(_ d: UserDefaults = .standard) -> Set<HealthTopic> { Set(HealthTopic.allCases.filter { isOn($0, d) }) }
 }
 
@@ -137,7 +222,8 @@ enum HealthSync {
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
         let start = cal.date(byAdding: .day, value: -(days - 1), to: today)!
-        let topics = HealthSettings.topics(d)
+        var topics = HealthSettings.topics(d)
+        if !d.bool(forKey: SettingsKey.trackCycle) { topics.remove(.cycle) }      // cycle only when cycle tracking is on
         let fetched = await AppleHealth.days(from: start, to: today, topics: topics)
         apply(fetched, to: context, topics: topics, today: today, overwriteDay: overwriteDay)
         d.set(now.timeIntervalSince1970, forKey: HealthSettings.lastSync)
@@ -163,7 +249,16 @@ enum HealthSync {
             let changed = HealthMerge.merge(h, into: &values, imported: &imported, overridden: &overridden, enabled: enabled, overwriting: overwrite)
             var workout = false
             if topics.contains(.workouts), let m = h.strengthMinutes, log.healthWorkoutMinutes != m { log.healthWorkoutMinutes = m; workout = true }
-            guard changed || workout else { continue }
+            var derived = false
+            func setIf<T: Equatable>(_ on: Bool, _ new: T?, _ cur: T?, _ assign: (T?) -> Void) {
+                if on, let new, new != cur { assign(new); derived = true }
+            }
+            setIf(topics.contains(.sleep), h.sleepMinutes, log.healthSleepMinutes) { log.healthSleepMinutes = $0 }
+            setIf(topics.contains(.recovery), h.restingHR, log.healthRestingHR) { log.healthRestingHR = $0 }
+            setIf(topics.contains(.recovery), h.hrv, log.healthHRV) { log.healthHRV = $0 }
+            setIf(topics.contains(.body), h.bodyFatPercent, log.healthBodyFat) { log.healthBodyFat = $0 }
+            setIf(topics.contains(.body), h.leanKg, log.healthLeanKg) { log.healthLeanKg = $0 }
+            guard changed || workout || derived else { continue }
             log.healthValues = values
             log.imported = imported
             log.overridden = overridden

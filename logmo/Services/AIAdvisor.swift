@@ -49,6 +49,9 @@ enum AIAdvisor {
                 + Rating.allCases.compactMap { r in s.ratingAverages[r.rawValue].map { "\(r.rawValue) \(g($0))" } }.joined(separator: ", ")
                 + "; logged on \(s.ratingDays) days; recovery reading: \(a.recovery); confidence: \(a.confidence.recovery.title)",
         ]
+        if let hr = s.avgRestingHR { l.append("resting heart rate bpm: average \(hr)" + (s.restingHRChange.map { String(format: ", change %+.0f on the week before", $0) } ?? "")) }
+        if let h = s.avgHRV { l.append("hrv ms: average \(h)" + (s.hrvChangePercent.map { String(format: ", change %+.0f%% on the week before", $0) } ?? "")) }
+        if let m = s.avgSleepMinutes { l.append(String(format: "sleep recorded by Health: %.1f hours on average over %d nights", Double(m) / 60, s.sleepNights)) }
         if let p = s.periodDays { l.append("period days: \(p)") }
         if let k = s.sickDays { l.append("sick days: \(k)") }
         if !a.cautions.isEmpty { l.append("cautions found by the app: " + a.cautions.joined(separator: " ")) }

@@ -24,6 +24,7 @@ struct BackupFile: Codable, Equatable {
         var calories, proteinG, fatG, carbsG, waterMl, steps: Int?
         var sleep, fatigue, stress, hunger, performance, appetite, soreness: Int?
         var performanceNA: Bool; var onPeriod: Bool?; var isSick: Bool?; var importedFields, overriddenFields: String?
+        var healthSleepMinutes, healthRestingHR, healthHRV: Int?; var healthBodyFat, healthLeanKg: Double?
     }
     struct GoalRecord: Codable, Equatable {
         var id: UUID; var campaignID: UUID?; var weekStart: Date; var updatedAt: Date
@@ -47,7 +48,9 @@ enum Backup {
                   calories: $0.calories, proteinG: $0.proteinG, fatG: $0.fatG, carbsG: $0.carbsG, waterMl: $0.waterMl, steps: $0.steps,
                   sleep: $0.sleep, fatigue: $0.fatigue, stress: $0.stress, hunger: $0.hunger, performance: $0.performance,
                   appetite: $0.appetite, soreness: $0.soreness, performanceNA: $0.performanceNA, onPeriod: $0.onPeriod, isSick: $0.isSick,
-                  importedFields: $0.importedFields, overriddenFields: $0.overriddenFields)
+                  importedFields: $0.importedFields, overriddenFields: $0.overriddenFields,
+                  healthSleepMinutes: $0.healthSleepMinutes, healthRestingHR: $0.healthRestingHR, healthHRV: $0.healthHRV,
+                  healthBodyFat: $0.healthBodyFat, healthLeanKg: $0.healthLeanKg)
         }
         f.goals = try context.fetch(FetchDescriptor<WeekGoal>(sortBy: [SortDescriptor(\.weekStart)])).map {
             .init(id: $0.id, campaignID: $0.campaignID, weekStart: $0.weekStart, updatedAt: $0.updatedAt,
@@ -90,6 +93,8 @@ enum Backup {
             l.performance = r.performance; l.appetite = r.appetite; l.soreness = r.soreness
             l.performanceNA = r.performanceNA; l.onPeriod = r.onPeriod; l.isSick = r.isSick
             l.importedFields = r.importedFields ?? ""; l.overriddenFields = r.overriddenFields ?? ""
+            l.healthSleepMinutes = r.healthSleepMinutes; l.healthRestingHR = r.healthRestingHR; l.healthHRV = r.healthHRV
+            l.healthBodyFat = r.healthBodyFat; l.healthLeanKg = r.healthLeanKg
             context.insert(l)
         }
         for r in f.goals {
