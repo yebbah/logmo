@@ -25,8 +25,12 @@ targets:
           UIColorName: LaunchBackground
         # Landscape is allowed only so a chart can open full screen; AppDelegate keeps everything else portrait.
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
-        # Added when Apple Health lands:
-        # NSHealthShareUsageDescription: "Read weight, water and nutrition to save you typing."
+        NSHealthShareUsageDescription: "logmo reads your weight, steps, water, food and strength workouts from Apple Health so you don't have to type them. It never writes to Health, and nothing leaves your iPhone."
+    entitlements:
+      path: logmo/logmo.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yebbah.logmo

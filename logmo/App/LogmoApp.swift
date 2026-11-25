@@ -65,6 +65,7 @@ struct RootView: View {
                 case "about": NavigationStack { Form { AboutSection().listRowBackground(theme.card) }.scrollContentBackground(.hidden).background(theme.bg).navigationTitle("Settings") }
                 case "campaigndetail": DebugCampaignDetail().environment(AppNavigation())
                 case "plan": DebugPlan()
+                case "health": NavigationStack { HealthSettingsView() }
                 case "suggest": DebugSuggest()
                 default: CampaignsView().environment(AppNavigation())
                 }
@@ -88,10 +89,16 @@ struct RootView: View {
                     .onTapGesture { skipLanding() }             // tap to skip
             }
         }
-        .onChange(of: scenePhase) { _, _ in Task { await DailyReminder.refresh(context) } }   // today's goals may have changed
+        .onChange(of: scenePhase) { _, phase in
+            Task {
+                if phase == .active { await HealthSync.sync(context) }          // refresh from Health whenever the app comes forward
+                await DailyReminder.refresh(context)                              // today's goals may have changed
+            }
+        }
         .task {
             try? await Task.sleep(for: .milliseconds(300))      // let the landing paint first
             showTabs = true
+            await HealthSync.sync(context)                                         // and once at start-up
             try? await Task.sleep(for: .milliseconds(2700))     // three seconds in all
             skipLanding()
         }

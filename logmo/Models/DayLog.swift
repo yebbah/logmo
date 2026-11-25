@@ -71,6 +71,10 @@ final class DayLog {
     var performanceNA: Bool = false       // training performance answered "n/a": not a lifting day
     var onPeriod: Bool?                   // "on your period today?" nil = not answered; only asked if cycle tracking is on
     var isSick: Bool?                     // "are you sick today?" nil = not answered; only asked if sick tracking is on
+    var importedFields: String = ""       // fields currently holding a value from Apple Health (HealthField names)
+    var overriddenFields: String = ""     // Health fields the user typed over: Health no longer touches them
+    var healthWorkoutMinutes: Int?        // minutes of strength training Health recorded that day
+    var healthPromptDismissed: Bool = false   // the "rate today's training?" question was answered
 
     init(day: Date) {
         self.day = Calendar.current.startOfDay(for: day)
@@ -129,6 +133,20 @@ final class DayLog {
         return DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers,
                            complete: completeTrackers, calories: calories, proteinG: proteinG,
                            carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA, onPeriod: onPeriod == true, isSick: isSick == true)
+    }
+
+    var healthValues: HealthFieldValues {
+        get { HealthFieldValues(weightKg: weightKg, calories: calories, proteinG: proteinG, carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps) }
+        set { weightKg = newValue.weightKg; calories = newValue.calories; proteinG = newValue.proteinG; carbsG = newValue.carbsG
+              fatG = newValue.fatG; waterMl = newValue.waterMl; steps = newValue.steps }
+    }
+    var imported: Set<HealthField> {
+        get { HealthMerge.decode(importedFields) }
+        set { importedFields = HealthMerge.encode(newValue) }
+    }
+    var overridden: Set<HealthField> {
+        get { HealthMerge.decode(overriddenFields) }
+        set { overriddenFields = HealthMerge.encode(newValue) }
     }
 
     var exportRow: ExportRow {

@@ -22,6 +22,19 @@ struct DayDraft: Equatable {
 
     init() {}
 
+    /// The text shown for a field Health can fill.
+    func text(for f: HealthField) -> String {
+        switch f {
+        case .weight: weight
+        case .calories: calories
+        case .protein: protein
+        case .carbs: carbs
+        case .fat: fat
+        case .water: water
+        case .steps: steps
+        }
+    }
+
     init(_ log: DayLog?, unit: WeightUnit) {
         guard let log else { return }
         if let w = log.weightKg { weight = String(format: "%.1f", unit.fromKg(w)) }
@@ -38,6 +51,7 @@ struct DayDraft: Equatable {
     }
 
     func apply(to log: DayLog, unit: WeightUnit) {
+        let before = log.healthValues
         let w = Double(weight.replacingOccurrences(of: ",", with: "."))
         let newKg = w.map(unit.toKg)
         // Don't relabel an unchanged value (e.g. from Health) as manual.
@@ -55,6 +69,9 @@ struct DayDraft: Equatable {
         log.performanceNA = performanceNA
         log.onPeriod = onPeriod
         log.isSick = isSick
+        var imp = log.imported, over = log.overridden                       // a Health value the user changed or cleared is now theirs
+        HealthMerge.markEdits(old: before, new: log.healthValues, imported: &imp, overridden: &over)
+        log.imported = imp; log.overridden = over
         log.updatedAt = Date()
     }
 }
@@ -67,6 +84,9 @@ struct LogView: View {
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
     @AppStorage(SettingsKey.trackSick) private var trackSick = false
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
+    @AppStorage(HealthSettings.connected) private var healthConnected = false
+    @State private var syncing = false
+    @State private var lastSyncShown: Date? = HealthSync.lastSync
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
@@ -162,6 +182,7 @@ struct LogView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             Form {
                 Section {
                     HStack {
@@ -183,24 +204,26 @@ struct LogView: View {
                 }
                 .listRowBackground(theme.card)
 
+                healthSections(proxy)
+
                 completenessStrip
 
                 if showTop {
                     Section("Weight") {
-                        field("Weight (\(unit.rawValue))", $draft.weight, "—", decimal: true)
+                        field("Weight (\(unit.rawValue))", $draft.weight, "—", decimal: true, health: .weight)
                     }
                     .listRowBackground(theme.card)
 
                     Section("Food") {
-                        field("Calories (kcal)", $draft.calories, "—")
-                        field("Protein (g)", $draft.protein, hint(goals?.proteinDaily))
-                        field("Carbs (g)", $draft.carbs, hint(goals?.carbsDaily, word: "guide"))
-                        field("Fat (g)", $draft.fat, hint(goals?.fatDaily, word: "guide"))
+                        field("Calories (kcal)", $draft.calories, "—", health: .calories)
+                        field("Protein (g)", $draft.protein, hint(goals?.proteinDaily), health: .protein)
+                        field("Carbs (g)", $draft.carbs, hint(goals?.carbsDaily, word: "guide"), health: .carbs)
+                        field("Fat (g)", $draft.fat, hint(goals?.fatDaily, word: "guide"), health: .fat)
                     }
                     .listRowBackground(theme.card)
 
                     Section("Water") {
-                        field("Total (ml)", $draft.water, hint(goals?.waterDailyMl))
+                        field("Total (ml)", $draft.water, hint(goals?.waterDailyMl), health: .water)
                         HStack {
                             ForEach([250, 500, 750, 1000], id: \.self) { ml in
                                 Button("+\(ml)") { addWater(ml) }
@@ -212,7 +235,7 @@ struct LogView: View {
 
                     Section("Activity") {
                         // The steps hint only applies when the goal is a daily total, not a weekly average.
-                        field("Steps", $draft.steps, hint(goals?.dailyStepsGoal))
+                        field("Steps", $draft.steps, hint(goals?.dailyStepsGoal), health: .steps)
                     }
                     .listRowBackground(theme.card)
 
@@ -247,6 +270,7 @@ struct LogView: View {
                 }
 
                 Section("Check-in (1–5, tap again to clear)") {
+                    Color.clear.frame(height: 0).id("checkin").listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     // Training performance comes last: it is the one that can be "not a lifting day".
                     ForEach(checkInOrder) { r in
                         RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r],
@@ -277,7 +301,8 @@ struct LogView: View {
                 }
             }
             .sheet(isPresented: $showPicker) { datePickerSheet }
-            .onAppear { load(date) }
+            .onAppear { load(date); syncHealth() }
+            .onChange(of: existing(date)?.updatedAt) { _, _ in if draft == baseline { load(date) } }     // a Health update arrived while viewing
             .onChange(of: date) { old, new in save(day: old); load(new) }
             .onChange(of: scenePhase) { _, phase in if phase != .active { save() } }
             .onDisappear { save() }
@@ -286,6 +311,7 @@ struct LogView: View {
                 guard draft != baseline else { return }
                 try? await Task.sleep(for: .milliseconds(600))
                 if !Task.isCancelled { save() }
+            }
             }
         }
     }
@@ -327,10 +353,112 @@ struct LogView: View {
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 
-    private func field(_ title: String, _ text: Binding<String>, _ placeholder: String, decimal: Bool = false) -> some View {
-        LabeledContent(title) {
+    private func field(_ title: String, _ text: Binding<String>, _ placeholder: String, decimal: Bool = false, health: HealthField? = nil) -> some View {
+        LabeledContent {
             TextField(placeholder, text: text)
                 .keyboardType(decimal ? .decimalPad : .numberPad).multilineTextAlignment(.trailing)
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                if let f = health { sourceTag(f) }
+            }
+        }
+    }
+
+    // MARK: Apple Health
+
+    enum FieldSource { case typed, health, edited }
+
+    /// Where a field's value comes from: Health, Health's value the user typed over, or typed.
+    private func healthSource(_ f: HealthField) -> FieldSource {
+        guard let log = existing(date) else { return .typed }
+        if log.overridden.contains(f) { return .edited }
+        if log.imported.contains(f) { return draft.text(for: f) == baseline.text(for: f) ? .health : .edited }
+        return .typed
+    }
+
+    @ViewBuilder private func sourceTag(_ f: HealthField) -> some View {
+        switch healthSource(f) {
+        case .typed: EmptyView()
+        case .health:
+            Label("Health", systemImage: "heart.fill").font(.caption2.weight(.semibold)).foregroundStyle(Color.pink)
+                .labelStyle(.titleAndIcon)
+        case .edited:
+            HStack(spacing: 6) {
+                Text("Edited by you").font(.caption2.weight(.semibold)).foregroundStyle(theme.accent)
+                if healthConnected { Button("Use Health's") { useHealths(f) }.font(.caption2.weight(.semibold)).buttonStyle(.borderless) }
+            }
+        }
+    }
+
+    /// Hand a field back to Health: clear the typed value and let the next sync fill it.
+    private func useHealths(_ f: HealthField) {
+        save()
+        guard let log = existing(date) else { return }
+        var over = log.overridden; over.remove(f); log.overridden = over
+        var imp = log.imported; imp.remove(f); log.imported = imp
+        var v = log.healthValues; v.clear(f); log.healthValues = v
+        log.updatedAt = Date()
+        try? context.save()
+        load(date)
+        syncHealth(force: true)
+    }
+
+    private func syncHealth(force: Bool = false) {
+        guard healthConnected, !syncing else { return }
+        syncing = true
+        Task {
+            await HealthSync.sync(context, force: force)
+            lastSyncShown = HealthSync.lastSync
+            syncing = false
+            if draft == baseline { load(date) }
+        }
+    }
+
+    @ViewBuilder private func healthSections(_ proxy: ScrollViewProxy) -> some View {
+        if healthConnected {
+            Section {
+                HStack(spacing: 8) {
+                    Image(systemName: "heart.fill").foregroundStyle(Color.pink)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Apple Health").font(.subheadline.weight(.semibold))
+                        Text(lastSyncShown.map { "Updated \($0.formatted(date: .omitted, time: .shortened))" } ?? "Not updated yet")
+                            .font(.caption).foregroundStyle(theme.muted)
+                    }
+                    Spacer()
+                    Button { syncHealth(force: true) } label: {
+                        if syncing { ProgressView() } else { Label("Sync", systemImage: "arrow.triangle.2.circlepath") }
+                    }
+                    .buttonStyle(.bordered).disabled(syncing)
+                }
+            }
+            .listRowBackground(theme.card)
+        }
+        if let log = existing(date), let minutes = log.healthWorkoutMinutes, !log.healthPromptDismissed,
+           draft.ratings[.performance] == nil, !draft.performanceNA {
+            Section {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "heart.fill").foregroundStyle(Color.pink)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Health recorded a strength workout").font(.subheadline.weight(.semibold))
+                            Text("\(minutes) minutes. Rate this day's training performance?").font(.caption).foregroundStyle(theme.muted)
+                        }
+                    }
+                    HStack(spacing: 10) {
+                        Button("Not a lifting day") {
+                            draft.performanceNA = true; draft.ratings[.performance] = nil
+                            log.healthPromptDismissed = true; try? context.save()
+                        }.buttonStyle(.bordered).frame(maxWidth: .infinity)
+                        Button("Rate it") {
+                            log.healthPromptDismissed = true; try? context.save()
+                            withAnimation { proxy.scrollTo("checkin", anchor: .top) }
+                        }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .listRowBackground(theme.card)
         }
     }
 

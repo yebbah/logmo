@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 14.0
+version: 15.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v14.0)
+# logmo: Product Requirements (v15.0)
 
 ## Vision and outcome
 
@@ -188,6 +188,16 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 - **How.** iOS can't decide at delivery time, so the app schedules one notification a day for the next seven days and re-plans whenever a log is saved, the app opens or leaves the foreground, or the switch or time changes. When today's goals are met, today's notification is cancelled; tomorrow's stays. Days the app isn't opened still get their reminder, which is the point.
 - **Content.** "Time to log: You haven't finished today's goals in logmo yet." Nothing from the user's logs. Turning the switch off cancels all of them. The switch and time are in the full backup.
 
+**FR-25. Apple Health (read only).** Settings → Connections → **Apple Health** opens a screen to connect and choose what to bring in. logmo only **reads** from Health and never writes to it; everything stays on the phone.
+- **Connect.** A **Connect Apple Health** button asks iOS for read access; iOS asks one type at a time. A type the user declines looks the same as no data, so the screen says where to check (Health → Sharing → Apps → logmo) and offers **Open Health settings**. **Disconnect** stops updates and leaves imported values in the logs.
+- **What comes in (first release).** Each can be switched on or off: **Weight** (the day's last body-mass reading), **Steps** (the day's total), **Water**, **Food** (calories, protein, carbs, fat; needs a nutrition app that writes to Health), and **Strength workouts** (traditional or functional strength training). Sleep, cycle, heart rate and HRV, and body composition are listed as planned, not built.
+- **When it updates.** On app start, whenever the app comes to the foreground, when the Log screen opens, with **Update now** in Settings, and with a **Sync** button on the Log screen showing when it last updated. The last seven days are refreshed, so steps and food keep updating while the day is open.
+- **Typed values win.** A field is filled from Health only if it is empty or already holds a Health value. A value the user typed is never overwritten. If the user changes or clears a Health value it becomes theirs and Health stops touching it for that day; **Use Health's** on the field hands it back (clears it and fills it from Health).
+- **Never zero.** A reading of zero or no reading is not imported; a day with no Health data stays empty and no record is created for it. Future days are ignored.
+- **On the Log screen.** An imported field shows a small **Health** mark; an overridden one shows **Edited by you** and **Use Health's**. Imported values count for Still to log, goals, streaks, compliance, the daily reminder and the weekly suggestion exactly like typed ones (so the suggestion's logging coverage and confidence improve when Health fills gaps).
+- **Strength workouts ask, they don't guess.** When Health recorded a strength workout on a day with no training performance rating, the Log screen asks: **Rate it** (scrolls to the check-in) or **Not a lifting day** (marks training performance n/a). Nothing is rated automatically.
+- **Backup.** Which fields came from Health, and which the user typed over, are in the full backup; the values themselves are already in the logs.
+
 ## Extensibility (provisions, not features)
 
 - **Apple Health:** a `HealthSource` interface exists; each weight records its source (`manual` now). When Health is added, imports must not overwrite a manual value for the same day.
@@ -202,7 +212,7 @@ Social features, Android, accounts, push notifications from a server (the app on
 
 These were in the earlier draft and are deliberately deferred. Open questions are in the workbook analysis.
 
-1. **Apple Health integration:** read weight, water, nutrition, steps, workouts. Per-type authorization; denied read cannot be told apart from no data.
+1. **Apple Health, remaining types:** sleep hours (as a hint for the sleep rating), menstrual flow, resting heart rate and HRV (recovery signals for the weekly suggestion), body fat and lean mass. (Weight, steps, water, nutrition and strength workouts are built, FR-25.)
 2. **Cloud sync:** CloudKit or another backend, last-write-wins on `updatedAt`.
 3. **Workbook import:** historical entries, previewed before commit, matched by date (not by row position), with the workbook's broken references reported rather than reproduced.
 4. **Nutrition integration:** MyFitnessPal API access is currently closed to new requests; Apple Health nutrition and manual entry are the fallback. No scraping.
@@ -212,7 +222,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 
 ## Quality and privacy
 
-- Weight, nutrition and menstrual-related data is sensitive; do not log it. The only permission the app asks for is notifications, and only when the user turns on a reminder. Apple Intelligence suggestions run on the device (FR-23).
+- Weight, nutrition and menstrual-related data is sensitive; do not log it. The permissions the app asks for are notifications (only when the user turns on a reminder) and read access to Apple Health (only when the user connects it). Apple Intelligence suggestions run on the device (FR-23).
 - Streak, goal, compliance and trend calculations are unit-tested, including missing days, a day not yet logged, goals exactly at the limit, finished weeks with an unlogged day, week boundaries, and no-data cases.
 - Calculations never substitute a plausible value for missing data: no trend without a weigh-in, no 7-day change without 7 days of history, and a week with an unlogged day is never "met".
 
@@ -312,3 +322,9 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D90 | Low calorie targets are judged by a threshold (1,500) and by deficit from estimated maintenance (25%), not only the 1,200 hard floor, and are never lowered further | Decided |
 | D91 | The model's note must pass a check for unknown numbers and safety or medical claims, or it is dropped | Decided |
 | D92 | Weight change for the suggestion is a slope over up to 21 days rather than the smoothed trend, with scatter measured (supersedes D83's one-week window) | Decided |
+| D93 | Apple Health is read-only; logmo never writes to it | Decided |
+| D94 | Typed values always win over imported ones; a Health value the user changes or clears becomes theirs for that day | Decided: the user asked |
+| D95 | Imported steps and food keep updating while the day is open (last seven days refreshed); the user can also sync by button | Decided: the user asked |
+| D96 | A zero or missing reading is never imported, and no record is created for a day with nothing from Health | Decided: matches the rule that missing is not zero |
+| D97 | A strength workout in Health prompts a question about training performance; it is never rated automatically | Decided |
+| D98 | Health imports are on a per-type switch; sleep, cycle, heart rate and HRV, and body composition are left for later | Decided |

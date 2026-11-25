@@ -23,7 +23,7 @@ struct BackupFile: Codable, Equatable {
         var weightKg: Double?; var weightSource: String
         var calories, proteinG, fatG, carbsG, waterMl, steps: Int?
         var sleep, fatigue, stress, hunger, performance, appetite, soreness: Int?
-        var performanceNA: Bool; var onPeriod: Bool?; var isSick: Bool?
+        var performanceNA: Bool; var onPeriod: Bool?; var isSick: Bool?; var importedFields, overriddenFields: String?
     }
     struct GoalRecord: Codable, Equatable {
         var id: UUID; var campaignID: UUID?; var weekStart: Date; var updatedAt: Date
@@ -46,7 +46,8 @@ enum Backup {
             .init(id: $0.id, day: $0.day, updatedAt: $0.updatedAt, weightKg: $0.weightKg, weightSource: $0.weightSource,
                   calories: $0.calories, proteinG: $0.proteinG, fatG: $0.fatG, carbsG: $0.carbsG, waterMl: $0.waterMl, steps: $0.steps,
                   sleep: $0.sleep, fatigue: $0.fatigue, stress: $0.stress, hunger: $0.hunger, performance: $0.performance,
-                  appetite: $0.appetite, soreness: $0.soreness, performanceNA: $0.performanceNA, onPeriod: $0.onPeriod, isSick: $0.isSick)
+                  appetite: $0.appetite, soreness: $0.soreness, performanceNA: $0.performanceNA, onPeriod: $0.onPeriod, isSick: $0.isSick,
+                  importedFields: $0.importedFields, overriddenFields: $0.overriddenFields)
         }
         f.goals = try context.fetch(FetchDescriptor<WeekGoal>(sortBy: [SortDescriptor(\.weekStart)])).map {
             .init(id: $0.id, campaignID: $0.campaignID, weekStart: $0.weekStart, updatedAt: $0.updatedAt,
@@ -88,6 +89,7 @@ enum Backup {
             l.sleep = r.sleep; l.fatigue = r.fatigue; l.stress = r.stress; l.hunger = r.hunger
             l.performance = r.performance; l.appetite = r.appetite; l.soreness = r.soreness
             l.performanceNA = r.performanceNA; l.onPeriod = r.onPeriod; l.isSick = r.isSick
+            l.importedFields = r.importedFields ?? ""; l.overriddenFields = r.overriddenFields ?? ""
             context.insert(l)
         }
         for r in f.goals {

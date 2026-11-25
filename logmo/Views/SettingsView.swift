@@ -15,6 +15,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.reminderMinutes) private var reminderMinutes = Reminders.defaultMinutes
     @AppStorage(SettingsKey.dailyReminderOn) private var dailyOn = false
     @AppStorage(SettingsKey.dailyReminderMinutes) private var dailyMinutes = DailyReminderRules.defaultMinutes
+    @AppStorage(HealthSettings.connected) private var healthConnected = false
     @State private var reminderDenied = false
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
@@ -143,7 +144,11 @@ struct SettingsView: View {
                 .listRowBackground(theme.card)
 
                 Section("Connections") {
-                    LabeledContent("Apple Health", value: "Not yet available")
+                    NavigationLink {
+                        HealthSettingsView()
+                    } label: {
+                        LabeledContent("Apple Health", value: healthConnected ? "Connected" : "Off")
+                    }
                     LabeledContent("Cloud sync", value: "Not yet available")
                 }
                 .listRowBackground(theme.card)

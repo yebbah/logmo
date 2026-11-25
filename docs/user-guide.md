@@ -124,7 +124,23 @@ Choose what to look at with **Showing**: your current campaign, **Overall (all t
 - Change how smooth the trend line is in **Settings → Trend → Weight smoothing**.
 - Turn the biofeedback lines on or off with **Show biofeedback** on the chart.
 
-## 11. Backup, export and deleting
+## 11. Apple Health
+
+**Settings → Connections → Apple Health** brings in what you already track elsewhere, so you type less. logmo only **reads** from Health and never writes to it, and nothing leaves your iPhone.
+
+1. Tap **Connect Apple Health**. iOS asks which types logmo may read, one at a time.
+2. Choose what to bring in: **Weight**, **Steps**, **Water**, **Food** (calories and macros, if a nutrition app writes them to Health) and **Strength workouts**.
+
+- **Updates:** logmo updates when it opens, whenever you come back to it, and when you open the Log screen. Steps and food keep updating while the day is open. Tap **Sync** on the Log screen, or **Update now** in Settings, to do it right away.
+- **Health marks:** an imported value shows a small **Health** mark on the Log screen.
+- **Your typing wins:** if you change or clear an imported value, it becomes yours and Health leaves it alone for that day. Tap **Use Health's** to hand it back.
+- **Nothing is invented:** a zero or missing reading is never imported, and a day with no Health data stays empty.
+- **Strength workouts:** if Health recorded one and you haven't rated the day, logmo asks. **Rate it** takes you to the check-in; **Not a lifting day** marks training performance as n/a. It never rates for you.
+- **Missing something?** iOS lets you decline a type without telling logmo. Open **Health → Sharing → Apps → logmo** to check.
+
+Imported values count for everything else exactly like typed ones: Still to log, goals, streaks, compliance, reminders and the weekly suggestion.
+
+## 12. Backup, export and deleting
 
 **Settings → Backup**
 - **Save a full backup:** one file with all your logs, weekly goals, campaigns and settings. Keep it in Files or iCloud Drive. Do this regularly.
@@ -133,12 +149,12 @@ Choose what to look at with **Showing**: your current campaign, **Overall (all t
 
 **Delete all data** (bottom of Settings) removes every log, goal and campaign and starts fresh.
 
-## 12. Themes and units
+## 13. Themes and units
 
 - **Settings → Appearance → Theme:** Clean (light) or Midnight (dark).
 - **Settings → Units → Weight:** kilograms or pounds. Your data is stored in kg whichever you pick.
 
-## 13. Questions
+## 14. Questions
 
 **Is my data safe?** It's stored only on your iPhone. Nothing is uploaded and there's no account. Because of that, a lost or reset phone loses the data, so save a full backup now and then.
 
