@@ -70,6 +70,7 @@ struct GoalsEditor: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .keyboardDismissible()
         .background(theme.bg)
         .navigationTitle("Set a week")
         .navigationBarTitleDisplayMode(.inline)

@@ -72,6 +72,19 @@ enum Maintenance {
     static let calorieBlanksAllowed = 3              // of the last ten days
     static let plausible = 1000.0...6000.0
 
+    /// A plain average of the calories logged in the last seven days (days with nothing logged are skipped), so the smoothed figure
+    /// that maintenance is built from has something simple beside it.
+    static func sevenDayAverage(_ days: [DaySnapshot], through end: Date, calendar cal: Calendar = .current) -> Int? {
+        let end0 = cal.startOfDay(for: end)
+        let from = cal.date(byAdding: .day, value: -6, to: end0)!
+        let v = days.filter { cal.startOfDay(for: $0.date) >= from && cal.startOfDay(for: $0.date) <= end0 }.compactMap(\.calories)
+        return v.isEmpty ? nil : Int((Double(v.reduce(0, +)) / Double(v.count)).rounded())
+    }
+
+    /// Logged intake far below the goal usually means days are only partly logged, which makes maintenance come out too low.
+    static let lowIntakeShare = 0.70
+    static func intakeLooksIncomplete(intake: Int, goal: Int) -> Bool { goal > 0 && Double(intake) < lowIntakeShare * Double(goal) }
+
     /// Mifflin-St Jeor resting energy, times the activity factor.
     static func formulaEstimate(_ p: MaintenanceProfile, weightKg: Double) -> Int {
         let sexTerm: Double = p.sex == .male ? 5 : (p.sex == .female ? -161 : -78)

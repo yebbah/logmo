@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v18.0 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v18.1 and app version 1.0.0 (build 1).
 
 ---
 
@@ -48,6 +48,10 @@ Invariants the code keeps: every day belongs to exactly one campaign; there is a
 ### Settings storage
 
 User preferences live in `UserDefaults` (via `@AppStorage`), keys in `SettingsKey`: units, trend smoothing, required trackers, theme, cycle and sick tracking, biofeedback overlay, campaign filter, weekly and daily reminder switches and times, and a few dismissal markers. They are included in the full backup.
+
+### Keyboard
+
+`View.keyboardDismissible()` (in `Components.swift`) adds `scrollDismissesKeyboard(.interactively)` and a keyboard-toolbar Done button. Use it on any form that has a text or number field; number pads have no Return key and would otherwise be impossible to close.
 
 ### Estimated maintenance
 
@@ -106,7 +110,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (220 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (222 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 

@@ -320,6 +320,7 @@ struct CampaignDetail: View {
             #endif
         }
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(theme.bg)
         .navigationTitle("Campaign \(info.number)")
         .navigationBarTitleDisplayMode(.inline)
@@ -583,6 +584,7 @@ struct NewCampaignForm: View {
                 if let error { Text(error).foregroundStyle(theme.bad).listRowBackground(theme.card) }
             }
             .scrollContentBackground(.hidden)
+            .keyboardDismissible()
             .background(theme.bg)
             .navigationTitle("New campaign")
             .navigationBarTitleDisplayMode(.inline)

@@ -639,15 +639,27 @@ struct MaintenanceCard: View {
                      : (e.status == .updating ? "From your weight trend and what you eat." : "Held from earlier: recent weigh-ins or calorie logs are too few to move it."))
                     .font(.caption).foregroundStyle(theme.muted)
             }
+            let week = Maintenance.sevenDayAverage(snaps, through: scope.end)
             HStack(alignment: .top, spacing: 14) {
                 if let goal { stat("Goal", "\(goal.formatted())", sub: relation(goal, e.kcalPerDay)) }
-                if let eat = e.intakeKcal { stat("Eating", "\(eat.formatted())", sub: "smoothed") }
-                if e.source == .trend, let f = e.formulaKcal { stat("Formula", "\(f.formatted())", sub: "cross-check") }
+                if let week { stat("Eating", "\(week.formatted())", sub: "last 7 days") }
+                if let eat = e.intakeKcal { stat("Smoothed", "\(eat.formatted())", sub: "used for the estimate") }
+            }
+            if e.source == .trend, let f = e.formulaKcal {
+                Text("A formula from your height, age, sex and activity gives \(f.formatted()) as a cross-check.").font(.caption).foregroundStyle(theme.muted)
+            }
+            if let goal, let seen = week ?? e.intakeKcal, Maintenance.intakeLooksIncomplete(intake: seen, goal: goal) {
+                Label {
+                    Text("You've logged about \(Int((Double(seen) / Double(goal) * 100).rounded()))% of your goal (\(seen.formatted()) a day). If some days are only partly logged, maintenance is underestimated, because this is built from what you log.")
+                        .font(.caption)
+                } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(theme.warn) }
+                    .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(theme.warn.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
             }
             if e.series.compactMap(\.tdee).count >= 2 { chart(e, goal: goal) }
             weekly(e)
             Text(e.source == .trend
-                 ? "Weight is smoothed like the trend line, and the weekly change in it is turned into calories (about 1,100 a day for each kg a week) and taken off what you eat. It holds while weigh-ins or calorie logs are missing, and never treats a missing day as zero."
+                 ? "Eating is the plain average of the days you logged; the smoothed figure is what the estimate uses. Weight is smoothed like the trend line, and the weekly change in it is turned into calories (about 1,100 a day for each kg a week) and taken off what you eat. It holds while weigh-ins or calorie logs are missing, and never treats a missing day as zero."
                  : "A formula (Mifflin-St Jeor times your activity) is only a starting point.")
                 .font(.caption).foregroundStyle(theme.muted)
         }

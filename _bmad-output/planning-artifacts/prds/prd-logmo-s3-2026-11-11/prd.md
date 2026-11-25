@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 18.0
+version: 18.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v18.0)
+# logmo: Product Requirements (v18.1)
 
 ## Vision and outcome
 
@@ -50,6 +50,8 @@ Success means the user can log a full day in under a minute and see at a glance 
 Direction differs by category: higher is better for sleep and training performance, and higher means "more" for the rest. Values 2–4 are the steps between. All seven anchors are confirmed by the user (D6).
 
 **Saving is automatic**: changes are saved shortly after you stop typing, when you change the date or leave the screen, and when the app goes to the background. A "Saved" indicator shows the state; there is no Save button. Empty fields stay empty. A day with nothing entered is not saved: clearing every field of a day removes its record. Where a goal exists, the empty field shows it as a hint (for example "goal 140").
+
+**Keyboard.** The keyboard can always be put away. Every screen with a text or number field (Log, weekly goals, the new-campaign form, Settings → About you) closes the keyboard when the form is dragged down, and shows a **Done** button above it, because number pads have no Return key.
 
 **FR-2. Units.** The user chooses kg or lb. Weight is stored in kg, so switching units never alters data.
 
@@ -204,7 +206,7 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 - **When it updates.** On app start, whenever the app comes to the foreground, when the Log screen opens, with **Update now** in Settings, and with a **Sync** button on the Log screen showing when it last updated. The last seven days are refreshed, so steps and food keep updating while the day is open. **Older days:** opening or moving to an older day on the Log screen reads that day from Health too (and **Sync** reads and overwrites it), and **Import earlier days** in Settings reads the last 30 days, 3 months or a year. The first connection imports the last 30 days. **New types:** when a version starts reading another type of data, the app asks iOS about it once at the next update, so an existing connection picks it up without being switched off and on.
 - **The last action wins.** The automatic refreshes (on start, on coming forward, when the Log screen opens) fill a field only if it is empty or already holds a Health value, so they never overwrite what the user typed. If the user changes or clears a Health value it becomes theirs and those refreshes leave it alone for that day. Pressing **Sync** on the Log screen is an explicit action: it **overwrites the typed values of the day on screen** with Health's (for every field Health has a reading for), after saving any edit still being typed. Typing afterwards is later still, so it stands until the next press of Sync. **Update now** in Settings is a general refresh and does not overwrite typed values; **Use Health's** on a field hands back just that field.
 - **Never zero.** A reading of zero or no reading is not imported; a day with no Health data stays empty and no record is created for it. Future days are ignored.
-- **On the Log screen.** An imported field shows a small **Health** mark; an overridden one shows **Edited by you** and **Use Health's**. Imported values count for Still to log, goals, streaks, compliance, the daily reminder and the weekly suggestion exactly like typed ones (so the suggestion's logging coverage and confidence improve when Health fills gaps).
+- **On the Log screen.** An imported field shows a small **Health** mark on the **same line as its label** (a field that was overridden shows **Edited** and **Use Health's** there); on a very narrow row it moves underneath instead of squeezing the label. Imported values count for Still to log, goals, streaks, compliance, the daily reminder and the weekly suggestion exactly like typed ones (so the suggestion's logging coverage and confidence improve when Health fills gaps).
 - **Strength workouts ask, they don't guess.** When Health recorded a strength workout on a day with no training performance rating, the Log screen asks: **Rate it** (closes the question, scrolls to the Training performance row and tints it briefly) or **Not a lifting day** (marks training performance n/a). Nothing is rated automatically.
 - **Backup.** Which fields came from Health, and which the user typed over, are in the full backup; the values themselves are already in the logs.
 
@@ -212,7 +214,7 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 - **Method.** Weight is smoothed like the trend line. Calories eaten are averaged over the last 14 days with calories logged (a missing day is skipped, never zero) and smoothed with the same coefficient as the weight, carried over days with nothing logged. The weekly change in trend weight (today against seven days earlier) is turned into a daily energy gap at about 1,100 kcal per kg, and the estimate for the day is the smoothed intake minus that gap: losing weight means maintenance is above intake, gaining means below. The daily estimates are smoothed again and carried forward.
 - **When it moves.** It begins after ten days of history. It updates only while there were weigh-ins on at least five of the last ten days and calories on at least seven; otherwise it is **held** where it was and the card says so. (The workbook's own rule for these thresholds is not spelled out, so these are our reading of it.)
 - **Formula and "about you".** Settings → About you (optional): sex, age, height in cm and activity level. With them, a **formula estimate** (Mifflin-St Jeor times an activity factor of 1.2 to 1.9, at the latest trend weight) is shown while the logs haven't built an estimate yet, and beside the logs' estimate as a cross-check. The profile is stored only on the phone and is in the full backup. A plausible age (14 to 100) and height (120 to 230 cm) are needed.
-- **Dashboard card "Estimated maintenance"** (follows the campaign filter, up to the end of the period shown), laid out like the workbook: the estimate with its status (Updating, Holding, or Formula), the goal and how far it is below or above maintenance (kcal and %), what is being eaten (smoothed), the formula cross-check, a chart of the maintenance estimate over time against what is eaten and the calorie goal, and a weekly table (week of, goal, eaten, maintenance) for the last six weeks. With too little data it says what is needed instead.
+- **Dashboard card "Estimated maintenance"** (follows the campaign filter, up to the end of the period shown), laid out like the workbook: the estimate with its status (Updating, Holding, or Formula), the goal and how far it is below or above maintenance (kcal and %), what is being eaten as a **plain average of the last seven days logged** beside the **smoothed** figure the estimate actually uses (so the two aren't confused), the formula cross-check, a chart of the maintenance estimate over time against what is eaten and the calorie goal, and a weekly table (week of, goal, eaten, maintenance) for the last six weeks. With too little data it says what is needed instead. **Incomplete-logs warning:** when the logged intake (the seven-day average, or the smoothed figure if there is none) is under 70% of the calorie goal, the card says so and that maintenance is underestimated if some days are only partly logged, because it is built from what is logged.
 - **In the weekly suggestion.** The estimate replaces the earlier rough one. It is shown as evidence (with how the goal compares), passed to the model as a fact, and used two ways: (1) **sizing a calorie move**: when the estimate is from the logs and at least medium confidence, a change is sized by where the target would need to be for the campaign's aimed-at pace (the middle of its band) and never exceeds the weekly limit, with a minimum of 50; (2) **checking the direction**: if the estimate says the target already sits at or past that pace while the weight isn't moving as intended, the two disagree and the target is kept with a caution. The low-target rule also uses it: a target more than 25% below maintenance (from the logs, or from the formula) is flagged and never lowered further. If the estimate from the logs and the formula differ by more than 25%, a caution says logged intake or weigh-ins may be incomplete. The estimate is context for a person's own decision, not medical advice.
 
 ## Extensibility (provisions, not features)
@@ -361,3 +363,6 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D112 | The weigh-in and calorie thresholds for holding the estimate (5 of 10 days, 7 of 10) are our reading of the workbook's `Waiting` rule | Assumption |
 | D113 | A formula estimate from an optional profile fills in until the logs build one and cross-checks it afterwards; it is never presented as the user's measured maintenance | Decided |
 | D114 | The estimate sizes and sanity-checks a calorie move but never lifts the weekly limit, and a disagreement between it and the scale keeps the target | Decided: safety |
+| D115 | The maintenance card shows the plain seven-day average of what is logged next to the smoothed figure used for the estimate | Decided: the smoothed number alone was easy to misread |
+| D116 | Logged intake under 70% of the goal triggers a warning that logs may be incomplete and maintenance underestimated | Decided: the estimate trusts the logs, so it fails low when logging is partial |
+| D117 | Every form with a text or number field has drag-to-dismiss and a Done button above the keyboard | Decided: fixes the keyboard that could not be closed |

@@ -36,7 +36,7 @@ Open the **Log** tab. The date at the top shows today; tap it to pick another da
 - **Check-in:** seven ratings from 1 to 5: sleep, fatigue, stress, hunger, training performance, appetite and soreness. Under each you see what 1 and 5 mean. Tap a rating again to clear it. For **training performance**, tap **n/a** on a rest day.
 - **Cycle** (only if you turn it on) and **Health** (only if you turn it on): see section 9.
 
-Everything saves by itself; the top right shows **Saved**. A day with nothing entered isn't a record.
+Everything saves by itself; the top right shows **Saved**. To put the keyboard away, tap **Done** above it or drag the screen down. A day with nothing entered isn't a record.
 
 **Still to log:** under the date, a row of icons shows the trackers you've chosen as required (scale, fork and knife, drop, walking figure, checklist). An icon turns green with a tick when that tracker is complete. Food needs all four numbers; the check-in needs all seven ratings.
 
@@ -132,7 +132,7 @@ Choose what to look at with **Showing**: your current campaign, **Overall (all t
 2. Choose what to bring in: **Weight**, **Steps**, **Water**, **Food** (calories and macros, if a nutrition app writes them to Health), **Strength workouts**, **Sleep hours**, **Cycle**, **Resting heart rate and HRV**, and **Body fat and lean mass**. Cycle starts off and only works if "Track my menstrual cycle" is on.
 
 - **Updates:** logmo updates when it opens, whenever you come back to it, and when you open the Log screen. It reads the last week by itself, and any older day you open on the Log screen. **Import earlier days** in the Apple Health settings reads the last 30 days, 3 months or a year. When logmo starts reading a new type of data, iOS asks you once. Steps and food keep updating while the day is open. Tap **Sync** on the Log screen, or **Update now** in Settings, to do it right away.
-- **Health marks:** an imported value shows a small **Health** mark on the Log screen.
+- **Health marks:** an imported value shows a small **Health** mark beside its label on the Log screen.
 - **The last action wins:** the automatic updates never overwrite what you typed, and if you change or clear an imported value, Health leaves it alone for that day. Pressing **Sync** on the Log screen is different: it replaces what you typed on the day you're viewing with Health's values. Type something afterwards and yours stands until you press Sync again. **Use Health's** under a field hands back just that field.
 - **Nothing is invented:** a zero or missing reading is never imported, and a day with no Health data stays empty.
 - **Strength workouts:** if Health recorded one and you haven't rated the day, logmo asks. **Rate it** takes you to the Training performance row; **Not a lifting day** marks training performance as n/a. It never rates for you.
@@ -148,7 +148,8 @@ Imported values count for everything else exactly like typed ones: Still to log,
 
 The **Estimated maintenance** card on the Dashboard shows roughly how many calories hold your weight steady, worked out from your own logs the same way your workbook does: your smoothed weight, what you eat, and how fast your trend is moving. If you're losing weight while eating 2,000 a day, maintenance has to be higher than 2,000, and the card says by how much.
 
-- **The card** shows the estimate with a status (**Updating**, **Holding** or **Formula**), your goal and how far below or above maintenance it is, what you're eating, a chart over time, and a table by week of goal, eaten and maintenance.
+- **The card** shows the estimate with a status (**Updating**, **Holding** or **Formula**), your goal and how far below or above maintenance it is, **Eating** (a plain average of the last 7 days you logged) beside **Smoothed** (the slower figure the estimate is built from), a chart over time, and a table by week of goal, eaten and maintenance.
+- **A warning** appears if what you've logged is under 70% of your goal: some days may only be partly logged, which makes maintenance come out too low.
 - **It needs data:** about ten days of history, with a weigh-in on at least five of the last ten days and calories on at least seven. When logs are too thin it **holds** the last estimate rather than guessing, and a day you didn't log is never counted as zero.
 - **About you (optional):** in Settings → About you, add your sex, age, height and activity level. Until your own logs have built an estimate, logmo shows a formula estimate from these, and afterwards it uses it as a cross-check. It stays on your iPhone and is never sent anywhere.
 - **In the weekly suggestion,** maintenance is shown as evidence and used to size a calorie change and to make sure the change is going the right way. It never raises the weekly limit on how much a target can move.

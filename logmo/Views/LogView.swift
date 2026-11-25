@@ -251,8 +251,10 @@ struct LogView: View {
                 if showCycle && trackCycle {
                     Section("Cycle") {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Are you on your period today?")
-                            sourceTag(.period)
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: 8) { Text("Are you on your period today?"); sourceTag(.period) }
+                                VStack(alignment: .leading, spacing: 3) { Text("Are you on your period today?"); sourceTag(.period) }
+                            }
                             HStack(spacing: 10) {
                                 cycleChoice("Yes", value: true)
                                 cycleChoice("No", value: false)
@@ -297,6 +299,7 @@ struct LogView: View {
                 .listRowBackground(theme.card)
             }
             .scrollContentBackground(.hidden)
+            .keyboardDismissible()
             .background(theme.bg)
             .navigationTitle(date == today ? "Today" : date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
             .toolbar {
@@ -305,14 +308,15 @@ struct LogView: View {
                     Label(draft == baseline ? "Saved" : "Saving…", systemImage: draft == baseline ? "checkmark.circle" : "arrow.triangle.2.circlepath")
                         .font(.footnote).foregroundStyle(theme.muted).labelStyle(.titleAndIcon)
                 }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer(); Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
-                }
             }
             .sheet(isPresented: $showPicker) { datePickerSheet }
             .onAppear {
                 load(date); syncHealth()
                 #if DEBUG
+                // Debug aid for screenshots: -logScrollTo calories
+                if let id = UserDefaults.standard.string(forKey: "logScrollTo") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { proxy.scrollTo(id, anchor: .center) }
+                }
                 // Debug aid for screenshots: -rateIt 1 acts as if "Rate it" had been tapped
                 if UserDefaults.standard.bool(forKey: "rateIt") {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) { if let log = existing(date) { startRating(log, proxy) } }
@@ -370,15 +374,16 @@ struct LogView: View {
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 
+    /// A row with the label, the Health mark on the same line, and the value at the right. The row is laid out whole (not as a
+    /// LabeledContent) so the mark has the room of the full row and doesn't drop below the label.
     private func field(_ title: String, _ text: Binding<String>, _ placeholder: String, decimal: Bool = false, health: HealthField? = nil) -> some View {
-        LabeledContent {
+        HStack(spacing: 8) {
+            Text(title).lineLimit(1).layoutPriority(1)
+            if let f = health { sourceTag(f).layoutPriority(1) }
+            Spacer(minLength: 8)
             TextField(placeholder, text: text)
                 .keyboardType(decimal ? .decimalPad : .numberPad).multilineTextAlignment(.trailing)
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                if let f = health { sourceTag(f) }
-            }
+                .frame(minWidth: 70, maxWidth: 130)
         }
     }
 
@@ -435,9 +440,10 @@ struct LogView: View {
                 .labelStyle(.titleAndIcon)
         case .edited:
             HStack(spacing: 6) {
-                Text("Edited by you").font(.caption2.weight(.semibold)).foregroundStyle(theme.accent)
+                Text("Edited").font(.caption2.weight(.semibold)).foregroundStyle(theme.accent)
                 if healthConnected { Button("Use Health's") { useHealths(f) }.font(.caption2.weight(.semibold)).buttonStyle(.borderless) }
             }
+            .lineLimit(1)
         }
     }
 

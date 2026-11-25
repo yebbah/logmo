@@ -143,3 +143,18 @@ struct FullScreenFrame<Content: View>: View {
         .background(theme.bg.ignoresSafeArea())
     }
 }
+
+/// Closes the keyboard from anywhere.
+func dismissKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
+
+extension View {
+    /// Lets the keyboard always be put away: dragging the form down closes it, and a Done button sits above it. Number pads have no
+    /// Return key, so without this there is no way to close them.
+    func keyboardDismissible() -> some View {
+        self
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar { ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { dismissKeyboard() } } }
+    }
+}

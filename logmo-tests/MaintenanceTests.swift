@@ -96,3 +96,23 @@ final class MaintenanceTests: XCTestCase {
         d.removePersistentDomain(forName: "maintenance-tests")
     }
 }
+
+final class MaintenanceDisplayTests: XCTestCase {
+    var cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }()
+    func day(_ n: Int) -> Date { cal.date(byAdding: .day, value: n, to: cal.date(from: DateComponents(year: 2026, month: 9, day: 1))!)! }
+
+    func testTheSevenDayAverageIsPlainAndSkipsUnloggedDays() {
+        var days = (0..<10).map { DaySnapshot(date: day($0), weightKg: nil, logged: [], calories: 2000) }
+        days[8].calories = nil                                                          // nothing logged: skipped, not zero
+        days[9].calories = 1000
+        XCTAssertEqual(Maintenance.sevenDayAverage(days, through: day(9), calendar: cal), Int((Double(5 * 2000 + 1000) / 6).rounded()))   // days 3...9, six logged
+        XCTAssertNil(Maintenance.sevenDayAverage(days, through: day(20), calendar: cal))                                                  // nothing in the last seven days
+    }
+
+    func testLoggedIntakeFarBelowTheGoalIsFlaggedAsPossiblyIncomplete() {
+        XCTAssertTrue(Maintenance.intakeLooksIncomplete(intake: 1146, goal: 1700))      // 67%
+        XCTAssertFalse(Maintenance.intakeLooksIncomplete(intake: 1190, goal: 1700))     // 70%
+        XCTAssertFalse(Maintenance.intakeLooksIncomplete(intake: 1700, goal: 1700))
+        XCTAssertFalse(Maintenance.intakeLooksIncomplete(intake: 500, goal: 0))         // no goal: nothing to compare with
+    }
+}

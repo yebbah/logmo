@@ -205,6 +205,7 @@ struct SettingsView: View {
                 .listRowBackground(theme.card)
             }
             .scrollContentBackground(.hidden)
+            .keyboardDismissible()
             .background(theme.bg)
             .onAppear {
                 #if DEBUG
