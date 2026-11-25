@@ -145,7 +145,7 @@ enum SuggestionRules {
     // MARK: Building the facts
 
     static func summary(campaign c: CampaignInfo, snaps: [DaySnapshot], current: GoalSet?, window: AssessedWeek,
-                        includeCycle: Bool, includeSick: Bool, today: Date, smoothingDays: Int = 16, profile: MaintenanceProfile? = nil,
+                        includeCycle: Bool, includeSick: Bool, today: Date, smoothingDays: Int = 16, seeds: [Date: Double] = [:], profile: MaintenanceProfile? = nil,
                         calendar cal: Calendar = .current) -> WeekSummary {
         let thisWeek = Metrics.weekStart(of: today, calendar: cal)
         let start = window == .thisWeekSoFar ? thisWeek : cal.date(byAdding: .day, value: -7, to: thisWeek)!
@@ -199,8 +199,8 @@ enum SuggestionRules {
         let hv = avgD(days) { $0.hrv }, hvPrev = avgD(before) { $0.hrv }
         let sleep = avgD(days) { $0.sleepMinutes }
         let calorieDays = count(\.calories)
-        let maintenance = Maintenance.estimate(snaps, through: end, smoothingDays: smoothingDays, profile: profile, calendar: cal)
-        let trendKg = Metrics.weightTrend(snaps, through: end, smoothingDays: smoothingDays, calendar: cal).last?.trendKg
+        let maintenance = Maintenance.estimate(snaps, through: end, smoothingDays: smoothingDays, seeds: seeds, profile: profile, calendar: cal)
+        let trendKg = Metrics.weightTrend(snaps, through: end, smoothingDays: smoothingDays, seeds: seeds, calendar: cal).last?.trendKg
 
         let met = days.filter { Metrics.dayGoalStatus(map[$0], goals: current).allMet }.count
         return WeekSummary(kind: c.kind, weekNumber: CampaignRules.weekNumber(c, today: today, calendar: cal), totalWeeks: c.plannedWeeks,

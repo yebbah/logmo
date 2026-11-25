@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 1)**, built to PRD v18.1, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 1)**, built to PRD v19.0, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -44,9 +44,13 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 - **Sleep, scored:** Health's hours and, from a watch, sleep stages (time awake, deep and REM) are turned into a 1 to 5 sleep rating with a plain explanation, filled in as a changeable Health value. Also **cycle** filling "on your period" (off by default, needs cycle tracking), **resting heart rate and HRV** as recovery context in the weekly suggestion, and **body fat and lean mass** under weight and on a Dashboard card. Sleep, heart rate and body composition are in the backup and the CSV.
 - Imported values count for goals, streaks, compliance, reminders and the weekly suggestion like typed ones.
 
+### Starting weight and days left
+- **Every campaign asks for a starting weight**, filled in with your current trend weight so a campaign that continues an earlier one carries the trend on. The trend is seeded from it on the campaign's first day. It can be changed on a running or upcoming campaign.
+- A **days-left badge** in the Dashboard's top-left corner shows the days remaining in the running campaign.
+
 ### Estimated maintenance (TDEE)
 - **Dashboard card** laid out like the workbook: the estimate with its status (Updating, Holding or Formula), goal against it, a plain seven-day average beside the smoothed intake (with a warning when logs look incomplete), a chart over time, and a weekly table of goal, eaten and maintenance.
-- Worked out from your smoothed weight, your smoothed intake and the weekly change in trend (about 1,100 kcal per kg), after ten days of history; held while logs are thin. An optional **About you** profile (sex, age, height, activity) gives a formula estimate until your logs have built one, and a cross-check afterwards.
+- Worked out from your smoothed weight, your smoothed intake and the weekly change in trend (about 1,100 kcal per kg), after four weeks of logging in all, across every campaign; held while logs are thin. An optional **About you** profile (sex, age, height, activity) gives a formula estimate until your logs have built one, and a cross-check afterwards.
 - **In the weekly suggestion:** shown as evidence, used to size a calorie move and check its direction, and to flag low targets.
 
 ### Weekly suggestion (Apple Intelligence)
@@ -100,3 +104,4 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 | v16 – v16.1 | Apple Health: sleep hours, cycle, resting heart rate and HRV, body fat and lean mass; older days and earlier history import; new types asked of iOS once |
 | v17 – v18 | Sleep from Health scored 1 to 5, with stages; estimated maintenance (TDEE) on the Dashboard and in the weekly suggestion; About you profile; roomier plan banner |
 | v18.1 | Maintenance card shows the seven-day average and warns on incomplete logs; Health marks inline with their labels; keyboard can always be dismissed |
+| v19 | Starting weight per campaign seeds the trend; maintenance needs four weeks of logging in all and carries across campaigns; days-left badge |

@@ -36,7 +36,7 @@ struct SuggestSheet: View {
     private var summary: WeekSummary {
         SuggestionRules.summary(campaign: campaign, snaps: logs.map(\.snapshot), current: thisWeeksGoals, window: window,
                                 includeCycle: trackCycle && includeCycle, includeSick: trackSick && includeSick, today: today,
-                                smoothingDays: smoothing, profile: MaintenanceProfile.load())
+                                smoothingDays: smoothing, seeds: CampaignRules.trendSeeds(campaigns.map(\.info)), profile: MaintenanceProfile.load())
     }
 
     private var nextWeekLabel: String {
@@ -69,7 +69,7 @@ struct SuggestSheet: View {
                 // This week so far when there is enough of it; otherwise look at last week.
                 window = SuggestionRules.hasEnoughData(SuggestionRules.summary(campaign: campaign, snaps: logs.map(\.snapshot), current: thisWeeksGoals,
                             window: .thisWeekSoFar, includeCycle: false, includeSick: false, today: today,
-                            smoothingDays: smoothing, profile: MaintenanceProfile.load())) ? .thisWeekSoFar : .lastWeek
+                            smoothingDays: smoothing, seeds: CampaignRules.trendSeeds(campaigns.map(\.info)), profile: MaintenanceProfile.load())) ? .thisWeekSoFar : .lastWeek
             }
         }
         .presentationDetents([.large])

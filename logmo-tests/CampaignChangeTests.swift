@@ -37,7 +37,7 @@ final class CampaignChangeTests: XCTestCase {
     func testQueueACampaignAfterTheRunningOne_withMaintenanceBetween() throws {
         let context = try makeContext(); let r = running(context)
         // The running one's last day is day(6). Start the next on day(10): days 7-9 are maintenance.
-        XCTAssertNil(err(CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4)))
+        XCTAssertNil(err(CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4, startWeightKg: 80)))
         let all = CampaignStore.all(context)
         XCTAssertEqual(all.map(\.number), [1, 2, 3])
         XCTAssertTrue(all[1].isDefault); XCTAssertEqual(all[1].start, day(7)); XCTAssertEqual(all[1].end, day(9))
@@ -49,12 +49,12 @@ final class CampaignChangeTests: XCTestCase {
 
     func testQueueingBeforeTheRunningCampaignsEndIsRefused() throws {
         let context = try makeContext(); _ = running(context)
-        XCTAssertEqual(err(CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(3), weeks: 4)), .startsBeforeCurrent)
+        XCTAssertEqual(err(CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(3), weeks: 4, startWeightKg: 80)), .startsBeforeCurrent)
     }
 
     func testMovingTheUpcomingStartRefillsTheGap() throws {
         let context = try makeContext(); _ = running(context)
-        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4)
+        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4, startWeightKg: 80)
         let u = CampaignStore.upcoming(context)!
         XCTAssertNil(err(CampaignStore.reschedule(context, u, start: day(14), weeks: 6)))
         var all = CampaignStore.all(context)
@@ -69,14 +69,14 @@ final class CampaignChangeTests: XCTestCase {
 
     func testUpcomingCannotStartBeforeTheRunningCampaignEnds() throws {
         let context = try makeContext(); _ = running(context)
-        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4)
+        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4, startWeightKg: 80)
         XCTAssertEqual(err(CampaignStore.reschedule(context, CampaignStore.upcoming(context)!, start: day(6), weeks: 4)), .startsBeforeCurrent)
     }
 
     func testRescheduleWithNothingRunningMovesTheDefaultsEnd() throws {
         let context = try makeContext()
         CampaignStore.ensureDefault(context)
-        CampaignStore.start(context, kind: .cut, targetKg: nil, start: day(5), weeks: 3)
+        CampaignStore.start(context, kind: .cut, targetKg: nil, start: day(5), weeks: 3, startWeightKg: 80)
         let u = CampaignStore.upcoming(context)!
         XCTAssertNil(err(CampaignStore.reschedule(context, u, start: day(9), weeks: 2)))
         let d = CampaignStore.all(context).first { $0.isDefault }!
@@ -86,7 +86,7 @@ final class CampaignChangeTests: XCTestCase {
 
     func testExtendingIsRefusedWhenItWouldHitTheNextCampaign_andShrinksTheGapOtherwise() throws {
         let context = try makeContext(); let r = running(context)
-        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(17), weeks: 4)       // gap: days 7-16
+        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(17), weeks: 4, startWeightKg: 80)       // gap: days 7-16
         XCTAssertFalse(CampaignStore.extend(context, r, byWeeks: 2))                              // would end on day 20
         XCTAssertTrue(CampaignStore.extend(context, r, byWeeks: 1))                               // ends day 13: gap is days 14-16
         let filler = CampaignStore.all(context).first { $0.isDefault }!
@@ -105,7 +105,7 @@ final class CampaignChangeTests: XCTestCase {
 
     func testEndingEarlyWithANextCampaignQueued_keepsEveryDayCovered() throws {
         let context = try makeContext(); let r = running(context)
-        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4)
+        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4, startWeightKg: 80)
         CampaignStore.end(context, r)                                        // ends today
         let infos = CampaignStore.all(context).map(\.info)
         for n in -21...37 { XCTAssertNotNil(CampaignRules.campaign(for: day(n), in: infos), "day \(n)") }
@@ -114,7 +114,7 @@ final class CampaignChangeTests: XCTestCase {
 
     func testCancellingAQueuedCampaignLeavesTheRunningOneAndNoMaintenance() throws {
         let context = try makeContext(); let r = running(context)
-        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4)
+        CampaignStore.start(context, kind: .bulk, targetKg: nil, start: day(10), weeks: 4, startWeightKg: 80)
         CampaignStore.cancelUpcoming(context, CampaignStore.upcoming(context)!)
         XCTAssertEqual(CampaignStore.all(context).map(\.id), [r.id]); XCTAssertNil(r.end)
     }
@@ -130,5 +130,32 @@ final class CampaignChangeTests: XCTestCase {
         // a running campaign can't be rescheduled either: only one that hasn't started
         let r = running(context)
         XCTAssertEqual(err(CampaignStore.reschedule(context, r, start: day(30), weeks: 3)), .notEditable)
+    }
+}
+
+final class DaysLeftBadgeTests: XCTestCase {
+    let cal = Calendar.current
+    var today: Date { cal.startOfDay(for: Date()) }
+    func day(_ n: Int) -> Date { cal.date(byAdding: .day, value: n, to: today)! }
+
+    func testTheBadgeCountsDaysLeftIncludingToday() {
+        let c = CampaignInfo(number: 2, kind: .cut, start: day(-20), plannedWeeks: 4)            // last planned day is day(7)
+        XCTAssertEqual(CampaignRules.daysLeftBadge([c], today: today), "8 days left")
+        let last = CampaignInfo(number: 2, kind: .cut, start: day(-27), plannedWeeks: 4)
+        XCTAssertEqual(CampaignRules.daysLeftBadge([last], today: today), "1 day left")
+    }
+
+    func testNoBadgeWithoutARunningRealCampaign() {
+        let auto = CampaignInfo(number: 1, kind: .maintenance, isDefault: true, start: day(-90))
+        XCTAssertNil(CampaignRules.daysLeftBadge([auto], today: today))
+        let upcoming = CampaignInfo(number: 2, kind: .cut, start: day(5), plannedWeeks: 4)
+        XCTAssertNil(CampaignRules.daysLeftBadge([auto, upcoming], today: today))
+        let ended = CampaignInfo(number: 2, kind: .cut, start: day(-40), plannedWeeks: 4, end: day(-12))
+        XCTAssertNil(CampaignRules.daysLeftBadge([auto, ended], today: today))
+    }
+
+    func testAnOverdueOpenCampaignSaysSo() {
+        let over = CampaignInfo(number: 2, kind: .cut, start: day(-40), plannedWeeks: 4)
+        XCTAssertEqual(CampaignRules.daysLeftBadge([over], today: today), "Planned end passed")
     }
 }

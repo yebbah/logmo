@@ -20,6 +20,7 @@ struct CampaignsView: View {
 
     @State private var showNew = false
     @State private var editUpcoming: Campaign?
+    @State private var startWeightTarget: Campaign?
     @State private var extendBlocked = false
     @State private var confirmEnd = false
     @State private var confirmCancel = false
@@ -41,7 +42,7 @@ struct CampaignsView: View {
         let infos = campaigns.map(\.info)
         let snaps = logs.map(\.snapshot)
         let timeline = GoalTimeline(weekGoals, campaigns: infos)
-        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
+        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing, seeds: CampaignRules.trendSeeds(infos))
         let required = RequiredTrackers.parse(requiredRaw)
         let current = campaigns.first { CampaignRules.contains($0.info, day: today) }
         let upcoming = campaigns.first { !$0.isDefault && $0.end == nil && CampaignRules.isUpcoming($0.info, today: today) }
@@ -93,6 +94,7 @@ struct CampaignsView: View {
             .onAppear { CampaignStore.ensureDefault(context); openNewIfAsked() }
             .onChange(of: nav.openNewCampaign) { _, _ in openNewIfAsked() }
             .sheet(isPresented: $showNew) { NewCampaignForm(minStart: newMinStart) }
+            .sheet(item: $startWeightTarget) { StartWeightSheet(campaign: $0) }
             .sheet(item: $editUpcoming) { m in
                 EditUpcomingForm(campaign: m, earliest: CampaignRules.earliestUpcomingStart(existing: infos, excluding: m.id, today: today))
             }
@@ -153,6 +155,7 @@ struct CampaignsView: View {
                             Button("\(w) week\(w == 1 ? "" : "s")") { if !CampaignStore.extend(context, m, byWeeks: w) { extendBlocked = true } }
                         }
                     } label: { menuLabel("Extend") }
+                    actionButton(m.startWeightKg == nil ? "Set start weight" : "Start weight") { startWeightTarget = m }
                     actionButton("End campaign", destructive: true) { confirmEnd = true }
                         .confirmationDialog("End \(c.name) today?", isPresented: $confirmEnd, titleVisibility: .visible) {
                             Button("End campaign", role: .destructive) { CampaignStore.end(context, m) }
@@ -480,6 +483,9 @@ struct CampaignDetail: View {
                     Text(info.label ?? info.title).foregroundStyle(theme.muted)      // past campaigns are read-only
                 }
             }
+            if let w = info.startWeightKg {
+                Text("Started at \(String(format: "%.1f", unit.fromKg(w))) \(unit.rawValue)").font(.caption).foregroundStyle(theme.muted)
+            }
             if info.end != nil {
                 Text("A finished campaign can't be edited. Its results and weekly goals are kept as they were.")
                     .font(.caption).foregroundStyle(theme.muted)
@@ -543,11 +549,15 @@ struct NewCampaignForm: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
+    @AppStorage(SettingsKey.smoothing) private var smoothing = 16
+    @Query(sort: \DayLog.day) private var logs: [DayLog]
+    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
     let minStart: Date
 
     @State private var label = ""
     @State private var kind: CampaignKind = .cut
     @State private var target = ""
+    @State private var startWeight = ""
     @State private var start = Calendar.current.startOfDay(for: Date())
     @State private var weeks = 8
     @State private var error: String?
@@ -564,6 +574,15 @@ struct NewCampaignForm: View {
                     Picker("Type", selection: $kind) {
                         ForEach(CampaignKind.allCases) { Text($0.title).tag($0) }
                     }.pickerStyle(.segmented)
+                }
+                .listRowBackground(theme.card)
+
+                Section {
+                    LabeledContent("Starting weight (\(unit.rawValue))") {
+                        TextField("required", text: $startWeight).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                    }
+                } footer: {
+                    Text("Your weight trend starts from this on the campaign's first day, the way the Setup weight does in your workbook. It's filled in with your current trend weight, so continuing from an earlier campaign carries the trend on; change it to start afresh. Every campaign needs one, so the trend is always predictable.")
                 }
                 .listRowBackground(theme.card)
 
@@ -588,7 +607,12 @@ struct NewCampaignForm: View {
             .background(theme.bg)
             .navigationTitle("New campaign")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear { if start < minStart { start = minStart } }
+            .onAppear {
+                if start < minStart { start = minStart }
+                if startWeight.isEmpty, let kg = CampaignRules.suggestedStartWeight(snaps: logs.map(\.snapshot), campaigns: campaigns.map(\.info), smoothingDays: smoothing, today: today) {
+                    startWeight = String(format: "%.1f", unit.fromKg(kg))
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Start") { save() } }
@@ -612,12 +636,75 @@ struct NewCampaignForm: View {
         let raw = target.replacingOccurrences(of: ",", with: ".")
         let kg = Double(raw).map(unit.toKg)
         if !target.isEmpty && kg == nil { error = "Enter the target weight as a number."; return }
-        switch CampaignStore.start(context, kind: kind, targetKg: kg, start: start, weeks: weeks, label: label) {
+        let sw = Double(startWeight.replacingOccurrences(of: ",", with: ".")).map(unit.toKg)
+        guard CampaignRules.isPlausibleStartWeight(sw) else { error = "Enter your starting weight. The trend needs a starting point."; return }
+        switch CampaignStore.start(context, kind: kind, targetKg: kg, start: start, weeks: weeks, label: label, startWeightKg: sw) {
         case .success: dismiss()
         case .failure(.campaignRunning): error = "A campaign is already planned. Change or cancel it first."
         case .failure(.startsBeforeCurrent): error = "The start date must be after the running campaign's planned end, or after the current campaign began."
         case .failure(.notEditable): error = "This campaign can't be changed."
         case .failure(.invalidWeeks): error = "Length must be at least 1 week."
+        case .failure(.invalidStartWeight): error = "Enter your starting weight. The trend needs a starting point."
+        }
+    }
+}
+
+// MARK: - Starting weight
+
+/// Set the weight a running or upcoming campaign's trend starts from. Past campaigns keep theirs.
+struct StartWeightSheet: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
+    @AppStorage(SettingsKey.smoothing) private var smoothing = 16
+    @Query(sort: \DayLog.day) private var logs: [DayLog]
+    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
+    let campaign: Campaign
+
+    @State private var text = ""
+    @State private var error: String?
+    private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    LabeledContent("Starting weight (\(unit.rawValue))") {
+                        TextField("required", text: $text).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                    }
+                } footer: {
+                    Text("The weight this campaign's trend starts from on its first day (\(campaign.start.formatted(date: .abbreviated, time: .omitted))), like the Setup weight in your workbook. A weigh-in on that day takes its place. Changing it moves this campaign's trend, and the maintenance estimate with it.")
+                }
+                .listRowBackground(theme.card)
+                if let error { Text(error).foregroundStyle(theme.bad).listRowBackground(theme.card) }
+            }
+            .scrollContentBackground(.hidden)
+            .keyboardDismissible()
+            .background(theme.bg)
+            .navigationTitle("Starting weight")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
+            }
+            .onAppear {
+                guard text.isEmpty else { return }
+                let today = Calendar.current.startOfDay(for: Date())
+                if let kg = campaign.startWeightKg ?? CampaignRules.suggestedStartWeight(snaps: logs.map(\.snapshot), campaigns: campaigns.map(\.info), smoothingDays: smoothing, today: today) {
+                    text = String(format: "%.1f", unit.fromKg(kg))
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func save() {
+        let kg = Double(text.replacingOccurrences(of: ",", with: ".")).map(unit.toKg)
+        guard let kg, CampaignRules.isPlausibleStartWeight(kg) else { error = "Enter your starting weight."; return }
+        switch CampaignStore.setStartWeight(context, campaign, kg: kg) {
+        case .success: dismiss()
+        case .failure: error = "This campaign has ended, so its starting weight can't change."
         }
     }
 }
@@ -629,11 +716,13 @@ struct EditUpcomingForm: View {
     @Environment(\.theme) private var theme
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     let campaign: Campaign
     let earliest: Date
 
     @State private var start = Date()
     @State private var weeks = 8
+    @State private var startWeight = ""
     @State private var error: String?
     @State private var loaded = false
 
@@ -647,6 +736,9 @@ struct EditUpcomingForm: View {
                 Section {
                     DatePicker("Start date", selection: $start, in: earliest...max(farthest, earliest), displayedComponents: .date)
                     Stepper("Length: \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...104)
+                    LabeledContent("Starting weight (\(WeightUnit(rawValue: unitRaw)?.rawValue ?? "kg"))") {
+                        TextField("required", text: $startWeight).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                    }
                 } footer: {
                     Text("Ends \(plannedEnd.formatted(date: .abbreviated, time: .omitted)). The earliest start is \(earliest.formatted(date: .abbreviated, time: .omitted)), after the campaign running now. Days in between stay maintenance. Its weekly goals are copied again from the latest ones for the new weeks.")
                 }
@@ -665,14 +757,21 @@ struct EditUpcomingForm: View {
                 guard !loaded else { return }
                 loaded = true
                 start = max(campaign.start, earliest); weeks = campaign.plannedWeeks ?? 8
+                let u = WeightUnit(rawValue: unitRaw) ?? .kg
+                if let kg = campaign.startWeightKg { startWeight = String(format: "%.1f", u.fromKg(kg)) }
             }
         }
         .presentationDetents([.medium, .large])
     }
 
     private func save() {
-        switch CampaignStore.reschedule(context, campaign, start: start, weeks: weeks) {
+        let u = WeightUnit(rawValue: unitRaw) ?? .kg
+        let sw = Double(startWeight.replacingOccurrences(of: ",", with: ".")).map(u.toKg)
+        guard CampaignRules.isPlausibleStartWeight(sw) else { error = "Enter the starting weight. The trend needs a starting point."; return }
+        switch CampaignStore.reschedule(context, campaign, start: start, weeks: weeks, startWeightKg: sw) {
         case .success: dismiss()
+        case .failure(.invalidStartWeight): error = "Enter a starting weight that makes sense."
+
         case .failure(.startsBeforeCurrent): error = "It can't start before \(earliest.formatted(date: .abbreviated, time: .omitted))."
         case .failure(.invalidWeeks): error = "Length must be at least 1 week."
         case .failure: error = "This campaign has already started and can't be changed."
@@ -693,7 +792,7 @@ struct DebugCampaignDetail: View {
         let today = Calendar.current.startOfDay(for: Date())
         let infos = campaigns.map(\.info)
         let snaps = logs.map(\.snapshot)
-        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
+        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing, seeds: CampaignRules.trendSeeds(infos))
         let n = UserDefaults.standard.integer(forKey: "campaignNumber")
         if let c = infos.first(where: { $0.number == n }) ?? infos.first {
             let tl = GoalTimeline(weekGoals, campaigns: infos)

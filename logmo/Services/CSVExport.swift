@@ -55,10 +55,10 @@ enum CSVExport {
 
     /// One line per campaign, oldest first.
     static func campaignsCSV(_ campaigns: [CampaignInfo], calendar cal: Calendar = .current) -> String {
-        let head = "number,name,kind,automatic_default,target_weight_kg,start,planned_weeks,end,ended_early"
+        let head = "number,name,kind,automatic_default,target_weight_kg,start_weight_kg,start,planned_weeks,end,ended_early"
         let lines = campaigns.sorted { $0.number < $1.number }.map { c in
             [String(c.number), quote(c.label ?? c.title), c.kind.rawValue, c.isDefault ? "true" : "false",
-             c.targetWeightKg.map { String(format: "%.1f", $0) } ?? "", isoDay(c.start, cal), c.plannedWeeks.map(String.init) ?? "",
+             c.targetWeightKg.map { String(format: "%.1f", $0) } ?? "", c.startWeightKg.map { String(format: "%.1f", $0) } ?? "", isoDay(c.start, cal), c.plannedWeeks.map(String.init) ?? "",
              c.end.map { isoDay($0, cal) } ?? "", c.endedEarly ? "true" : "false"].joined(separator: ",")
         }
         return ([head] + lines).joined(separator: "\n") + "\n"

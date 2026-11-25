@@ -35,7 +35,7 @@ struct BackupFile: Codable, Equatable {
     struct CampaignRecord: Codable, Equatable {
         var id: UUID; var number: Int; var kindRaw: String; var isDefault: Bool
         var targetWeightKg: Double?; var start: Date; var plannedWeeks: Int?
-        var end: Date?; var endedEarly: Bool; var label: String?; var updatedAt: Date
+        var end: Date?; var endedEarly: Bool; var label: String?; var updatedAt: Date; var startWeightKg: Double?
     }
 }
 
@@ -62,7 +62,7 @@ enum Backup {
         f.campaigns = try context.fetch(FetchDescriptor<Campaign>(sortBy: [SortDescriptor(\.number)])).map {
             .init(id: $0.id, number: $0.number, kindRaw: $0.kindRaw, isDefault: $0.isDefault, targetWeightKg: $0.targetWeightKg,
                   start: $0.start, plannedWeeks: $0.plannedWeeks, end: $0.end, endedEarly: $0.endedEarly,
-                  label: $0.label, updatedAt: $0.updatedAt)
+                  label: $0.label, updatedAt: $0.updatedAt, startWeightKg: $0.startWeightKg)
         }
         for k in BackupFile.settingKeys {
             if let v = UserDefaults.standard.object(forKey: k) { f.settings[k] = "\(v)" }
@@ -109,7 +109,7 @@ enum Backup {
         for r in f.campaigns {
             let c = Campaign(CampaignInfo(id: r.id, number: r.number, kind: CampaignKind(rawValue: r.kindRaw) ?? .maintenance,
                                           isDefault: r.isDefault, targetWeightKg: r.targetWeightKg, start: r.start,
-                                          plannedWeeks: r.plannedWeeks, end: r.end, endedEarly: r.endedEarly, label: r.label))
+                                          plannedWeeks: r.plannedWeeks, end: r.end, endedEarly: r.endedEarly, label: r.label, startWeightKg: r.startWeightKg))
             c.updatedAt = r.updatedAt
             context.insert(c)
         }

@@ -75,10 +75,12 @@ enum CampaignStore {
 
     @discardableResult
     static func start(_ context: ModelContext, kind: CampaignKind, targetKg: Double?, start: Date,
-                      weeks: Int, label: String? = nil, today: Date = Date()) -> Result<Void, CampaignError> {
+                      weeks: Int, label: String? = nil, startWeightKg: Double?, today: Date = Date()) -> Result<Void, CampaignError> {
+        // Every real campaign starts with a weight, so the trend always has a known starting point.
+        guard CampaignRules.isPlausibleStartWeight(startWeightKg) else { return .failure(.invalidStartWeight) }
         let campaigns = all(context)
         switch CampaignRules.plan(start: start, kind: kind, targetKg: targetKg, weeks: weeks,
-                                  existing: campaigns.map(\.info), label: label, today: today) {
+                                  existing: campaigns.map(\.info), label: label, startWeightKg: startWeightKg, today: today) {
         case .failure(let e):
             return .failure(e)
         case .success(let plan):
@@ -100,6 +102,17 @@ enum CampaignStore {
             try? context.save()
             return .success(())
         }
+    }
+
+    /// Set or change the starting weight of a campaign that hasn't ended. Past campaigns keep theirs.
+    @discardableResult
+    static func setStartWeight(_ context: ModelContext, _ campaign: Campaign, kg: Double) -> Result<Void, CampaignError> {
+        guard !campaign.isDefault, campaign.end == nil else { return .failure(.notEditable) }
+        guard CampaignRules.isPlausibleStartWeight(kg) else { return .failure(.invalidStartWeight) }
+        campaign.startWeightKg = kg
+        campaign.updatedAt = Date()
+        try? context.save()
+        return .success(())
     }
 
     /// Rename a campaign that hasn't ended. Past campaigns are read-only.
@@ -157,11 +170,12 @@ enum CampaignStore {
 
     /// Change when an upcoming campaign starts and how long it runs. Only a campaign that hasn't started can change.
     @discardableResult
-    static func reschedule(_ context: ModelContext, _ campaign: Campaign, start: Date, weeks: Int,
+    static func reschedule(_ context: ModelContext, _ campaign: Campaign, start: Date, weeks: Int, startWeightKg: Double? = nil,
                            today: Date = Date()) -> Result<Void, CampaignError> {
         let cal = Calendar.current
         guard !campaign.isDefault, campaign.end == nil, CampaignRules.isUpcoming(campaign.info, today: today) else { return .failure(.notEditable) }
         guard weeks >= 1 else { return .failure(.invalidWeeks) }
+        if let w = startWeightKg, !CampaignRules.isPlausibleStartWeight(w) { return .failure(.invalidStartWeight) }
         let s = cal.startOfDay(for: start)
         let earliest = CampaignRules.earliestUpcomingStart(existing: all(context).map(\.info), excluding: campaign.id, today: today)
         guard s >= earliest else { return .failure(.startsBeforeCurrent) }
@@ -172,6 +186,7 @@ enum CampaignStore {
         for g in allGoals(context) where g.campaignID == campaign.id { context.delete(g) }
         campaign.start = s
         campaign.plannedWeeks = weeks
+        if let w = startWeightKg { campaign.startWeightKg = w }
         campaign.updatedAt = Date()
         seedGoals(context, for: campaign.info, from: source)         // its goals are copied again for the new weeks
         try? context.save()

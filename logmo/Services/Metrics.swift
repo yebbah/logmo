@@ -443,9 +443,12 @@ enum Metrics {
 
     /// Exponential smoothing over a sparse daily series. Missing days carry the previous
     /// value forward (never treated as zero). Runs from the first value to `through`.
-    static func smoothed(_ values: [Date: Double], through: Date, smoothingDays: Int,
+    /// `seeds` are days on which the trend starts afresh, for example a campaign's start with its starting weight. The seed is the
+    /// trend on the day before, so it is always used: with no weigh-in that day the trend is the seed (as the workbook's Setup weight
+    /// is when day one is blank), and a weigh-in that day moves it like any other.
+    static func smoothed(_ values: [Date: Double], through: Date, smoothingDays: Int, seeds: [Date: Double] = [:],
                          calendar cal: Calendar = .current) -> [ValuePoint] {
-        guard let first = values.keys.min() else { return [] }
+        guard let first = (Array(values.keys) + Array(seeds.keys)).min() else { return [] }
         let a = alpha(forDays: smoothingDays)
         let end = max(cal.startOfDay(for: through), first)
         var out: [ValuePoint] = []
@@ -453,14 +456,15 @@ enum Metrics {
         var cursor = first
         while cursor <= end {
             let v = values[cursor]
-            if let v { trend = trend.map { a * v + (1 - a) * $0 } ?? v }
+            if let seed = seeds[cursor] { trend = v.map { a * $0 + (1 - a) * seed } ?? seed }
+            else if let v { trend = trend.map { a * v + (1 - a) * $0 } ?? v }
             if let trend { out.append(ValuePoint(date: cursor, value: v, trend: trend)) }
             cursor = addDays(1, to: cursor, cal)
         }
         return out
     }
 
-    static func weightTrend(_ days: [DaySnapshot], through: Date, smoothingDays: Int = 16,
+    static func weightTrend(_ days: [DaySnapshot], through: Date, smoothingDays: Int = 16, seeds: [Date: Double] = [:],
                             calendar cal: Calendar = .current) -> [TrendPoint] {
         var vals: [Date: Double] = [:]
         var period = Set<Date>()
@@ -471,7 +475,7 @@ enum Metrics {
             if s.onPeriod { period.insert(d) }
             if s.isSick { sick.insert(d) }
         }
-        return smoothed(vals, through: through, smoothingDays: smoothingDays, calendar: cal)
+        return smoothed(vals, through: through, smoothingDays: smoothingDays, seeds: seeds, calendar: cal)
             .map { TrendPoint(date: $0.date, weightKg: $0.value, trendKg: $0.trend, onPeriod: period.contains($0.date), isSick: sick.contains($0.date)) }
     }
 

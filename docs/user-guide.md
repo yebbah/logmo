@@ -60,6 +60,8 @@ A week with an unlogged day can't be "met", and missing values are never treated
 
 ## 5. Streaks and compliance
 
+The three streaks (logging, daily goals, weekly goals) are **not campaign-specific**: they count across all your campaigns. A goals streak judges each day or week against the goals of the campaign it belonged to, so it carries on when you start a new campaign.
+
 On the **Streaks** tab:
 - **Streaks** count consecutive days: logging, daily goals met, and weekly goals met. Today not being logged yet doesn't break a streak.
 - **Compliance** is the share of days you did everything: the trackers you require fully logged, the daily goals met (weigh-in included), and the week's goals on track. Today counts and turns green when everything for it is done.
@@ -69,9 +71,11 @@ Choose which trackers count as required in **Settings → Required for a complet
 
 ## 6. Campaigns and the weekly plan
 
+The Dashboard's top-left corner shows how many **days are left** in your running campaign. Tap it to open the Campaigns tab.
+
 ### Campaigns tab
 - **Running now** shows your campaign, the week and days left. Buttons: **Weekly plan**, **Rename**, **Extend** (1, 2, 4 or 8 weeks) and **End campaign**.
-- **+ New** starts a campaign. It can start today, in the past, or up to a year ahead, and can have a label such as "Summer cut".
+- **+ New** starts a campaign. It asks for a **starting weight** (filled in with your current trend weight; change it to start afresh). The trend starts from it on the campaign's first day. You can change it later on a running or upcoming campaign, but not once it has ended. It can start today, in the past, or up to a year ahead, and can have a label such as "Summer cut".
 - If a campaign is running, the next one is planned to start after its last day. If you choose a later start, maintenance fills the days in between. Only one campaign can be planned at a time.
 - **Look back** lists every campaign: the weight trend change, compliance, average steps and calories, and tap in for the full results and each week's goals.
 
@@ -150,7 +154,7 @@ The **Estimated maintenance** card on the Dashboard shows roughly how many calor
 
 - **The card** shows the estimate with a status (**Updating**, **Holding** or **Formula**), your goal and how far below or above maintenance it is, **Eating** (a plain average of the last 7 days you logged) beside **Smoothed** (the slower figure the estimate is built from), a chart over time, and a table by week of goal, eaten and maintenance.
 - **A warning** appears if what you've logged is under 70% of your goal: some days may only be partly logged, which makes maintenance come out too low.
-- **It needs data:** about ten days of history, with a weigh-in on at least five of the last ten days and calories on at least seven. When logs are too thin it **holds** the last estimate rather than guessing, and a day you didn't log is never counted as zero.
+- **It needs data:** four weeks of logging in all, counted from your first day across every campaign (so a new campaign that carries on from an earlier one keeps your history, and doesn't start over), with a weigh-in on at least five of the last ten days and calories on at least seven. When logs are too thin it **holds** the last estimate rather than guessing, and a day you didn't log is never counted as zero.
 - **About you (optional):** in Settings → About you, add your sex, age, height and activity level. Until your own logs have built an estimate, logmo shows a formula estimate from these, and afterwards it uses it as a cross-check. It stays on your iPhone and is never sent anywhere.
 - **In the weekly suggestion,** maintenance is shown as evidence and used to size a calorie change and to make sure the change is going the right way. It never raises the weekly limit on how much a target can move.
 

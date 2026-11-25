@@ -4,8 +4,9 @@ import Foundation
 /// smooth the weight, smooth the calories eaten, turn the weekly change in trend weight into a daily energy gap
 /// (about 1,100 kcal a day for each kg gained or lost in a week), and subtract that gap from what was eaten. A loss
 /// means you were eating below maintenance, so the estimate sits above your intake; a gain puts it below.
-/// While there aren't enough weigh-ins or calorie logs the estimate is held where it was ("holding"), and it
-/// starts only after ten days of history. A formula estimate from height, age, sex and activity is a starting point and a cross-check.
+/// While there aren't enough weigh-ins or calorie logs the estimate is held where it was ("holding"). It starts after four
+/// weeks of logging in all, counted from the very first day logged and not from a campaign's start, so a new campaign that
+/// carries on from an earlier one keeps using the history already there. A formula estimate from height, age, sex and activity is a starting point and a cross-check.
 
 enum MaintenanceStatus: Equatable { case waiting, updating }
 enum MaintenanceSource: Equatable { case trend, formula }
@@ -67,7 +68,8 @@ struct MaintenanceProfile: Equatable {
 
 enum Maintenance {
     static let kcalPerKgPerWeekAsDaily = 1100.0      // 7,700 kcal per kg, over seven days
-    static let startAfterDays = 10                   // the sheet begins its estimate on the eleventh day of history
+    static let startAfterDays = 28                   // four weeks of history, across every campaign: the sheet says it can only be had after four weeks of logging
+    static let continuityKg = 0.3                    // a new campaign's trend counts as carrying on if it starts within this of where the trend was
     static let weighInBlanksAllowed = 5              // of the last ten days
     static let calorieBlanksAllowed = 3              // of the last ten days
     static let plausible = 1000.0...6000.0
@@ -93,13 +95,20 @@ enum Maintenance {
     }
 
     /// The daily series, from the first logged day through `end`.
-    static func series(_ days: [DaySnapshot], through end: Date, smoothingDays: Int = 16, calendar cal: Calendar = .current) -> [MaintenancePoint] {
+    static func series(_ days: [DaySnapshot], through end: Date, smoothingDays: Int = 16, seeds: [Date: Double] = [:],
+                       calendar cal: Calendar = .current) -> [MaintenancePoint] {
         let end0 = cal.startOfDay(for: end)
         let map = Dictionary(days.map { (cal.startOfDay(for: $0.date), $0) }, uniquingKeysWith: { a, _ in a })
         guard let first = days.filter({ $0.weightKg != nil || $0.calories != nil }).map({ cal.startOfDay(for: $0.date) }).min(), first <= end0 else { return [] }
         let alpha = Metrics.alpha(forDays: smoothingDays)
-        let trend = Dictionary(Metrics.weightTrend(days, through: end0, smoothingDays: smoothingDays, calendar: cal)
+        let trend = Dictionary(Metrics.weightTrend(days, through: end0, smoothingDays: smoothingDays, seeds: seeds, calendar: cal)
             .map { (cal.startOfDay(for: $0.date), $0.trendKg) }, uniquingKeysWith: { a, _ in a })
+        // A campaign that starts the trend afresh somewhere new breaks the weekly change for its first week. One that starts where the
+        // trend already was (the usual case: the starting weight defaults to it) just carries on, so nothing is held up.
+        let breaks: [Date] = seeds.keys.filter { s in
+            guard let now = trend[s], let before = trend[cal.date(byAdding: .day, value: -1, to: s)!] else { return false }
+            return abs(now - before) > continuityKg
+        }
         func back(_ n: Int, from d: Date) -> Date { cal.date(byAdding: .day, value: -n, to: d)! }
         let count = (cal.dateComponents([.day], from: first, to: end0).day ?? 0)
         var out: [MaintenancePoint] = []
@@ -116,7 +125,8 @@ enum Maintenance {
             }
             // Weekly change in trend weight, as an energy gap.
             var estimate: Double?
-            if let t = trend[d], let t7 = trend[back(7, from: d)], let l = intake { estimate = l - (t - t7) * kcalPerKgPerWeekAsDaily }
+            let broken = breaks.contains { $0 > back(7, from: d) && $0 <= d }
+            if !broken, let t = trend[d], let t7 = trend[back(7, from: d)], let l = intake { estimate = l - (t - t7) * kcalPerKgPerWeekAsDaily }
             // Enough recent weigh-ins and calorie logs to trust a new reading?
             let weighBlanks = (0..<10).filter { map[back($0, from: d)]?.weightKg == nil }.count
             let calorieBlanks = (0..<10).filter { map[back($0, from: d)]?.calories == nil }.count
@@ -128,10 +138,10 @@ enum Maintenance {
     }
 
     /// The estimate as of `end`: from the logs when they have built one, otherwise from the formula if a profile is set.
-    static func estimate(_ days: [DaySnapshot], through end: Date, smoothingDays: Int = 16, profile: MaintenanceProfile? = nil,
-                         calendar cal: Calendar = .current) -> MaintenanceEstimate? {
-        let s = series(days, through: end, smoothingDays: smoothingDays, calendar: cal)
-        let latestTrend = Metrics.weightTrend(days, through: end, smoothingDays: smoothingDays, calendar: cal).last?.trendKg
+    static func estimate(_ days: [DaySnapshot], through end: Date, smoothingDays: Int = 16, seeds: [Date: Double] = [:],
+                         profile: MaintenanceProfile? = nil, calendar cal: Calendar = .current) -> MaintenanceEstimate? {
+        let s = series(days, through: end, smoothingDays: smoothingDays, seeds: seeds, calendar: cal)
+        let latestTrend = Metrics.weightTrend(days, through: end, smoothingDays: smoothingDays, seeds: seeds, calendar: cal).last?.trendKg
         let formula = profile.flatMap { p in latestTrend.map { formulaEstimate(p, weightKg: $0) } }
         if let last = s.last, let v = last.tdee, plausible.contains(v) {
             let readings = s.compactMap(\.tdee).count

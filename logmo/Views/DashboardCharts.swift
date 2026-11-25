@@ -594,12 +594,13 @@ struct MaintenanceCard: View {
     let timeline: GoalTimeline
     let scope: DateScope
     let smoothing: Int
+    var seeds: [Date: Double] = [:]
     let profile: MaintenanceProfile?
 
     private var cal: Calendar { .current }
 
     var body: some View {
-        let estimate = Maintenance.estimate(snaps, through: scope.end, smoothingDays: smoothing, profile: profile)
+        let estimate = Maintenance.estimate(snaps, through: scope.end, smoothingDays: smoothing, seeds: seeds, profile: profile)
         let hasData = snaps.contains { $0.weightKg != nil || $0.calories != nil }
         if hasData {
             Card(title: "Estimated maintenance", trailing: { statusChip(estimate) }) {
@@ -622,7 +623,7 @@ struct MaintenanceCard: View {
         let counts = snaps.filter { $0.calories != nil }.count
         return VStack(alignment: .leading, spacing: 8) {
             Text("Not enough yet").font(.subheadline.weight(.semibold))
-            Text("Maintenance is worked out from your weight trend and what you eat. It starts after about ten days of history, with a weigh-in on at least five of the last ten days and calories on at least seven (\(counts) days with calories so far). Or add your height, age, sex and activity in Settings → About you for a formula estimate in the meantime.")
+            Text("Maintenance is worked out from your weight trend and what you eat. It starts after four weeks of logging in all, counted from your first day across every campaign, so a new campaign that carries on from an earlier one keeps using the history already there. It also needs a weigh-in on at least five of the last ten days and calories on at least seven (\(counts) days with calories so far). Or add your height, age, sex and activity in Settings → About you for a formula estimate in the meantime.")
                 .font(.caption).foregroundStyle(theme.muted)
         }
     }

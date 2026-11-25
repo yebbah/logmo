@@ -28,6 +28,7 @@ struct CampaignInfo: Identifiable, Equatable, Hashable {
     var end: Date? = nil               // last day, inclusive; nil = still open
     var endedEarly: Bool = false
     var label: String? = nil           // the user's own name for it, optional
+    var startWeightKg: Double? = nil   // the weight the trend starts from when this campaign begins; asked for every real campaign
 
     /// The standard name, used when there is no label.
     var title: String { "Campaign \(number) · \(kind.title)\(isDefault ? " (default)" : "")" }
@@ -44,6 +45,7 @@ enum CampaignError: Error, Equatable {
     case campaignRunning          // end the running campaign first
     case startsBeforeCurrent      // would overlap the previous campaign
     case notEditable              // only a campaign that hasn't started can have its dates changed
+    case invalidStartWeight       // a real campaign needs a starting weight
 }
 
 /// What a store must do to start a campaign.
@@ -63,6 +65,34 @@ enum CampaignRules {
     private static func addDays(_ n: Int, to d: Date, _ cal: Calendar) -> Date {
         cal.date(byAdding: .day, value: n, to: d)!
     }
+
+    /// Where the weight trend starts afresh: each real campaign that has a starting weight, on its first day. Campaigns without one
+    /// (the automatic maintenance ones, and campaigns made before starting weights existed) carry the running trend on.
+    static func trendSeeds(_ campaigns: [CampaignInfo], calendar cal: Calendar = .current) -> [Date: Double] {
+        var out: [Date: Double] = [:]
+        for c in campaigns where !c.isDefault { if let w = c.startWeightKg { out[cal.startOfDay(for: c.start)] = w } }
+        return out
+    }
+
+    /// Where a new campaign's starting weight should begin: the trend weight as it stands (so the trend carries on from an earlier
+    /// campaign), else the latest weigh-in; nil with no weigh-ins at all.
+    static func suggestedStartWeight(snaps: [DaySnapshot], campaigns: [CampaignInfo], smoothingDays: Int, today: Date,
+                                     calendar cal: Calendar = .current) -> Double? {
+        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothingDays, seeds: trendSeeds(campaigns, calendar: cal), calendar: cal)
+        if let t = trend.last?.trendKg { return (t * 10).rounded() / 10 }
+        return snaps.filter { $0.weightKg != nil }.max { $0.date < $1.date }?.weightKg
+    }
+
+    /// The Dashboard's top-left badge: days left in the running real campaign, counting today. nil when none is running with a planned end.
+    static func daysLeftBadge(_ campaigns: [CampaignInfo], today: Date, calendar cal: Calendar = .current) -> String? {
+        guard let c = campaign(for: today, in: campaigns, calendar: cal), !c.isDefault, c.end == nil, c.plannedWeeks != nil,
+              !isUpcoming(c, today: today, calendar: cal), let left = daysLeft(c, today: today, calendar: cal) else { return nil }
+        return left == 0 ? "Planned end passed" : "\(left) \(left == 1 ? "day" : "days") left"
+    }
+
+    /// A starting weight that could be a person's, in kg.
+    static let plausibleStartWeightKg = 20.0...400.0
+    static func isPlausibleStartWeight(_ kg: Double?) -> Bool { kg.map { plausibleStartWeightKg.contains($0) } ?? false }
 
     static func isOpen(_ c: CampaignInfo) -> Bool { c.end == nil }
 
@@ -159,7 +189,7 @@ enum CampaignRules {
     /// Plan for starting a real campaign. A running real campaign must be ended first;
     /// a running default is closed the day before the new one starts.
     static func plan(start: Date, kind: CampaignKind, targetKg: Double?, weeks: Int,
-                     existing: [CampaignInfo], label: String? = nil, today: Date = Date(),
+                     existing: [CampaignInfo], label: String? = nil, startWeightKg: Double? = nil, today: Date = Date(),
                      calendar cal: Calendar = .current) -> Result<StartPlan, CampaignError> {
         guard weeks >= 1 else { return .failure(.invalidWeeks) }
         let s = cal.startOfDay(for: start)
@@ -174,7 +204,7 @@ enum CampaignRules {
             let gapStart = addDays(1, to: pe, cal)
             let filler: (start: Date, end: Date)? = s > gapStart ? (gapStart, addDays(-1, to: s, cal)) : nil
             let new = CampaignInfo(number: nextNumber(existing) + (filler == nil ? 0 : 1), kind: kind, isDefault: false,
-                                   targetWeightKg: targetKg, start: s, plannedWeeks: weeks, label: cleanLabel(label))
+                                   targetWeightKg: targetKg, start: s, plannedWeeks: weeks, label: cleanLabel(label), startWeightKg: startWeightKg)
             return .success(StartPlan(new: new, endDefault: nil, deleteDefault: nil, filler: filler))
         }
 
@@ -188,7 +218,7 @@ enum CampaignRules {
         }
         let number = nextNumber(existing.filter { $0.id != deleteDefault })
         let new = CampaignInfo(number: number, kind: kind, isDefault: false, targetWeightKg: targetKg,
-                               start: s, plannedWeeks: weeks, label: cleanLabel(label))
+                               start: s, plannedWeeks: weeks, label: cleanLabel(label), startWeightKg: startWeightKg)
         return .success(StartPlan(new: new, endDefault: endDefault, deleteDefault: deleteDefault))
     }
 

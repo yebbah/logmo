@@ -83,7 +83,7 @@ final class ExportTests: XCTestCase {
     func testCampaignsAndGoalsFiles() {
         let c = CampaignInfo(number: 3, kind: .cut, targetWeightKg: 75, start: day(2), plannedWeeks: 4, end: day(29), label: "Summer")
         XCTAssertEqual(CSVExport.campaignsCSV([c], calendar: cal),
-                       "number,name,kind,automatic_default,target_weight_kg,start,planned_weeks,end,ended_early\n3,Summer,cut,false,75.0,2026-11-02,4,2026-11-29,false\n")
+                       "number,name,kind,automatic_default,target_weight_kg,start_weight_kg,start,planned_weeks,end,ended_early\n3,Summer,cut,false,75.0,,2026-11-02,4,2026-11-29,false\n")
         let g = CSVExport.weeklyGoalsCSV([(campaign: c, week: day(2), goals: GoalSet(proteinDaily: 140), confirmed: false)], calendar: cal)
         XCTAssertTrue(g.hasSuffix("3,Summer,2026-11-02,,,140,,,,,,,false\n"), g)
     }

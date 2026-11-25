@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v18.1 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v19.0 and app version 1.0.0 (build 1).
 
 ---
 
@@ -49,13 +49,17 @@ Invariants the code keeps: every day belongs to exactly one campaign; there is a
 
 User preferences live in `UserDefaults` (via `@AppStorage`), keys in `SettingsKey`: units, trend smoothing, required trackers, theme, cycle and sick tracking, biofeedback overlay, campaign filter, weekly and daily reminder switches and times, and a few dismissal markers. They are included in the full backup.
 
+### Starting weight and the trend
+
+`Metrics.smoothed`/`weightTrend` take `seeds`: a date to a weight, one per real campaign that has `startWeightKg` (`CampaignRules.trendSeeds`). A seed is the trend on the day before, so the day's weigh-in moves it (day one blank means the trend is the seed, as in the workbook). `CampaignStore.start` refuses a real campaign without a plausible starting weight (20 to 400 kg); `setStartWeight` and `reschedule` change it for campaigns that haven't ended. Every caller of the trend passes the seeds (`Dashboard`, `Campaigns`, `Streaks`, `Maintenance`, `SuggestionRules.summary`). `Maintenance` counts its four weeks from the first log across campaigns and reads weekly change across a campaign boundary unless the new seed jumped more than 0.3 kg.
+
 ### Keyboard
 
 `View.keyboardDismissible()` (in `Components.swift`) adds `scrollDismissesKeyboard(.interactively)` and a keyboard-toolbar Done button. Use it on any form that has a text or number field; number pads have no Return key and would otherwise be impossible to close.
 
 ### Estimated maintenance
 
-`Maintenance` (pure, tested) replicates the workbook's TDEE: `series` walks the days from the first log, smoothing intake (a 14-day average of logged days, then an EMA with the weight's coefficient) and applying `1100 × weekly change in trend weight`; it starts after 10 days and updates only when weigh-ins are present on at least 5 of the last 10 days and calories on at least 7 (otherwise the estimate is carried: `waiting`/"Holding"). `estimate` returns the trend estimate, or a Mifflin-St Jeor formula estimate from `MaintenanceProfile` (UserDefaults, optional) when there isn't one, with `DataConfidence`. `WeekSummary` carries it; `SuggestionRules.assess` shows it as evidence, sizes a calorie move by the gap to the target pace (`min(weekly cap, max(50, rounded gap))`), keeps the target if the estimate and the scale disagree, and uses it in the low-target rule. `MaintenanceCard` draws it on the Dashboard. The thresholds are constants in `Maintenance.swift`; changing one means updating `MaintenanceTests` and probably `WeekSuggestionTests`.
+`Maintenance` (pure, tested) replicates the workbook's TDEE: `series` walks the days from the first log, smoothing intake (a 14-day average of logged days, then an EMA with the weight's coefficient) and applying `1100 × weekly change in trend weight`; it starts after 28 days of logging counted from the first log across all campaigns and updates only when weigh-ins are present on at least 5 of the last 10 days and calories on at least 7 (otherwise the estimate is carried: `waiting`/"Holding"). `estimate` returns the trend estimate, or a Mifflin-St Jeor formula estimate from `MaintenanceProfile` (UserDefaults, optional) when there isn't one, with `DataConfidence`. `WeekSummary` carries it; `SuggestionRules.assess` shows it as evidence, sizes a calorie move by the gap to the target pace (`min(weekly cap, max(50, rounded gap))`), keeps the target if the estimate and the scale disagree, and uses it in the low-target rule. `MaintenanceCard` draws it on the Dashboard. The thresholds are constants in `Maintenance.swift`; changing one means updating `MaintenanceTests` and probably `WeekSuggestionTests`.
 
 ### Apple Health
 
@@ -110,7 +114,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (222 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (240 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 

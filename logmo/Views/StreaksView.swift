@@ -20,7 +20,7 @@ struct StreaksView: View {
         let snaps = logs.map(\.snapshot)
         let timeline = GoalTimeline(weekGoals, campaigns: campaigns.map(\.info))
         let required = RequiredTrackers.parse(requiredRaw)
-        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
+        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing, seeds: CampaignRules.trendSeeds(campaigns.map(\.info)))
 
         NavigationStack {
             ScrollViewReader { proxy in

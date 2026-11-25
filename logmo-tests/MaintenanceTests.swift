@@ -15,7 +15,7 @@ final class MaintenanceTests: XCTestCase {
     }
 
     func testSteadyWeightMeansMaintenanceEqualsWhatYouEat() {
-        let e = Maintenance.estimate(log(40), through: day(39), calendar: cal)!
+        let e = Maintenance.estimate(log(60), through: day(59), calendar: cal)!
         XCTAssertEqual(e.source, .trend); XCTAssertEqual(e.status, .updating); XCTAssertEqual(e.confidence, .high)
         XCTAssertEqual(Double(e.kcalPerDay), 2400, accuracy: 5)
     }
@@ -31,11 +31,11 @@ final class MaintenanceTests: XCTestCase {
         XCTAssertEqual(Double(e.kcalPerDay), 3000 - 0.35 * 1100, accuracy: 60)
     }
 
-    func testNothingIsEstimatedDuringTheFirstTenDays() {
-        let s = Maintenance.series(log(10), through: day(9), calendar: cal)
-        XCTAssertEqual(s.count, 10); XCTAssertTrue(s.allSatisfy { $0.tdee == nil })
-        XCTAssertNil(Maintenance.estimate(log(10), through: day(9), calendar: cal))
-        XCTAssertNotNil(Maintenance.series(log(14), through: day(13), calendar: cal).last?.tdee)
+    func testNothingIsEstimatedDuringTheFirstFourWeeks() {
+        let s = Maintenance.series(log(28), through: day(27), calendar: cal)
+        XCTAssertEqual(s.count, 28); XCTAssertTrue(s.allSatisfy { $0.tdee == nil })
+        XCTAssertNil(Maintenance.estimate(log(28), through: day(27), calendar: cal))
+        XCTAssertNotNil(Maintenance.series(log(29), through: day(28), calendar: cal).last?.tdee)      // the 29th day is the first to have one
     }
 
     func testTheEstimateIsHeldWhileLogsAreTooThin() {

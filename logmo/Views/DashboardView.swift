@@ -19,6 +19,8 @@ struct DashboardView: View {
     @State private var goalsTarget: GoalsTarget?
     @State private var planCampaign: CampaignInfo?
     @State private var suggestCampaign: CampaignInfo?
+    @State private var startWeightFor: Campaign?
+    @AppStorage("startWeightDismissedOn") private var startWeightDismissedOn = ""
     @State private var editUpcoming: Campaign?
     @AppStorage("closingDismissed") private var closingDismissed = ""      // "<campaign id>|<yyyy-MM-dd>" the closing-soon card was put off
 
@@ -32,7 +34,8 @@ struct DashboardView: View {
         let snaps = logs.map(\.snapshot)
         let infos = campaigns.map(\.info)
         let timeline = GoalTimeline(weekGoals, campaigns: infos)
-        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
+        let seeds = CampaignRules.trendSeeds(infos)
+        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing, seeds: seeds)
         let selected = selectedCampaign(infos)
         let scope = scopeFor(selected, snaps)
 
@@ -43,6 +46,7 @@ struct DashboardView: View {
                         setupCard(infos)
                         finishedCard(infos)
                         closingCard(infos)
+                        startWeightCard()
                         campaignPicker(infos)
                         campaignCard(selected, scope, trend, infos)
                         if let gc = goalCampaign(selected, infos) {
@@ -61,7 +65,7 @@ struct DashboardView: View {
                         PerformanceCard(snaps: snaps, trend: trend, scope: scope).id("performance")
                         WeightChartCard(title: "Weigh-ins and trend", trend: trend, snaps: snaps, scope: scope,
                                         smoothing: smoothing, timeline: timeline).id("weight")
-                        MaintenanceCard(snaps: snaps, timeline: timeline, scope: scope, smoothing: smoothing, profile: MaintenanceProfile.load()).id("maintenance")
+                        MaintenanceCard(snaps: snaps, timeline: timeline, scope: scope, smoothing: smoothing, seeds: seeds, profile: MaintenanceProfile.load()).id("maintenance")
                         BodyCompositionCard(logs: logs, scope: scope, unit: unit).id("body")
                         RateCard(trend: trend, scope: scope).id("rate")
                         StepsCaloriesCard(snaps: snaps, scope: scope).id("steps")
@@ -81,7 +85,20 @@ struct DashboardView: View {
             }
             .background(theme.bg)
             .navigationTitle("Dashboard")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if let text = CampaignRules.daysLeftBadge(infos, today: today) {
+                        Button { nav.tab = 3 } label: {
+                            // An HStack, not a Label: the toolbar turns a Label into just its icon.
+                            HStack(spacing: 5) { Image(systemName: "flag.checkered"); Text(text) }
+                                .font(.footnote.weight(.semibold)).foregroundStyle(theme.accent).fixedSize()
+                        }
+                        .accessibilityLabel("\(text) in the current campaign. Opens Campaigns.")
+                    }
+                }
+            }
             .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week, prefill: t.prefill) }
+            .sheet(item: $startWeightFor) { StartWeightSheet(campaign: $0) }
             .sheet(item: $suggestCampaign) { c in
                 SuggestSheet(campaign: c) { goals, week in goalsTarget = GoalsTarget(campaign: c, week: week, prefill: goals) }
             }
@@ -136,6 +153,16 @@ struct DashboardView: View {
                        text: "Its \(c.plannedWeeks ?? 0) weeks are over. Close it to see how it went, or keep going.",
                        actions: [.init(title: "Extend 2 weeks", run: { if !CampaignStore.extend(context, model, byWeeks: 2) { editUpcoming = upcomingCampaign } }),
                                  .init(title: "End & see results", filled: true, run: { CampaignStore.finish(context, model); nav.tab = 3 })])
+        }
+    }
+
+    /// A real campaign that is running or about to start without a starting weight: ask for one, so the trend is predictable.
+    @ViewBuilder private func startWeightCard() -> some View {
+        if let m = campaigns.first(where: { !$0.isDefault && $0.end == nil && $0.startWeightKg == nil }), startWeightDismissedOn != todayKey {
+            PromptCard(tint: theme.accent, icon: "scalemass", title: "Add a starting weight for \(m.info.name)",
+                       text: "Your weight trend starts from it on the campaign's first day, so the trend behaves predictably. It is filled in with your current trend weight.",
+                       actions: [.init(title: "Not now", run: { startWeightDismissedOn = todayKey }),
+                                 .init(title: "Set it", filled: true, run: { startWeightFor = m })])
         }
     }
 
