@@ -28,6 +28,9 @@ struct WeekPlanRow: Identifiable, Equatable {
     var strip: [Metrics.DayCompliance]
     var outcome: WeekOutcome           // all the week's weekly goals together
     var reason: String?                // why a missed week was missed
+    var trendKg: Double? = nil         // the weight trend at the end of the week (so far, for the current week); nil for a future week or no trend yet
+    var trendChangeKg: Double? = nil   // from the end of the week before; nil is N/A (nothing before it, or the campaign restarted the trend)
+    var trendChangePercent: Double? = nil
     var id: Date { weekStart }
 }
 
@@ -87,12 +90,15 @@ extension Insights {
     /// `weeks` is this campaign's own goals by Monday; `explicit` the Mondays the user set or confirmed;
     /// `timeline` the all-campaign goals used for judging each day.
     static func weeklyPlan(_ c: CampaignInfo, snaps: [DaySnapshot], weeks: [Date: GoalSet], explicit: Set<Date>,
-                           timeline: GoalTimeline, required: Set<Tracker>, today: Date,
+                           timeline: GoalTimeline, required: Set<Tracker>, today: Date, trend: [TrendPoint] = [],
                            calendar cal: Calendar = .current) -> [WeekPlanRow] {
         let t = cal.startOfDay(for: today)
         let b = PlanRules.bounds(c, today: today, calendar: cal)
         let campaignEnd = c.end
         var rows: [WeekPlanRow] = []
+        // Each week's weight trend and its change from the week before (the Dashboard's weekly rate of change), kept with the week as history.
+        let trendRows = Dictionary(Metrics.weeklyTrendRows(trend, from: b.first, through: t, limit: 520, calendar: cal).map { ($0.weekStart, $0) },
+                                   uniquingKeysWith: { a, _ in a })
         var ws = b.first
         while ws <= b.last {
             let weekEnd = cal.date(byAdding: .day, value: 6, to: ws)!
@@ -113,9 +119,11 @@ extension Insights {
                 outcome = phase == .future ? .inProgress : Metrics.weeklyOutcome(snaps, weekStart: ws, goals: goals, today: today, calendar: cal)
                 if outcome == .missed { reason = missReason(snaps, ws, goals, today, cal) }
             }
+            let tr = phase == .future ? nil : trendRows[ws]
             rows.append(WeekPlanRow(weekStart: ws, phase: phase, goals: goals, previous: prev, isSet: explicit.contains(ws),
                                     days: strip.count, compliedDays: strip.filter { $0 == .complied }.count,
-                                    strip: strip, outcome: outcome, reason: reason))
+                                    strip: strip, outcome: outcome, reason: reason,
+                                    trendKg: tr?.trendKg, trendChangeKg: tr?.changeKg, trendChangePercent: tr?.changePercent))
             ws = cal.date(byAdding: .day, value: 7, to: ws)!
         }
         return rows

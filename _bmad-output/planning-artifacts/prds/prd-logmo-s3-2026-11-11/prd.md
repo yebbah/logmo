@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 20.3
+version: 20.4
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v20.3)
+# logmo: Product Requirements (v20.4)
 
 ## Vision and outcome
 
@@ -130,7 +130,7 @@ Rules:
 3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's weigh-in (logged or not yet), protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), an **Edit goals** button and a **Weekly plan** link, and a "Carried over" chip when this week's goals were not set or confirmed. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
 4. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
 5. **Weigh-ins and trend** chart (FR-7), with the protein intake summary under it.
-6. **Rate of change per week:** one bar per day, trend weight today minus 7 days earlier, over the last 12 weeks, with the latest value and its percent of body weight.
+6. **Weekly rate of change** (the one rate-of-change view; the earlier daily bar chart was removed as a duplicate of it).
 7. **Steps and calories:** last 14 days as grouped bars (steps on the left axis, calories on the right) and the past-7-day averages.
 8. **Biofeedback, last 7 days:** one small bar chart per rating with its 7-day average and which direction is better: higher for sleep and training performance, lower for fatigue, stress, hunger and soreness, and none for appetite. Days without a rating have no bar.
 
@@ -164,7 +164,7 @@ The three streaks (logging, daily goals, weekly goals) are **not campaign-specif
 - **This week** comes first, then **Plan ahead**, then past weeks (locked).
 - **Plan ahead:** the next four weeks, each with its goals (changes from the week before highlighted, with the old value), a "Set by you" or "Carried over" chip, and **Same as before** (confirms it) and **Edit**.
 - **This week:** the same, with its compliance so far.
-- **Past weeks**, newest first, **locked**: goals, set or carried over, "n of 7 days complied" under that week's goals, a strip of the days, and the result with its reason. There is no way to edit them.
+- **Past weeks**, newest first, **locked**: goals, set or carried over, "n of 7 days complied" under that week's goals, a strip of the days, and the result with its reason. Every week that has begun, past or current, also carries its **weight trend at the end of the week and its change from the week before** (kg and %, "N/A" when nothing earlier or the campaign restarted the trend; "so far" for the current week), kept as that week's history. The same rows appear in the campaign's detailed view. There is no way to edit them.
 - **Plan prompt**, on the Dashboard and at the top of the plan: with no goals at all, "Set your weekly goals"; on any day but Sunday when this week is only carried over, "This week's goals are carried over" with **Keep them** (confirms them) and **Change them**; on Sunday, if next week isn't set, "Plan next week" with **Same as this week** and **Change it**. Confirming counts as setting the week, so the prompt goes away.
 
 **FR-18. Reminders.** In Settings, a **Weekly plan reminder** switch with a day of the week and a time the user chooses (Sunday 18:00 by default). When on, a local notification repeats weekly at that time: "Plan your week. Set next week's goals in logmo." It carries nothing from the user's logs. Turning it on asks iOS for permission; if that is refused the switch goes back off and Settings points to iOS Settings. Turning it off cancels the notification, and changing the day or time reschedules it.
@@ -387,3 +387,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D132 | The three streaks are global, not per campaign; goal streaks judge each day or week against its own campaign's goals, and a day or week outside every campaign breaks them | Decided: confirmed with the user; the days-outside-a-campaign rule follows from D127 |
 | D133 | A change in the trend measured across a campaign's restart (starting weight more than 0.3 kg from the old trend) is blank, not the jump | Decided: fixes a +0.78 kg weekly change shown for a one-week campaign with nothing logged |
 | D134 | The maintenance card shows the goal against maintenance as one line and leaves goal and eaten to the weekly table, instead of repeating them as tiles | Decided: the user found them duplicated and overwhelming |
+| D135 | One rate-of-change view on the Dashboard (the weekly table); each begun week of the weekly plan keeps its trend weight and change as history | Decided: the user asked for one view and the weekly value kept per week |

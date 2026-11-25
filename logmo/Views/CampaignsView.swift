@@ -52,7 +52,7 @@ struct CampaignsView: View {
             let mine = weekGoals.filter { $0.campaignID == c.id }
             return Insights.weeklyPlan(c, snaps: snaps, weeks: Dictionary(mine.map { ($0.weekStart, $0.goalSet) }, uniquingKeysWith: { a, _ in a }),
                                        explicit: PlanStore.explicitWeeks(weekGoals, campaignID: c.id), timeline: timeline,
-                                       required: required0, today: today)
+                                       required: required0, today: today, trend: trend)
         }
         let report: (CampaignInfo) -> CampaignReport = { c in
             Insights.campaignReport(c, snaps: snaps, trend: trend, timeline: timeline, required: required, today: today)

@@ -70,7 +70,6 @@ struct DashboardView: View {
                         MaintenanceCard(snaps: snaps, timeline: timeline, scope: scope, smoothing: smoothing, seeds: seeds, profile: MaintenanceProfile.load()).id("maintenance")
                         BodyCompositionCard(logs: logs, scope: scope, unit: unit).id("body")
                         WeeklyRateCard(trend: trend, scope: scope, unit: unit).id("weekly")
-                        RateCard(trend: trend, scope: scope).id("rate")
                         StepsCaloriesCard(snaps: snaps, scope: scope).id("steps")
                         BiofeedbackBarsCard(snaps: snaps, scope: scope).id("bio")
                     }

@@ -118,6 +118,7 @@ struct GoalsLine: View {
 
 struct WeekRowCard: View {
     @Environment(\.theme) private var theme
+    @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     let row: WeekPlanRow
     var plain = false                  // no card of its own, for use inside another card
     var onEdit: (() -> Void)? = nil
@@ -127,6 +128,20 @@ struct WeekRowCard: View {
         let end = Calendar.current.date(byAdding: .day, value: 6, to: row.weekStart)!
         return "\(row.weekStart.formatted(shortDate)) – \(end.formatted(shortDate))"
     }
+    /// The weight trend at the end of the week and how it moved from the week before, kept as that week's history.
+    private func trendLine(_ kg: Double) -> some View {
+        let unit = WeightUnit(rawValue: unitRaw) ?? .kg
+        var text = String(format: "Weight trend %.2f %@", unit.fromKg(kg), unit.rawValue)
+        if let c = row.trendChangeKg {
+            let d = unit.fromKg(kg) - unit.fromKg(kg - c)
+            text += String(format: " · %+.2f %@", d, unit.rawValue) + (row.trendChangePercent.map { String(format: " (%+.2f%%)", $0) } ?? "") + " from the week before"
+        } else {
+            text += " · change N/A"
+        }
+        if row.phase == .current { text += " (so far)" }
+        return Label(text, systemImage: "scalemass").font(.caption).foregroundStyle(theme.muted).labelStyle(.titleAndIcon)
+    }
+
     private var tag: String? {
         switch row.phase {
         case .current: return "this week"
@@ -158,6 +173,7 @@ struct WeekRowCard: View {
                 }
                 strip
             }
+            if let t = row.trendKg { trendLine(t) }
             if row.phase == .past {
                 Label("Locked", systemImage: "lock.fill").font(.caption2).foregroundStyle(theme.muted)
             }
@@ -211,6 +227,7 @@ struct WeeklyPlanView: View {
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
+    @AppStorage(SettingsKey.smoothing) private var smoothing = 16
 
     let campaign: CampaignInfo
     @State private var editing: EditTarget?
@@ -229,7 +246,8 @@ struct WeeklyPlanView: View {
         let explicit = PlanStore.explicitWeeks(weekGoals, campaignID: campaign.id)
         let rows = Insights.weeklyPlan(campaign, snaps: snaps, weeks: byWeek, explicit: explicit,
                                        timeline: GoalTimeline(weekGoals, campaigns: infos),
-                                       required: RequiredTrackers.parse(requiredRaw), today: today)
+                                       required: RequiredTrackers.parse(requiredRaw), today: today,
+                                       trend: Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing, seeds: CampaignRules.trendSeeds(infos)))
         let prompt = PlanRules.prompt(campaign, hasAnyGoals: !mine.isEmpty, explicit: explicit, today: today)
         let editable = PlanRules.bounds(campaign, today: today).editable != nil
 

@@ -125,7 +125,7 @@ Neither counts against your compliance or streaks. Turning one off hides the que
 
 ## 10. The Dashboard
 
-Choose what to look at with **Showing**: your current campaign, **Overall (all time)**, or any past campaign. Charts include weight with its smoothed trend, rate of change, steps and calories, and how you feel (biofeedback). Tap the expand button on a chart to open it full screen in landscape.
+Choose what to look at with **Showing**: your current campaign, **Overall (all time)**, or any past campaign. Charts include weight with its smoothed trend, steps and calories, and how you feel (biofeedback). Tap the expand button on a chart to open it full screen in landscape.
 
 - Change how smooth the trend line is in **Settings → Trend → Weight smoothing**.
 - Turn the biofeedback lines on or off with **Show biofeedback** on the chart.

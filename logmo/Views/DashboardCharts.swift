@@ -236,56 +236,6 @@ struct WeightChartCard: View {
 
 // MARK: - Rate of change
 
-struct RateCard: View {
-    @Environment(\.theme) private var theme
-    @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
-    let trend: [TrendPoint]
-    let scope: DateScope
-    @State private var full = false
-
-    private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
-    private var points: [RatePoint] {
-        Array(Insights.rateOfChange(trend).filter { $0.date >= scope.start && $0.date <= scope.end }.suffix(84))   // last 12 weeks
-    }
-
-    var body: some View {
-        let pts = points
-        Card(title: "Rate of change per week", trailing: { if !pts.isEmpty { ExpandButton { full = true } } }) {
-            if let last = pts.last {
-                let base = trend.first(where: { $0.date == last.date })?.trendKg ?? 1
-                HStack(alignment: .firstTextBaseline) {
-                    Text("\(signed(unit.fromKg(last.kgPerWeek) - unit.fromKg(0))) \(unit.rawValue)/wk")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                    Spacer()
-                    Text("\(signed(last.kgPerWeek / base * 100, 2))% of body weight")
-                        .font(.caption).foregroundStyle(theme.muted)
-                }
-                chart(pts).chartHeight(150)
-                Text("Each bar: trend weight today minus 7 days earlier. Needs a week of history.")
-                    .font(.caption).foregroundStyle(theme.muted)
-            } else {
-                Text("Needs at least a week of weigh-ins in this period.").foregroundStyle(theme.muted)
-            }
-        }
-        .landscapeCover(isPresented: $full) {
-            FullScreenFrame(title: "Rate of change per week") { chart(pts).chartHeight(nil) }
-        }
-        #if DEBUG
-        .onAppear { debugExpand("rate", $full) }
-        #endif
-    }
-
-    private func chart(_ pts: [RatePoint]) -> some View {
-        Chart(pts) { p in
-            BarMark(x: .value("Date", p.date, unit: .day), y: .value("Rate", unit.fromKg(p.kgPerWeek) - unit.fromKg(0)))
-                .foregroundStyle(theme.accent)
-            RuleMark(y: .value("Zero", 0)).foregroundStyle(theme.muted).lineStyle(StrokeStyle(lineWidth: 1))
-        }
-    }
-}
-
-// MARK: - Steps and calories
-
 struct StepsCaloriesCard: View {
     @Environment(\.theme) private var theme
     let snaps: [DaySnapshot]

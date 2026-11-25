@@ -92,6 +92,16 @@ final class PlanRulesTests: XCTestCase {
         XCTAssertEqual(rows[0].outcome, .met); XCTAssertNil(rows[0].reason)
         XCTAssertEqual(rows[1].outcome, .missed); XCTAssertEqual(rows[1].reason, "1 of 3 workouts")
     }
+    func testWeeksKeepTheirTrendAndChange() {
+        let c = camp(start: 2, weeks: 12)
+        let trend = (2...16).map { TrendPoint(date: day($0), weightKg: nil, trendKg: 80 - Double($0 - 2) * 0.1) }
+        let rows = Insights.weeklyPlan(c, snaps: [], weeks: [:], explicit: [], timeline: GoalTimeline(), required: [],
+                                       today: day(16), trend: trend, calendar: cal)
+        XCTAssertNil(rows[0].trendChangeKg)                                    // nothing before the first week
+        XCTAssertNotNil(rows[0].trendKg)
+        XCTAssertEqual(rows[1].trendChangeKg ?? 0, -0.7, accuracy: 0.01)
+        XCTAssertNil(rows.last(where: { $0.phase == .future })?.trendKg)       // future weeks have none
+    }
     func testAFutureWeekHasGoalsButNoDays() {
         let c = camp(start: 2, weeks: 12)
         let g = GoalSet(caloriesWeekly: 14000)
