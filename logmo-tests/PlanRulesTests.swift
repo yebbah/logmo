@@ -39,11 +39,10 @@ final class PlanRulesTests: XCTestCase {
     }
 
     // MARK: repeat
-    func testRepeatSkipsWeeksTheUserAlreadySetAndStaysInsideTheRange() {
+    func testRepeatFillsEveryFollowingWeekEvenOnesAlreadySetAndStaysInsideTheRange() {
         let b = PlanRules.bounds(camp(start: 2, weeks: 4), today: day(10), calendar: cal)         // editable 9th … 23rd
-        XCTAssertEqual(PlanRules.weeksToFill(after: day(9), count: 4, bounds: b, explicit: [], calendar: cal), [day(16), day(23)])
-        XCTAssertEqual(PlanRules.weeksToFill(after: day(9), count: 4, bounds: b, explicit: [day(16)], calendar: cal), [day(23)])
-        XCTAssertEqual(PlanRules.weeksToFill(after: day(9), count: 1, bounds: b, explicit: [], calendar: cal), [day(16)])
+        XCTAssertEqual(PlanRules.weeksToFill(after: day(9), count: 4, bounds: b, calendar: cal), [day(16), day(23)])
+        XCTAssertEqual(PlanRules.weeksToFill(after: day(9), count: 1, bounds: b, calendar: cal), [day(16)])
         XCTAssertEqual(PlanRules.followingWeeks(after: day(9), bounds: b, calendar: cal), 2)
         XCTAssertEqual(PlanRules.followingWeeks(after: day(23), bounds: b, calendar: cal), 0)
     }

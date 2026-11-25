@@ -56,12 +56,12 @@ enum PlanRules {
         return byWeek[k]
     }
 
-    /// Following weeks (up to `count`) that a "repeat" should fill: inside the editable range and not
-    /// already set by the user.
-    static func weeksToFill(after week: Date, count: Int, bounds b: PlanBounds, explicit: Set<Date>,
+    /// Following weeks (up to `count`) that a "repeat" gives the same goals: every one inside the editable range,
+    /// including weeks already set or confirmed (they are replaced, and the editor says how many).
+    static func weeksToFill(after week: Date, count: Int, bounds b: PlanBounds,
                             calendar cal: Calendar = .current) -> [Date] {
         guard let e = b.editable, count > 0 else { return [] }
-        return (1...count).map { addDays(7 * $0, to: week, cal) }.filter { e.contains($0) && !explicit.contains($0) }
+        return (1...count).map { addDays(7 * $0, to: week, cal) }.filter { e.contains($0) }
     }
 
     /// How many following weeks exist inside the editable range after `week`.

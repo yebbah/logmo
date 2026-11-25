@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 20.6
+version: 20.7
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v20.6)
+# logmo: Product Requirements (v20.7)
 
 ## Vision and outcome
 
@@ -64,7 +64,7 @@ Direction differs by category: higher is better for sleep and training performan
 
 Every goal is optional; an empty field means no goal. Within a campaign, a week with no goals of its own inherits that campaign's most recent earlier week. A week is **Set by you** once the user has set or confirmed its goals, and **Carried over** while it only has goals inherited from an earlier week (or copied in when a campaign started).
 
-**Setting a week** (the editor, FR-17): only **this week and the following four weeks**, inside the campaign, can be changed. **Earlier weeks are locked**: changing one would change its result and the streaks. The editor starts from last week's goals, so only what differs needs changing; each field that differs shows "was …" beside it. **Start from** offers *Last week* and *Blank*. **Repeat for the weeks after** gives the following weeks (up to four, inside the campaign) the same goals, and never overwrites a week the user already set. A campaign that has ended has no editable weeks.
+**Setting a week** (the editor, FR-17): only **this week and the following four weeks**, inside the campaign, can be changed. **Earlier weeks are locked**: changing one would change its result and the streaks. The editor starts from last week's goals, so only what differs needs changing; each field that differs shows "was …" beside it. **Start from** offers *Last week* and *Blank*. **Repeat for the weeks after** gives the following weeks (up to four, inside the campaign) the same goals, **replacing** any of those weeks the user already set or confirmed (the editor says how many will be replaced; each week can still be edited afterwards). A campaign that has ended has no editable weeks.
 
 When a campaign starts, including the automatic default one, it begins with a **copy of the most recent weekly goals** of the other campaigns, placed on the Monday of the week it starts, so nothing starts unset. That copy counts as *carried over* until the user confirms or changes it. If there are no goals anywhere yet, it starts with none. Goals made before goals were per campaign move to the campaign that contains their week.
 
@@ -390,3 +390,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D135 | One rate-of-change view on the Dashboard (the weekly table); each begun week of the weekly plan keeps its trend weight and change as history | Decided: the user asked for one view and the weekly value kept per week |
 | D136 | The days-left badge sits in the top-right corner of the navigation bar so it no longer pushes the Dashboard title and content down | Decided: the user asked |
 | D137 | The days-left badge sits at the right end of the week line, not in the navigation bar: any navigation-bar item adds an empty row above the large title | Decided: the user disliked the empty space (seen in the simulator); the Dashboard top now matches the other tabs |
+| D138 | Repeat for the weeks after replaces weeks already set or confirmed, instead of skipping them | Decided: the user repeated an edited water goal over four weeks and only the edited week changed, because the others had been confirmed earlier and were silently skipped |

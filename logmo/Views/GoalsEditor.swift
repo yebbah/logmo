@@ -163,7 +163,9 @@ struct GoalsEditor: View {
                     Stepper("Following weeks: \(repeatCount)", value: $repeatCount, in: 1...followingAvailable)
                 }
             } footer: {
-                Text("Gives the following weeks these goals, up to four weeks ahead and inside the campaign. Weeks you already set yourself are not overwritten, and each can still be edited.")
+                let replaced = repeatOn ? PlanRules.weeksToFill(after: weekStart, count: repeatCount, bounds: bounds).filter { explicit.contains($0) }.count : 0
+                Text("Gives the following weeks these goals, up to four weeks ahead and inside the campaign. Each can still be edited."
+                     + (replaced > 0 ? " \(replaced) of those \(replaced == 1 ? "week was" : "weeks were") already set and will be replaced." : ""))
             }
             .listRowBackground(theme.card)
         }
@@ -249,7 +251,7 @@ struct GoalsEditor: View {
         let g = currentGoals()
         PlanStore.save(context, campaignID: campaign.id, week: weekStart, goals: g)
         if repeatOn {
-            let weeks = PlanRules.weeksToFill(after: weekStart, count: repeatCount, bounds: bounds, explicit: explicit)
+            let weeks = PlanRules.weeksToFill(after: weekStart, count: repeatCount, bounds: bounds)
             PlanStore.fill(context, campaignID: campaign.id, weeks: weeks, goals: g)
         }
         dismiss()
