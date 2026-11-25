@@ -4,7 +4,7 @@
 
 <img src="logmo/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="96" alt="logmo app icon">
 
-Log weight, food (calories, protein, carbs, fat), water, steps and the workbook's 1–5 check-in ratings against weekly goals. The dashboard shows goal status, three streaks, compliance and the weight trend with optional biofeedback lines. Two themes (Clean, Midnight) in Settings. Fitness campaigns (cut, bulk, maintenance) with history. Weekly goals (calories, steps, workout days) are stored per campaign. A Dashboard tab that filters by campaign and holds the goals, a Streaks tab for streaks and compliance, and full-screen landscape charts.
+Log weight, food (calories, protein, carbs, fat), water, steps and the workbook's 1–5 check-in ratings against weekly goals. The dashboard shows goal status, three streaks, compliance and the weight trend with optional biofeedback lines. Two themes (Clean, Midnight) in Settings. Fitness campaigns (cut, bulk, maintenance) with history. Weekly goals (calories, steps, workout days) are stored per campaign. A Dashboard tab that filters by campaign and holds the goals, a Streaks tab for streaks and compliance, a Campaigns tab to run campaigns and look back at each one, and full-screen landscape charts.
 
 ### Run it
 1. Install Xcode, then `brew install xcodegen`

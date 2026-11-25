@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 7.1
+version: 8.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v7.1)
+# logmo: Product Requirements (v8.0)
 
 ## Vision and outcome
 
@@ -59,7 +59,7 @@ Direction differs by category: higher is better for sleep and training performan
 - **Workout days:** a target number of workout days per week (0 to 7).
 - **Water:** ml per day.
 
-Every goal is optional; an empty field means no goal. Within a campaign, a week with no goals of its own inherits that campaign's most recent earlier week, and the editor says so. The editor opens on the campaign shown on the Dashboard (or the one running today when Settings opens it), and can move between that campaign's weeks: any past week of the campaign, the current week, or next week, never later or outside the campaign.
+Every goal is optional; an empty field means no goal. Within a campaign, a week with no goals of its own inherits that campaign's most recent earlier week, and the editor says so. The editor opens on the campaign shown on the Dashboard (or the campaign whose card on the Campaigns tab was used), and can move between that campaign's weeks: any past week of the campaign, the current week, or next week, never later or outside the campaign.
 
 When a campaign starts, including the automatic default one, it begins with a **copy of the most recent weekly goals** of the other campaigns, placed on the Monday of the week it starts, so nothing starts unset. If there are no goals anywhere yet, it starts with none. Goals made before goals were per campaign move to the campaign that contains their week.
 
@@ -98,7 +98,7 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 
 **FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps`, the seven ratings `performance_na` (true when training performance was answered n/a) and `on_period` (true or false when answered, blank when not). Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Goals are not included. Export is user-initiated and is the only way data leaves the phone. It is a backup, not an import path.
 
-**FR-11. Fitness campaigns.** From Settings the user defines a campaign:
+**FR-11. Fitness campaigns.** On the Campaigns tab (FR-16) the user starts a campaign with the **+ New** button, and defines it:
 - **Type:** cut, bulk or maintenance.
 - **Target weight** (optional for maintenance), **start date** (today, an earlier date, or a date up to a year ahead) and **length in weeks** (any number; nothing assumes four weeks to a month).
 - An optional **label** of the user's own (for example "Summer cut", up to 40 characters), set when starting the campaign and editable later from the campaign's detail screen. Without a label the standard name is used ("Campaign 2 · Cut"; "(default)" for an automatic one).
@@ -111,9 +111,9 @@ Rules:
 - Starting a campaign closes the running default the day before the new start date. With a **future start date** the campaign is *upcoming*: the current campaign carries on until the day before, the Dashboard shows a countdown to the start, and the upcoming campaign counts as the one real campaign allowed, so another can't be started until it is cancelled. **Cancelling** an upcoming campaign removes it (and its goals) and the current campaign carries on. An upcoming campaign gets the usual copy of the latest goals and can be edited before it starts.
 - Starting a campaign closes the running default the day before the new start date. The start date can't be before the running default began.
 - Only one real campaign runs at a time. It can be **ended early** (or run to its planned end); it stays in history either way. Ending it opens a new default campaign the next day.
-- **History:** Settings lists every campaign (running, completed, ended early, default) with dates and trend-weight change. A detail view shows type, dates, planned and actual length, target, trend weight start to end, change, versus target, days logged out of its actual length in days, and average calories, protein and steps.
+- **History:** every campaign (running, upcoming, completed, ended early, default) is kept and looked back on from the Campaigns tab (FR-16).
 
-**FR-12. Dashboard tab (follows the campaign filter).** The app has four tabs: **Dashboard, Streaks, Log, Settings**. The Dashboard tab shows what can be filtered by campaign, including the goals. Its **Showing** control sits under a small "Showing" label and uses the full row, so a long campaign name wraps instead of running over the card. Choices are *Current campaign* (default), *Overall (all time)*, or any past campaign. Sections, top to bottom:
+**FR-12. Dashboard tab (follows the campaign filter).** The app has five tabs: **Dashboard, Streaks, Log, Campaigns, Settings**. The Dashboard tab shows what can be filtered by campaign, including the goals. Its **Showing** control sits under a small "Showing" label and uses the full row, so a long campaign name wraps instead of running over the card. Choices are *Current campaign* (default), *Overall (all time)*, or any past campaign. Sections, top to bottom:
 1. **Campaign card:** the label (or standard name), then "#number type · dates", **days left** (a countdown from today to the last planned day, counting today: 28 on the first day of a 4-week campaign, 1 on the last planned day, 0 once it has passed), week x of y, target weight and distance from it (using the trend). For an upcoming campaign it shows the number of days until it starts and its planned length. Overall shows all data since the first weigh-in.
 2. **Set your weekly goals banner** (FR-3), shown when the campaign running today has no goals yet and on Sundays when next week has none.
 3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), and an **Edit goals** button. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
@@ -135,6 +135,19 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 **FR-14. Full-screen charts.** The weigh-ins and trend chart, rate of change, steps and calories, and the overall weight journey each have an expand button. It opens the chart full screen and turns the phone to landscape; closing it returns to portrait. The rest of the app stays portrait. In full screen the weigh-ins and trend chart keeps its range selector and biofeedback switch, and shows weigh-in values (up to about a month of points) and the latest trend value.
 
 **FR-15. About, version and contact.** Settings has an About section with the logmo logo, the tagline "Track progress with clarity", the **version** and build ("1.0.0 (1)", set in `project.yml`), and **Contact the developer**: it opens a prepared email to connectwithsvetlanamae@gmail.com with a subject and a footer that carry only the app and iOS versions, never anything from the user's logs. The address is also shown with a Copy button for people without a mail app set up. The app icon is the supplied logo: a blue square with a white check above four rising bars.
+
+**FR-16. Campaigns tab.** The home for campaigns: managing the one running, and looking back at all of them. Goals and campaigns are no longer in Settings.
+- **Running now** card, for the campaign that today belongs to: its name, "#number type · dates", week x of y and days left with a progress bar for a real campaign. A real campaign has **Edit goals**, **Rename** and **End campaign** (with a confirmation; it stays in history and a default campaign starts the next day). The automatic default campaign shows "No campaign running" with **Start a campaign**, **Edit goals** and **Rename**. **+ New** (top right) opens the new-campaign form (FR-11); it and Start are disabled while a real campaign is running or upcoming.
+- **Upcoming** card (FR-11) with its countdown, **Edit goals**, **Rename** and **Cancel it**.
+- **Look back**: one card per campaign, newest first, each with its name, status (running, upcoming, closed, completed, ended early), "#number type · dates · length" (for one ended early, days run out of days planned), the **trend weight change** with start and end weights and the target, and three figures: **compliance** (complied days of days so far, as a percent), **average steps** and **average calories**, then a line with weekly goals met of finished weeks and workout days a week against the target. A campaign with no weigh-ins says so; an upcoming one shows only its start.
+- **A campaign's look back** (tap a card):
+  - Header: name, status, "#number type · dates", and planned versus actual length.
+  - **Result:** trend weight change, start to end, how far from the target, a small trend chart with the target line, the average change a week (change across the campaign, per week; needs a week of data), the **fastest week** (the largest 7-day change in the trend) and days weighed of days.
+  - **Compliance:** percent and complied days of days so far, one square per day (complied, not complied, or still open for today) and bars per tracker (days fully logged).
+  - **Goals:** daily goals met (days with daily goals), weekly goals met (finished weeks whose goals belonged to the campaign), and the campaign's averages against its final goals (calories a day, protein, steps, water, workout days a week). Anything without a goal is left out.
+  - **Averages:** calories, protein, carbs, fat, steps, water, and the biofeedback averages with which direction is better. A rating that was never logged has no average.
+  - **Label** (editable) and **Open on Dashboard**: switches to the Dashboard tab with this campaign chosen in the Showing control. It is hidden for a campaign that hasn't started.
+- Compliance for a campaign counts every day from its start to its end (or today), the same rules as FR-6; a running campaign counts today.
 
 ## Extensibility (provisions, not features)
 
@@ -194,7 +207,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D24 | Deleting all data also deletes campaign history | Assumption |
 | D25 | Choosing cut or bulk does not change the calorie-goal direction. It stays at-or-under for every campaign type (the user's goal is a lean bulk) | Decided: confirmed by the user |
 | D26 | Weekly history length is selectable (4, 8, 12 weeks) | Decided: months can have 5 weeks |
-| D27 | Four tabs, in this order: Dashboard (campaign-filtered), Streaks (not filtered), Log, Settings. The Streaks tab is named "Streaks" although it also holds goals, compliance and the overall journey | Decided: mockup approved. Rename if it reads wrong |
+| D27 | Five tabs, in this order: Dashboard (campaign-filtered), Streaks (not filtered), Log, Campaigns, Settings. The Streaks tab is named "Streaks" although it also holds goals-related history, compliance and the overall journey (it was four tabs before the Campaigns tab, D52) | Decided: mockup approved |
 | D28 | The Streaks tab opens with the streaks, then the weekly-goals banner; the campaign filter sits at the top of the Dashboard tab | Decided: mockup approved |
 | D29 | Landscape is used only for full-screen charts; everything else is portrait | Decided |
 | D30 | All four charts (weigh-ins and trend, rate of change, steps and calories, overall journey) can go full screen. Biofeedback bars and the protein donut cannot | Assumption: the user said "the graph" |
@@ -202,7 +215,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D32 | A new campaign (including the automatic default) starts with a copy of the most recent goals | Decided: the user chose copy |
 | D33 | A day uses its own campaign's goals; a week's weekly goals belong to the campaign containing the week's Monday | Decided: accepted by the user, to be tuned after use |
 | D34 | Goals are shown and set on the Dashboard tab; Overall shows the current campaign's goals; past campaigns' goals are read-only summaries | Decided: accepted by the user |
-| D35 | The goals editor is also reachable from Settings and edits the campaign running today | Assumption |
+| D35 | The goals editor opens from the Goals card on the Dashboard and from the Campaigns tab, for the campaign concerned. It is no longer in Settings (superseded: it was first reachable from Settings) | Decided |
 | D36 | Saving on the Log screen is automatic; there is no Save button | Decided |
 | D37 | A steps goal is either a daily total or a weekly average, chosen per goal set | Decided: the user asked for both |
 | D38 | A workout day is a day with a training performance rating (1–5); n/a means not a lifting day and is not a workout | Decided |
@@ -218,4 +231,8 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D48 | The app icon and in-app logo come from the supplied logo sheet (kept in `design/`), redrawn at 1024 px | Decided |
 | D49 | App version starts at 1.0.0 (build 1) | Assumption: bump `MARKETING_VERSION` in project.yml per release |
 | D50 | A campaign can carry an optional label; the name shown is the label or "Campaign N · Type", always followed by its dates, which are worked out from the campaign and so change if it is ended early | Decided: the user asked for it |
-| D51 | **Open:** compliance per campaign on the Streaks tab. Proposed (mockup 4): a third "By campaign" option on the Compliance card listing each campaign with its label and dates, complied days over days so far, a one-square-per-day strip, the change in points against the previous campaign, and a breakdown by tracker. Not built until approved | Open: awaiting the user's decision |
+| D51 | Compliance per campaign is shown on the Campaigns tab (look back), not on the Streaks tab, which keeps only the 7-day and 30-day compliance | Decided: the user chose a Campaigns tab over a Streaks-tab list |
+| D52 | A fifth tab, Campaigns, holds starting, ending, cancelling, renaming and the goals entry for campaigns; Settings no longer has "Goals and campaigns" | Decided |
+| D53 | A campaign's compliance, averages and goal results cover its own days only, from its start to its end (or today); the trend is the one computed over all data, so start and end weights come from a series that doesn't restart | Decided |
+| D54 | "Open on Dashboard" switches tabs and selects the campaign, replacing the old "Show on dashboard" button that only changed the filter | Decided: the user pointed out the label implied navigation |
+| D55 | "Fastest week" is the largest 7-day change of the trend within the campaign | Assumption |

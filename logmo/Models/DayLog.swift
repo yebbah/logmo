@@ -127,7 +127,7 @@ final class DayLog {
         for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
         return DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers,
                            complete: completeTrackers, calories: calories, proteinG: proteinG,
-                           waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA, onPeriod: onPeriod == true)
+                           carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA, onPeriod: onPeriod == true)
     }
 
     var exportRow: ExportRow {

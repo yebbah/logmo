@@ -23,6 +23,8 @@ struct DaySnapshot: Equatable {
     var complete: Set<Tracker> = [] // every field of that tracker entered
     var calories: Int? = nil
     var proteinG: Int? = nil
+    var carbsG: Int? = nil
+    var fatG: Int? = nil
     var waterMl: Int? = nil
     var steps: Int? = nil
     var ratings: [String: Int] = [:]
@@ -365,25 +367,61 @@ enum Metrics {
         return true
     }
 
+    /// Whether one day complies, with the week-level goals of its week taken into account.
+    private static func isComplied(day d: Date, days: [DaySnapshot], map: [Date: DaySnapshot], required: Set<Tracker>,
+                                   goals: GoalSet?, today: Date, calendar cal: Calendar) -> Bool {
+        let ws = weekStart(of: d, calendar: cal)
+        let workout = workoutWeek(days, weekStart: ws, goals: goals, today: today, calendar: cal)
+        return dayComplied(map[d], required: required, goals: goals,
+                           calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, today: today, calendar: cal),
+                           stepsOK: weekStepsOK(map, weekStart: ws, goals: goals, today: today, calendar: cal),
+                           workoutOK: workout.target == nil ? nil : workout.outcome != .missed)
+    }
+
+    enum DayCompliance: Equatable { case complied, missed, open }
+
+    /// One entry per day, oldest first. Today is `open` until it complies; every other day is complied or missed.
+    static func complianceStrip(_ days: [DaySnapshot], from: Date, to: Date, today: Date, required: Set<Tracker>,
+                                timeline: GoalTimeline, calendar cal: Calendar = .current) -> [DayCompliance] {
+        let map = byDay(days, cal)
+        let t = cal.startOfDay(for: today)
+        var out: [DayCompliance] = []
+        var d = cal.startOfDay(for: from)
+        let last = cal.startOfDay(for: to)
+        while d <= last {
+            let goals = timeline.goals(forDay: d, calendar: cal)
+            let ok = isComplied(day: d, days: days, map: map, required: required, goals: goals, today: today, calendar: cal)
+            out.append(ok ? .complied : (d == t ? .open : .missed))
+            d = addDays(1, to: d, cal)
+        }
+        return out
+    }
+
     /// Over the last `windowDays` days ending today, always out of the full window. Today
     /// counts in the total and becomes a complied day once everything for it is done.
     static func compliance(_ days: [DaySnapshot], today: Date, windowDays: Int,
                            required: Set<Tracker>, timeline: GoalTimeline,
                            calendar cal: Calendar = .current) -> Compliance {
-        let map = byDay(days, cal)
         let t = cal.startOfDay(for: today)
+        return compliance(days, from: addDays(-(windowDays - 1), to: t, cal), to: t, today: today,
+                          required: required, timeline: timeline, calendar: cal)
+    }
+
+    /// Compliance over any run of days (a campaign, say), every day counted: a day with nothing
+    /// logged is a day not complied. `today` only decides which weeks are still open.
+    static func compliance(_ days: [DaySnapshot], from: Date, to: Date, today: Date,
+                           required: Set<Tracker>, timeline: GoalTimeline,
+                           calendar cal: Calendar = .current) -> Compliance {
+        let map = byDay(days, cal)
         var evaluated = 0, complied = 0, goalDays = 0
         var per: [Tracker: Int] = [:]
-        for offset in 0..<windowDays {
-            let d = addDays(-offset, to: t, cal)
+        var d = cal.startOfDay(for: from)
+        let last = cal.startOfDay(for: to)
+        while d <= last {
+            defer { d = addDays(1, to: d, cal) }
             let s = map[d]
-            let ws = weekStart(of: d, calendar: cal)
             let goals = timeline.goals(forDay: d, calendar: cal)
-            let workout = workoutWeek(days, weekStart: ws, goals: goals, today: today, calendar: cal)
-            let ok = dayComplied(s, required: required, goals: goals,
-                                 calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, today: today, calendar: cal),
-                                 stepsOK: weekStepsOK(map, weekStart: ws, goals: goals, today: today, calendar: cal),
-                                 workoutOK: workout.target == nil ? nil : workout.outcome != .missed)
+            let ok = isComplied(day: d, days: days, map: map, required: required, goals: goals, today: today, calendar: cal)
             evaluated += 1
             if ok { complied += 1 }
             if dayGoalStatus(s, goals: goals).allMet { goalDays += 1 }

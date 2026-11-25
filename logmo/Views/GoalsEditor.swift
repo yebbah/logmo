@@ -191,17 +191,3 @@ struct GoalsSheet: View {
         }
     }
 }
-
-/// Settings entry: edits the goals of whichever campaign is running today.
-struct CurrentGoalsEditor: View {
-    @Environment(\.theme) private var theme
-    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
-
-    var body: some View {
-        if let c = CampaignRules.campaign(for: Date(), in: campaigns.map(\.info)) {
-            GoalsEditor(campaign: c)
-        } else {
-            Text("Log something first, and a campaign will be created.").foregroundStyle(theme.muted).padding()
-        }
-    }
-}

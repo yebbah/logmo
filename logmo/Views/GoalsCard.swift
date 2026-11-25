@@ -158,43 +158,14 @@ struct GoalsCard: View {
 
     // MARK: Past campaign
 
-    private struct Summary {
-        var daysWithGoals = 0, daysMet = 0, weeksMet = 0, weeksTotal = 0
-        var last: GoalSet?
-    }
-
-    private func summary() -> Summary {
-        var r = Summary()
-        let end = min(campaign.end ?? today, today)
-        let map = Dictionary(snaps.map { (cal.startOfDay(for: $0.date), $0) }, uniquingKeysWith: { a, _ in a })
-        for d in Insights.days(from: campaign.start, to: end) {
-            let goals = timeline.goals(forDay: d)
-            guard goals?.hasDailyGoals == true else { continue }
-            r.daysWithGoals += 1
-            if Metrics.dayGoalStatus(map[d], goals: goals).allMet { r.daysMet += 1 }
-        }
-        // Finished weeks whose calorie goal belonged to this campaign.
-        var ws = Metrics.weekStart(of: campaign.start)
-        while cal.date(byAdding: .day, value: 6, to: ws)! <= end {
-            if timeline.book?.owner(ofWeek: ws)?.id == campaign.id,
-               let goals = timeline.goals(forWeekStarting: ws), goals.hasWeeklyGoals {
-                r.weeksTotal += 1
-                if Metrics.weeklyOutcome(snaps, weekStart: ws, goals: goals, today: today) == .met { r.weeksMet += 1 }
-            }
-            ws = cal.date(byAdding: .day, value: 7, to: ws)!
-        }
-        r.last = timeline.goals(forDay: end)
-        return r
-    }
-
     @ViewBuilder private var summaryBody: some View {
-        let r = summary()
-        if r.daysWithGoals == 0 && r.weeksTotal == 0 {
+        let r = Insights.goalResults(snaps, timeline: timeline, campaign: campaign, today: today)
+        if r.dayTotal == 0 && r.weekTotal == 0 {
             Text("No goals were set in this campaign.").foregroundStyle(theme.muted)
         } else {
-            summaryLine("Daily goals met", r.daysWithGoals == 0 ? "—" : "\(r.daysMet) of \(r.daysWithGoals) days")
-            summaryLine("Weekly goals met", r.weeksTotal == 0 ? "—" : "\(r.weeksMet) of \(r.weeksTotal) finished weeks")
-            if let last = r.last {
+            summaryLine("Daily goals met", r.dayTotal == 0 ? "—" : "\(r.dayMet) of \(r.dayTotal) days")
+            summaryLine("Weekly goals met", r.weekTotal == 0 ? "—" : "\(r.weekMet) of \(r.weekTotal) finished weeks")
+            if let last = r.atEnd {
                 Divider()
                 Text("Goals at the end").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
                 if let c = last.caloriesWeekly { summaryLine("Calories per day (weekly average)", "\((Double(c) / 7).rounded().formatted()) kcal, \(last.caloriesAtOrUnder ? "at or under" : "at or over")") }

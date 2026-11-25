@@ -27,11 +27,6 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(theme.muted)
                 } header: { Text("Appearance") }
                 .listRowBackground(theme.card)
-                Section("Goals and campaigns") {
-                    NavigationLink("Weekly goals (current campaign)") { CurrentGoalsEditor() }
-                    NavigationLink("Fitness campaigns") { CampaignsView() }
-                }
-                .listRowBackground(theme.card)
                 Section {
                     ForEach(Tracker.allCases) { t in
                         Toggle(t.title, isOn: Binding(
@@ -43,7 +38,7 @@ struct SettingsView: View {
                             }))
                     }
                 } header: { Text("Required for a complete day") } footer: {
-                    Text("A day counts as complied when everything switched on here is fully logged, every daily goal is met, and the week's average calories are on target. Food needs calories, protein, carbs and fat; check-in needs all seven ratings.")
+                    Text("A day counts as complied when everything switched on here is fully logged, every daily goal is met, and the week's goals are on track: average calories, weekly-average steps and workout days. Food needs calories, protein, carbs and fat; check-in needs all seven ratings (training performance may be n/a).")
                 }
                 .listRowBackground(theme.card)
                 Section("Units") {

@@ -28,17 +28,23 @@ struct LogmoApp: App {
     }
 }
 
+/// Shared tab selection, so a screen deep in one tab can send the user to another.
+@Observable
+final class AppNavigation {
+    var tab = 0     // 0 Dashboard, 1 Streaks, 2 Log, 3 Campaigns, 4 Settings
+}
+
 struct RootView: View {
-    // Debug aid for screenshots: -tab 0 Dashboard | 1 Streaks | 2 Log | 3 Settings
     @AppStorage(SettingsKey.theme) private var themeRaw = AppTheme.clean.rawValue
     private var theme: AppTheme { AppTheme(rawValue: themeRaw) ?? .clean }
 
-    @State private var tab: Int = {
+    // Debug aid for screenshots: -tab 0 Dashboard | 1 Streaks | 2 Log | 3 Campaigns | 4 Settings
+    @State private var nav: AppNavigation = {
+        let n = AppNavigation()
         #if DEBUG
-        return UserDefaults.standard.integer(forKey: "tab")
-        #else
-        return 0
+        n.tab = UserDefaults.standard.integer(forKey: "tab")
         #endif
+        return n
     }()
 
     var body: some View {
@@ -48,9 +54,9 @@ struct RootView: View {
             Group {
                 switch screen {
                 case "newcampaign": NewCampaignForm(minStart: Calendar.current.startOfDay(for: Date()))
-                case "goals": NavigationStack { CurrentGoalsEditor() }
                 case "about": NavigationStack { Form { AboutSection().listRowBackground(theme.card) }.scrollContentBackground(.hidden).background(theme.bg).navigationTitle("Settings") }
-                default: NavigationStack { CampaignsView() }
+                case "campaigndetail": DebugCampaignDetail().environment(AppNavigation())
+                default: CampaignsView().environment(AppNavigation())
                 }
             }
             .environment(\.theme, theme).preferredColorScheme(theme.scheme).tint(theme.accent)
@@ -61,12 +67,14 @@ struct RootView: View {
     }
 
     private var tabs: some View {
-        TabView(selection: $tab) {
+        TabView(selection: Bindable(nav).tab) {
             DashboardView().tabItem { Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis") }.tag(0)
             StreaksView().tabItem { Label("Streaks", systemImage: "flame") }.tag(1)
             LogView().tabItem { Label("Log", systemImage: "square.and.pencil") }.tag(2)
-            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(3)
+            CampaignsView().tabItem { Label("Campaigns", systemImage: "flag.checkered") }.tag(3)
+            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
         }
+        .environment(nav)
         .environment(\.theme, theme)
         .preferredColorScheme(theme.scheme)
         .tint(theme.accent)
