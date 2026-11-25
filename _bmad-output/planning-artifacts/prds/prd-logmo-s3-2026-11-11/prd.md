@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 20.0
+version: 20.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v20.0)
+# logmo: Product Requirements (v20.1)
 
 ## Vision and outcome
 
@@ -83,9 +83,11 @@ Which goals apply:
 - The Goals card on the Dashboard tab (FR-12) shows today's daily goals with progress, and for this week the average calories against the daily-equivalent target, the weekly steps average and the workout days, each with its status. The Streaks tab shows the last 7 days of daily goals and the weekly results for the last 4, 8 or 12 weeks (selectable).
 
 **FR-5. Streaks.** Three, each with current and best:
-- **Logging:** consecutive days with anything logged.
-- **Daily goals:** consecutive days whose daily goals were all met.
-- **Weekly goal:** consecutive *finished* weeks in which every weekly goal was met (calories, weekly-average steps, workout days; each week against its own campaign's goals). The week in progress neither extends nor breaks it.
+- **Logging:** consecutive days with anything logged (typed or imported from Apple Health).
+- **Daily goals:** consecutive days on which a weigh-in was logged and every daily goal that was set was met (protein, water, and steps when the steps goal is a daily total), each day against the goals of the campaign it belongs to. At least one daily goal must exist. A day outside every campaign has no goals, and a day with no log, so either breaks the streak.
+- **Weekly goal:** consecutive *finished* weeks in which every weekly goal was met (calories, weekly-average steps, workout days; each week against its own campaign's goals). The week in progress neither extends nor breaks it. A week with no weekly goals, or that belongs to no campaign, counts as not met and breaks the streak.
+
+All three streaks run across campaigns: none is campaign-specific, and a goals streak carries on through a campaign change because each day or week is judged against its own campaign's goals. Weeks are whole Monday-to-Sunday weeks, so a campaign that starts mid-week still has the days before it counted in that week (the calorie rule needs all seven days logged).
 
 For logging and daily goals, a day not yet logged *today* does not break the current streak. Each streak's definition is behind a small "i" next to its name (FR-13).
 
@@ -382,3 +384,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D129 | Maintenance campaigns an older version left open are closed the day before today (or removed if empty) on the next launch, and kept in history | Decided |
 | D130 | A new campaign may start in the past (after the last day any campaign covers) so earlier logged days can be given a campaign | Assumption |
 | D131 | The Dashboard shows the campaign week and this week's dates as a headline, and a weekly rate-of-change table like the workbook's weekly line | Decided: the user asked |
+| D132 | The three streaks are global, not per campaign; goal streaks judge each day or week against its own campaign's goals, and a day or week outside every campaign breaks them | Decided: confirmed with the user; the days-outside-a-campaign rule follows from D127 |

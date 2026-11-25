@@ -60,7 +60,7 @@ A week with an unlogged day can't be "met", and missing values are never treated
 
 ## 5. Streaks and compliance
 
-The three streaks (logging, daily goals, weekly goals) are **not campaign-specific**: they count across all your campaigns. A goals streak judges each day or week against the goals of the campaign it belonged to, so it carries on when you start a new campaign.
+The three streaks (logging, daily goals, weekly goals) are **not campaign-specific**: they count across all your campaigns. The daily goals streak needs a weigh-in and every daily goal you set; a day outside any campaign, or a week with no weekly goals or no campaign, breaks the goals streaks. A goals streak judges each day or week against the goals of the campaign it belonged to, so it carries on when you start a new campaign.
 
 On the **Streaks** tab:
 - **Streaks** count consecutive days: logging, daily goals met, and weekly goals met. Today not being logged yet doesn't break a streak.
