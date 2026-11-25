@@ -55,6 +55,23 @@ enum CampaignRules {
 
     static func isOpen(_ c: CampaignInfo) -> Bool { c.end == nil }
 
+    /// A campaign that has been planned but hasn't started yet.
+    static func isUpcoming(_ c: CampaignInfo, today: Date, calendar cal: Calendar = .current) -> Bool {
+        c.start > cal.startOfDay(for: today)
+    }
+
+    /// Whole days until an upcoming campaign starts (0 once it has).
+    static func daysUntilStart(_ c: CampaignInfo, today: Date, calendar cal: Calendar = .current) -> Int {
+        max(0, cal.dateComponents([.day], from: cal.startOfDay(for: today), to: c.start).day ?? 0)
+    }
+
+    /// Cancelling an upcoming campaign: the default it was going to replace carries on. Returns that
+    /// default's id (the one that ends the day before the start), nil if there isn't one.
+    static func defaultToReopen(cancelling c: CampaignInfo, existing: [CampaignInfo], calendar cal: Calendar = .current) -> UUID? {
+        let dayBefore = addDays(-1, to: c.start, cal)
+        return existing.first { $0.isDefault && $0.end == dayBefore }?.id
+    }
+
     /// Last planned day (inclusive), nil for open-ended campaigns.
     static func plannedEnd(_ c: CampaignInfo, calendar cal: Calendar = .current) -> Date? {
         c.plannedWeeks.map { addDays($0 * 7 - 1, to: c.start, cal) }

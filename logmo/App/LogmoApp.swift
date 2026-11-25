@@ -49,6 +49,7 @@ struct RootView: View {
                 switch screen {
                 case "newcampaign": NewCampaignForm(minStart: Calendar.current.startOfDay(for: Date()))
                 case "goals": NavigationStack { CurrentGoalsEditor() }
+                case "about": NavigationStack { Form { AboutSection().listRowBackground(theme.card) }.scrollContentBackground(.hidden).background(theme.bg).navigationTitle("Settings") }
                 default: NavigationStack { CampaignsView() }
                 }
             }
@@ -79,6 +80,7 @@ enum SettingsKey {
     static let bioOverlay = "bioOverlayOn"
     static let bioShown = "bioShown"
     static let theme = "theme"
+    static let trackCycle = "trackCycle"
 }
 
 #if DEBUG

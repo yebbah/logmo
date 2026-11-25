@@ -80,10 +80,23 @@ enum CampaignStore {
         }
     }
 
+    /// Cancel a campaign that hasn't started: it and its goals are removed, and the default
+    /// campaign it would have replaced carries on.
+    static func cancelUpcoming(_ context: ModelContext, _ campaign: Campaign, today: Date = Date()) {
+        guard !campaign.isDefault, campaign.end == nil,
+              CampaignRules.isUpcoming(campaign.info, today: today) else { return }
+        let id = CampaignRules.defaultToReopen(cancelling: campaign.info, existing: all(context).map(\.info))
+        for g in allGoals(context) where g.campaignID == campaign.id { context.delete(g) }
+        if let id, let d = all(context).first(where: { $0.id == id }) { d.end = nil; d.updatedAt = Date() }
+        context.delete(campaign)
+        try? context.save()
+    }
+
     /// End a real campaign today (early if before its planned last day). A default
     /// maintenance campaign then opens the next day.
     static func end(_ context: ModelContext, _ campaign: Campaign, today: Date = Date()) {
         guard !campaign.isDefault, campaign.end == nil else { return }
+        if CampaignRules.isUpcoming(campaign.info, today: today) { cancelUpcoming(context, campaign, today: today); return }
         let r = CampaignRules.ending(campaign.info, on: today)
         campaign.end = r.end
         campaign.endedEarly = r.early

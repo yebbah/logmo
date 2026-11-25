@@ -69,6 +69,7 @@ final class DayLog {
     var appetite: Int?
     var soreness: Int?
     var performanceNA: Bool = false       // training performance answered "n/a": not a lifting day
+    var onPeriod: Bool?                   // "on your period today?" nil = not answered; only asked if cycle tracking is on
 
     init(day: Date) {
         self.day = Calendar.current.startOfDay(for: day)
@@ -126,7 +127,7 @@ final class DayLog {
         for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
         return DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers,
                            complete: completeTrackers, calories: calories, proteinG: proteinG,
-                           waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA)
+                           waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA, onPeriod: onPeriod == true)
     }
 
     var exportRow: ExportRow {
@@ -134,6 +135,6 @@ final class DayLog {
         for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
         return ExportRow(day: day, weightKg: weightKg, calories: calories, proteinG: proteinG,
                          fatG: fatG, carbsG: carbsG, waterMl: waterMl, steps: steps, ratings: r,
-                         performanceNA: performanceNA)
+                         performanceNA: performanceNA, onPeriod: onPeriod)
     }
 }

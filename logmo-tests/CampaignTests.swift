@@ -99,4 +99,31 @@ final class CampaignTests: XCTestCase {
         XCTAssertEqual(CampaignRules.ending(c, on: day(29), calendar: cal).early, false)
         XCTAssertEqual(CampaignRules.ending(c, on: day(1), calendar: cal).end, day(2))   // never before its own start
     }
+
+    // MARK: future start
+    func testAFutureStartKeepsTheDefaultRunningUntilThen() {
+        let existing = [dflt(1, start: 2)]
+        let plan = try! CampaignRules.plan(start: day(20), kind: .bulk, targetKg: 85, weeks: 12, existing: existing, calendar: cal).get()
+        XCTAssertEqual(plan.endDefault?.on, day(19))                  // the default ends the day before the new one starts
+        XCTAssertTrue(CampaignRules.isUpcoming(plan.new, today: day(10), calendar: cal))
+        XCTAssertFalse(CampaignRules.isUpcoming(plan.new, today: day(20), calendar: cal))
+        XCTAssertEqual(CampaignRules.daysUntilStart(plan.new, today: day(10), calendar: cal), 10)
+        // Until the start date, today still belongs to the default.
+        let all = [CampaignInfo(id: existing[0].id, number: 1, kind: .maintenance, isDefault: true, start: day(2), end: day(19)), plan.new]
+        XCTAssertEqual(CampaignRules.campaign(for: day(10), in: all, calendar: cal)?.number, 1)
+        XCTAssertEqual(CampaignRules.campaign(for: day(20), in: all, calendar: cal)?.number, 2)
+        // No second default is created while the upcoming campaign is open.
+        XCTAssertNil(CampaignRules.defaultNeeded(existing: all, earliestLog: nil, today: day(10), calendar: cal))
+    }
+    func testCancellingAnUpcomingCampaignReopensTheDefault() {
+        let d = dflt(1, start: 2, end: 19)
+        let up = real(2, start: 20, weeks: 8)
+        XCTAssertEqual(CampaignRules.defaultToReopen(cancelling: up, existing: [d, up], calendar: cal), d.id)
+        XCTAssertNil(CampaignRules.defaultToReopen(cancelling: up, existing: [up], calendar: cal))
+    }
+    func testOnlyOneRealCampaignEvenIfItIsUpcoming() {
+        let up = real(2, start: 20, weeks: 8)
+        XCTAssertEqual(CampaignRules.plan(start: day(25), kind: .cut, targetKg: nil, weeks: 4, existing: [dflt(1, start: 2, end: 19), up], calendar: cal),
+                       .failure(.campaignRunning))
+    }
 }

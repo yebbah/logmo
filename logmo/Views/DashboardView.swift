@@ -40,11 +40,10 @@ struct DashboardView: View {
                         }
                         PerformanceCard(snaps: snaps, trend: trend, scope: scope).id("performance")
                         WeightChartCard(title: "Weigh-ins and trend", trend: trend, snaps: snaps, scope: scope,
-                                        smoothing: smoothing).id("weight")
+                                        smoothing: smoothing, timeline: timeline).id("weight")
                         RateCard(trend: trend, scope: scope).id("rate")
                         StepsCaloriesCard(snaps: snaps, scope: scope).id("steps")
                         BiofeedbackBarsCard(snaps: snaps, scope: scope).id("bio")
-                        ProteinDonutCard(snaps: snaps, timeline: timeline, scope: scope).id("protein")
                     }
                     .padding()
                 }
@@ -172,10 +171,21 @@ struct DashboardView: View {
         let df = Date.FormatStyle().day().month(.abbreviated)
         return Card(title: c?.title ?? "Overall") {
             if let c {
-                let range = c.end.map { "\(c.start.formatted(df)) – \($0.formatted(df))" } ?? "since \(c.start.formatted(df))"
+                let upcoming = CampaignRules.isUpcoming(c, today: today)
+                let range = upcoming ? "starts \(c.start.formatted(df))"
+                    : (c.end.map { "\(c.start.formatted(df)) – \($0.formatted(df))" } ?? "since \(c.start.formatted(df))")
                 Text(range + (c.endedEarly ? " · ended early" : "")).font(.caption).foregroundStyle(theme.muted)
 
-                if c.plannedWeeks != nil, c.end == nil, let left = CampaignRules.daysLeft(c, today: today) {
+                if upcoming {
+                    let n = CampaignRules.daysUntilStart(c, today: today)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("\(n)").font(.system(size: 44, weight: .bold, design: .rounded))
+                        Text(n == 1 ? "day until it starts" : "days until it starts").foregroundStyle(theme.muted)
+                        Spacer()
+                        Text("\(c.plannedWeeks ?? 0) weeks").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
+                    }
+                    Text("The current campaign carries on until then.").font(.caption).foregroundStyle(theme.muted)
+                } else if c.plannedWeeks != nil, c.end == nil, let left = CampaignRules.daysLeft(c, today: today) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text("\(left)").font(.system(size: 44, weight: .bold, design: .rounded))
                         Text(left == 1 ? "day left" : "days left").foregroundStyle(theme.muted)

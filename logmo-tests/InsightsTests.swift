@@ -45,3 +45,20 @@ final class InsightsTests: XCTestCase {
         XCTAssertEqual(roc.first!.date, day(8))
     }
 }
+
+final class AppInfoTests: XCTestCase {
+    func testContactEmailIsPreparedWithVersionsOnly() {
+        let url = AppInfo.contactURL(versionString: "1.0.0 (1)", osVersion: "27.2")
+        let c = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        XCTAssertEqual(c.scheme, "mailto")
+        XCTAssertEqual(c.path, "connectwithsvetlanamae@gmail.com")
+        XCTAssertEqual(c.queryItems?.first { $0.name == "subject" }?.value, "logmo 1.0.0 (1) feedback")
+        let body = c.queryItems?.first { $0.name == "body" }?.value ?? ""
+        XCTAssertTrue(body.contains("logmo 1.0.0 (1), iOS 27.2"))
+        XCTAssertFalse(body.lowercased().contains("kg"))                    // nothing from the user's data
+    }
+    func testBuiltBundleHasAVersion() {
+        XCTAssertNotEqual(AppInfo.version, "?")
+        XCTAssertNotEqual(AppInfo.build, "?")
+    }
+}

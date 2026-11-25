@@ -13,12 +13,30 @@ struct GoalsCard: View {
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: Date()) }
     private var live: Bool { CampaignRules.contains(campaign, day: today) }
+    private var upcoming: Bool { CampaignRules.isUpcoming(campaign, today: today) }
 
     var body: some View {
-        Card(title: live ? "Goals" : "Goals in this campaign") {
+        Card(title: live ? "Goals" : (upcoming ? "Goals for this campaign" : "Goals in this campaign")) {
             Text(campaign.title).font(.caption).foregroundStyle(theme.muted)
-            if live { liveBody } else { summaryBody }
+            if live { liveBody } else if upcoming { upcomingBody } else { summaryBody }
         }
+    }
+
+    // MARK: Upcoming
+
+    @ViewBuilder private var upcomingBody: some View {
+        if let g = timeline.goals(forDay: campaign.start) {
+            if let c = g.caloriesWeekly { summaryLine("Calories per day (weekly average)", "\((Double(c) / 7).rounded().formatted()) kcal, \(g.caloriesAtOrUnder ? "at or under" : "at or over")") }
+            if let p = g.proteinDaily { summaryLine("Protein per day", "\(p) g") }
+            if let s = g.stepsDaily { summaryLine(g.stepsIsWeeklyAverage ? "Steps, weekly average" : "Steps per day", s.formatted()) }
+            if let w = g.waterDailyMl { summaryLine("Water per day", "\(w.formatted()) ml") }
+            if let n = g.workoutDaysWeekly { summaryLine("Workout days per week", "\(n)") }
+        } else {
+            Text("No goals yet for this campaign.").foregroundStyle(theme.muted)
+        }
+        Text("They start as a copy of your latest goals and take effect when the campaign starts.")
+            .font(.caption).foregroundStyle(theme.muted)
+        Button("Edit goals", action: onEdit).font(.subheadline)
     }
 
     // MARK: Live

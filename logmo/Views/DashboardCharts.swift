@@ -29,11 +29,13 @@ struct WeightChartBody: View {
     @AppStorage(SettingsKey.bioOverlay) private var bioOn = false
     @AppStorage(SettingsKey.bioShown) private var bioShownRaw = Rating.allCases.map(\.rawValue).joined(separator: ",")
     @AppStorage("weightRange") private var range = 30          // days; 0 = the whole scope
+    @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
 
     let trend: [TrendPoint]
     let snaps: [DaySnapshot]
     let scope: DateScope
     let smoothing: Int
+    let timeline: GoalTimeline
     let height: CGFloat?
     let compact: Bool
 
@@ -75,6 +77,11 @@ struct WeightChartBody: View {
             } else {
                 chart.chartHeight(height)
                 legend
+                if !compact {
+                    Divider()
+                    ProteinIntakeSection(snaps: snaps, timeline: timeline, from: from, to: scope.end,
+                                         rangeLabel: range == 0 ? "this period" : "the last \(range) days")
+                }
             }
         }
     }
@@ -133,7 +140,8 @@ struct WeightChartBody: View {
                     LineMark(x: .value("Date", p.date), y: .value("Weigh-in", unit.fromKg(w)), series: .value("S", "weighin"))
                         .foregroundStyle(theme.muted.opacity(0.75)).lineStyle(StrokeStyle(lineWidth: 1.5))
                     PointMark(x: .value("Date", p.date), y: .value("Weigh-in", unit.fromKg(w)))
-                        .foregroundStyle(theme.muted).symbolSize(28)
+                        .foregroundStyle(p.onPeriod && trackCycle ? theme.bad : theme.muted)
+                        .symbolSize(p.onPeriod && trackCycle ? 60 : 28)
                         .annotation(position: .top, spacing: 2) {
                             if labelled { Text(fmt(unit.fromKg(w))).font(.system(size: 9)).foregroundStyle(theme.muted) }
                         }
@@ -151,6 +159,11 @@ struct WeightChartBody: View {
                             Text(fmt(unit.fromKg(p.trendKg), 2)).font(.system(size: 9, weight: .semibold)).foregroundStyle(theme.accent)
                         }
                 }
+            }
+            // Days marked as on the cycle: a red dot on the trend as well as the weigh-in.
+            ForEach(shown.filter { $0.onPeriod && trackCycle }) { p in
+                PointMark(x: .value("Date", p.date), y: .value("Trend", unit.fromKg(p.trendKg)))
+                    .foregroundStyle(theme.bad).symbolSize(60)
             }
             ForEach(bio, id: \.0) { r, points in
                 ForEach(points) { p in
@@ -174,6 +187,9 @@ struct WeightChartBody: View {
             HStack(spacing: 14) {
                 HStack(spacing: 6) { Circle().fill(theme.muted).frame(width: 8, height: 8); Text("Weigh-ins") }
                 HStack(spacing: 6) { Capsule().fill(theme.accent).frame(width: 16, height: 4); Text("Trend (\(smoothing)-day smoothing)") }
+                if trackCycle && shown.contains(where: \.onPeriod) {
+                    HStack(spacing: 6) { Circle().fill(theme.bad).frame(width: 8, height: 8); Text("On period") }
+                }
             }.font(.caption).foregroundStyle(theme.muted)
             if bioOn && !compact {
                 Text("Right axis: biofeedback 1–5, 7-day smoothed. Higher isn't always better; see each rating's meaning on the Log screen.")
@@ -189,15 +205,18 @@ struct WeightChartCard: View {
     let snaps: [DaySnapshot]
     let scope: DateScope
     let smoothing: Int
+    let timeline: GoalTimeline
     @State private var full = false
 
     var body: some View {
         Card(title: title, trailing: { ExpandButton { full = true } }) {
-            WeightChartBody(trend: trend, snaps: snaps, scope: scope, smoothing: smoothing, height: 240, compact: false)
+            WeightChartBody(trend: trend, snaps: snaps, scope: scope, smoothing: smoothing, timeline: timeline,
+                            height: 240, compact: false)
         }
         .landscapeCover(isPresented: $full) {
             FullScreenFrame(title: title) {
-                WeightChartBody(trend: trend, snaps: snaps, scope: scope, smoothing: smoothing, height: nil, compact: true)
+                WeightChartBody(trend: trend, snaps: snaps, scope: scope, smoothing: smoothing, timeline: timeline,
+                                height: nil, compact: true)
             }
         }
         #if DEBUG
@@ -378,20 +397,23 @@ struct BiofeedbackBarsCard: View {
     }
 }
 
-struct ProteinDonutCard: View {
+/// Protein intake for the range chosen on the weigh-ins card: days the goal was hit out of days with a goal.
+struct ProteinIntakeSection: View {
     @Environment(\.theme) private var theme
     let snaps: [DaySnapshot]
     let timeline: GoalTimeline
-    let scope: DateScope
+    let from: Date
+    let to: Date
+    let rangeLabel: String
 
     private struct Slice: Identifiable { var id: String; var count: Int }
 
     var body: some View {
-        let from = max(scope.start, Calendar.current.date(byAdding: .day, value: -13, to: scope.end)!)
-        let r = Insights.proteinDays(snaps, timeline: timeline, from: from, to: scope.end)
-        Card(title: "Protein intake") {
+        let r = Insights.proteinDays(snaps, timeline: timeline, from: from, to: to)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Protein intake").font(.subheadline.weight(.semibold))
             if r.hit + r.missed == 0 {
-                Text("No protein goal set for this period.").foregroundStyle(theme.muted)
+                Text("No protein goal set for this period.").font(.subheadline).foregroundStyle(theme.muted)
             } else {
                 HStack(spacing: 20) {
                     Chart([Slice(id: "Days hit", count: r.hit), Slice(id: "Days missed", count: r.missed)]) { s in
@@ -400,12 +422,12 @@ struct ProteinDonutCard: View {
                     }
                     .chartForegroundStyleScale(["Days hit": theme.accent, "Days missed": theme.track])
                     .chartLegend(.hidden)
-                    .frame(width: 120, height: 120)
+                    .frame(width: 110, height: 110)
                     .overlay { Text("\(r.hit)/\(r.hit + r.missed)").font(.title3.bold()) }
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) { Circle().fill(theme.accent).frame(width: 8, height: 8); Text("Days hit") }
                         HStack(spacing: 6) { Circle().fill(theme.track).frame(width: 8, height: 8); Text("Days missed or unlogged") }
-                        Text("Last 14 days in this period").font(.caption).foregroundStyle(theme.muted)
+                        Text("Over \(rangeLabel)").font(.caption).foregroundStyle(theme.muted)
                     }.font(.caption)
                 }
             }

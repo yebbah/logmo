@@ -7,8 +7,10 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
+    @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
     @Environment(\.modelContext) private var context
     @State private var confirmDelete = false
+
     @Query(sort: \DayLog.day) private var logs: [DayLog]
 
     private var required: Set<Tracker> { RequiredTrackers.parse(requiredRaw) }
@@ -60,6 +62,13 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(theme.muted)
                 }
                 .listRowBackground(theme.card)
+                Section {
+                    Toggle("Track my menstrual cycle", isOn: $trackCycle)
+                } header: { Text("Cycle") } footer: {
+                    Text("Adds a daily \"on your period?\" question to the Log screen. Days you mark yes show as red dots on the weigh-in and the trend. Optional: it never counts against compliance. Stored only on this iPhone.")
+                }
+                .listRowBackground(theme.card)
+
                 Section("Connections") {
                     LabeledContent("Apple Health", value: "Not yet available")
                     LabeledContent("Cloud sync", value: "Not yet available")
@@ -75,6 +84,8 @@ struct SettingsView: View {
                     Text("Data lives only on this iPhone. Export saves daily logs (not goals) as a copy you can keep in Files or iCloud Drive.")
                 }
                 .listRowBackground(theme.card)
+                AboutSection()
+                    .listRowBackground(theme.card)
                 Section {
                     Button("Delete all data", role: .destructive) { confirmDelete = true }
                 } footer: { Text("Deletes logs, goals and campaign history. Data is stored only on this iPhone.") }
@@ -90,6 +101,41 @@ struct SettingsView: View {
                     try? context.delete(model: Campaign.self)
                     try? context.save()
                 }
+            }
+        }
+    }
+}
+
+/// Settings → About: logo, version and how to contact the developer.
+struct AboutSection: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.openURL) private var openURL
+    @State private var copied = false
+
+    var body: some View {
+        Section("About") {
+            HStack(spacing: 14) {
+                LogoMark(size: 56)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("logmo").font(.system(size: 26, weight: .heavy, design: .rounded))
+                    Text("Track progress with clarity").font(.caption).foregroundStyle(theme.muted)
+                }
+            }
+            .padding(.vertical, 4)
+            LabeledContent("Version", value: AppInfo.versionString)
+            Button {
+                openURL(AppInfo.contactURL(osVersion: UIDevice.current.systemVersion))
+            } label: {
+                Label("Contact the developer", systemImage: "envelope")
+            }
+            HStack {
+                Text(AppInfo.developerEmail).font(.footnote).foregroundStyle(theme.muted).textSelection(.enabled)
+                Spacer()
+                Button(copied ? "Copied" : "Copy") {
+                    UIPasteboard.general.string = AppInfo.developerEmail
+                    copied = true
+                }
+                .font(.footnote).buttonStyle(.borderless)
             }
         }
     }

@@ -6,6 +6,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"        # the version shown in Settings → About; bump for each release
+    CURRENT_PROJECT_VERSION: "1"      # the build number
     DEVELOPMENT_TEAM: "${DEVELOPMENT_TEAM}"   # from the environment, so the Team ID is never committed
 targets:
   logmo:
@@ -16,6 +18,8 @@ targets:
       path: logmo/Info.plist
       properties:
         CFBundleDisplayName: logmo
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         # Landscape is allowed only so a chart can open full screen; AppDelegate keeps everything else portrait.
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
@@ -25,6 +29,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yebbah.logmo
         TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   logmo-tests:
     type: bundle.unit-test
     platform: iOS

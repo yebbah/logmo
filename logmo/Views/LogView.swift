@@ -12,10 +12,11 @@ struct DayDraft: Equatable {
     var steps = ""
     var ratings: [Rating: Int] = [:]
     var performanceNA = false          // training performance answered "n/a" (not a lifting day)
+    var onPeriod: Bool?                // "on your period today?" nil = not answered
 
     var isEmpty: Bool {
         weight.isEmpty && calories.isEmpty && protein.isEmpty && fat.isEmpty && carbs.isEmpty
-            && water.isEmpty && steps.isEmpty && ratings.isEmpty && !performanceNA
+            && water.isEmpty && steps.isEmpty && ratings.isEmpty && !performanceNA && onPeriod == nil
     }
 
     init() {}
@@ -31,6 +32,7 @@ struct DayDraft: Equatable {
         steps = log.steps.map(String.init) ?? ""
         for r in Rating.allCases { if let v = log.rating(r) { ratings[r] = v } }
         performanceNA = log.performanceNA
+        onPeriod = log.onPeriod
     }
 
     func apply(to log: DayLog, unit: WeightUnit) {
@@ -49,6 +51,7 @@ struct DayDraft: Equatable {
         log.steps = Int(steps)
         for r in Rating.allCases { log.setRating(r, ratings[r]) }
         log.performanceNA = performanceNA
+        log.onPeriod = onPeriod
         log.updatedAt = Date()
     }
 }
@@ -58,6 +61,7 @@ struct LogView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
+    @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
@@ -74,6 +78,15 @@ struct LogView: View {
     /// Goals in force for the day being edited, shown as hints in the empty fields.
     private var goals: GoalSet? {
         GoalTimeline(weekGoals, campaigns: campaigns.map(\.info)).goals(forDay: date)
+    }
+
+    private var showCycle: Bool {
+        #if DEBUG
+        let s = UserDefaults.standard.string(forKey: "logSection")
+        return s == nil || s == "cycle"
+        #else
+        return true
+        #endif
     }
 
     /// Debug aid for screenshots: `-logSection checkin` hides the sections above the check-in.
@@ -160,6 +173,20 @@ struct LogView: View {
 
                 }
 
+                if showCycle && trackCycle {
+                    Section("Cycle") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Are you on your period today?")
+                            HStack(spacing: 10) {
+                                cycleChoice("Yes", value: true)
+                                cycleChoice("No", value: false)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .listRowBackground(theme.card)
+                }
+
                 Section("Check-in (1–5, tap again to clear)") {
                     // Training performance comes last: it is the one that can be "not a lifting day".
                     ForEach(checkInOrder) { r in
@@ -213,6 +240,19 @@ struct LogView: View {
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showPicker = false } } }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    /// A yes/no choice; tapping the selected one clears the answer.
+    private func cycleChoice(_ title: String, value: Bool) -> some View {
+        let on = draft.onPeriod == value
+        return Button { draft.onPeriod = on ? nil : value } label: {
+            Text(title).font(.body.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 10)
+                .background(on ? (value ? theme.bad : theme.accent) : theme.track, in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(on ? theme.onAccent : Color.primary)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("On your period today: \(title)")
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private func field(_ title: String, _ text: Binding<String>, _ placeholder: String, decimal: Bool = false) -> some View {

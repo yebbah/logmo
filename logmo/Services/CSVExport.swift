@@ -14,11 +14,12 @@ struct ExportRow: Equatable {
     var steps: Int?
     var ratings: [String: Int]      // keyed by Rating.rawValue
     var performanceNA: Bool = false
+    var onPeriod: Bool?
 }
 
 enum CSVExport {
     static let ratingColumns = ["sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness"]
-    static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns + ["performance_na"])
+    static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns + ["performance_na", "on_period"])
         .joined(separator: ",")
 
     /// One line per day, oldest first. Missing values are empty cells, never 0.
@@ -41,6 +42,7 @@ enum CSVExport {
             fields.append(cell(r.steps))
             for key in ratingColumns { fields.append(cell(r.ratings[key])) }
             fields.append(r.performanceNA ? "true" : "")
+            fields.append(r.onPeriod.map { $0 ? "true" : "false" } ?? "")
             lines.append(fields.joined(separator: ","))
         }
         return ([header] + lines).joined(separator: "\n") + "\n"

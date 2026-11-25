@@ -38,6 +38,7 @@ struct DayRecord: Codable, Equatable {
     var waterMl: Int?
     var steps: Int?
     var performanceNA: Bool = false
+    var onPeriod: Bool?
     var ratings: [String: Int]
 }
 
