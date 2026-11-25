@@ -86,8 +86,9 @@ struct DayGoalStatus: Equatable {
     var protein: Bool?
     var steps: Bool?
     var water: Bool?
+    var weight: Bool?        // weighed in that day; only judged when the campaign has daily goals
     var allMet: Bool {
-        let g = [protein, steps, water].compactMap { $0 }
+        let g = [protein, steps, water, weight].compactMap { $0 }
         return !g.isEmpty && g.allSatisfy { $0 }
     }
 }
@@ -243,7 +244,8 @@ enum Metrics {
         }
         return DayGoalStatus(protein: check(s?.proteinG, goals.proteinDaily),
                              steps: check(s?.steps, goals.dailyStepsGoal),
-                             water: check(s?.waterMl, goals.waterDailyMl))
+                             water: check(s?.waterMl, goals.waterDailyMl),
+                             weight: goals.hasDailyGoals ? (s?.weightKg != nil) : nil)   // a weigh-in counts as a daily goal
     }
 
     /// Average daily calories (over logged days) against the goal ÷ 7, compared as

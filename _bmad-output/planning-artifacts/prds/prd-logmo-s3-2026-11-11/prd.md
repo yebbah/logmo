@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 12.0
+version: 12.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v12.0)
+# logmo: Product Requirements (v12.1)
 
 ## Vision and outcome
 
@@ -71,7 +71,7 @@ Which goals apply:
 - **A week's calorie goal** belongs to the campaign that contains the week's Monday. If a campaign starts mid-week, the new campaign's goals apply to its own days, and the week's calorie goal still comes from the campaign that held the Monday.
 
 **FR-4. Goal status.**
-- **Daily:** protein and water, and steps when the steps goal is a daily total, are each met at or above the goal. A goal with no value logged is not met. A day's goals are met when every goal that was set is met; with no daily goals set, nothing counts as met.
+- **Daily:** a **weigh-in logged that day** (counted whenever the campaign has any daily goal, whatever the required-trackers setting), plus protein and water, and steps when the steps goal is a daily total, are each met at or above the goal. A goal with no value logged is not met. A day's goals are met when every goal that was set is met; with no daily goals set, nothing counts as met.
 - **Weekly calories:** judged on the week's **average** daily calories (over the days that have calories logged) against the daily goal, in the chosen direction (*at or under* by default, or *at or over*). An average exactly at the target counts as met.
   - A *finished* week is met only if calories were logged on all seven days *and* the average is on target.
   - A week in progress shows its running average and whether it is currently on or off target. It is marked missed early once the week's total already exceeds an at-or-under goal, since the final average can no longer come back under it.
@@ -122,7 +122,7 @@ Rules:
 **FR-12. Dashboard tab (follows the campaign filter).** The app has five tabs: **Dashboard, Streaks, Log, Campaigns, Settings**. The Dashboard tab shows what can be filtered by campaign, including the goals. Its **Showing** control sits under a small "Showing" label and uses the full row, so a long campaign name wraps instead of running over the card. Choices are *Current campaign* (default), *Overall (all time)*, or any past campaign. Sections, top to bottom:
 1. **Campaign card:** the label (or standard name), then "#number type · dates", **days left** (a countdown from today to the last planned day, counting today: 28 on the first day of a 4-week campaign, 1 on the last planned day, 0 once it has passed), week x of y, target weight and distance from it (using the trend). For an upcoming campaign it shows the number of days until it starts and its planned length. Overall shows all data since the first weigh-in.
 2. **Plan prompt** (FR-17), shown when the weekly plan needs a decision.
-3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), an **Edit goals** button and a **Weekly plan** link, and a "Carried over" chip when this week's goals were not set or confirmed. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
+3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's weigh-in (logged or not yet), protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), an **Edit goals** button and a **Weekly plan** link, and a "Carried over" chip when this week's goals were not set or confirmed. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
 4. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
 5. **Weigh-ins and trend** chart (FR-7), with the protein intake summary under it.
 6. **Rate of change per week:** one bar per day, trend weight today minus 7 days earlier, over the last 12 weeks, with the latest value and its percent of body weight.
@@ -280,3 +280,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D76 | Past campaigns are fully read-only, including the label | Decided |
 | D71 | Sick tracking is its own opt-in switch (Settings → Health), separate from cycle tracking | Decided |
 | D72 | Sick days are yellow dots; sick takes the weigh-in dot's colour over period red when both apply | Assumption |
+| D77 | A day's daily goals are met only if a weight was logged, in the Streaks row, the daily-goals streak, the Goals card and campaign reports; with no daily goals set there is nothing to judge | Decided: the user asked |

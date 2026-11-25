@@ -50,6 +50,14 @@ final class MetricsTests: XCTestCase {
         let exact = Metrics.dayGoalStatus(full(3, protein: 140), goals: goals)
         XCTAssertEqual(exact.protein, true)                                       // at the goal counts
     }
+    func testADayWithoutAWeighInDoesNotMeetItsDailyGoals() {
+        var s = full(3); s.weightKg = nil                        // everything else met
+        let st = Metrics.dayGoalStatus(s, goals: goals)
+        XCTAssertEqual(st.weight, false); XCTAssertFalse(st.allMet)
+        XCTAssertNil(Metrics.dayGoalStatus(s, goals: GoalSet(caloriesWeekly: 14000)).weight)   // no daily goals: nothing to judge
+        let streak = Metrics.goalStreak([full(3), s, full(5)], timeline: timeline(), today: day(5), calendar: cal)
+        XCTAssertEqual(streak.current, 1)                        // the unweighed day broke it
+    }
     func testPartialGoalsOnlyJudgeSetOnes() {
         let g = GoalSet(proteinDaily: 140)
         XCTAssertTrue(Metrics.dayGoalStatus(full(3, steps: 0), goals: g).allMet)

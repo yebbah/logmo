@@ -128,7 +128,7 @@ struct StreaksView: View {
                     }.frame(maxWidth: .infinity)
                 }
             }
-            Text("Protein, steps and water all met. A hollow circle is today (still open) or a day before you started logging.")
+            Text("Weigh-in logged, and protein, steps and water all met. A hollow circle is today (still open) or a day before you started logging.")
                 .font(.caption2).foregroundStyle(theme.muted)
         }
     }

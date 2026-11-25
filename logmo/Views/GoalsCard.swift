@@ -66,6 +66,7 @@ struct GoalsCard: View {
             Text("No goals set for this campaign yet.").foregroundStyle(theme.muted)
         } else {
             Text("Today").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
+            if goals?.hasDailyGoals == true { weighInRow(logged: todays?.weightKg != nil) }
             goalRow("Protein", value: todays?.proteinG, goal: goals?.proteinDaily, unit: "g", met: status.protein)
             goalRow("Steps", value: todays?.steps, goal: goals?.dailyStepsGoal, unit: "", met: status.steps)
             goalRow("Water", value: todays?.waterMl, goal: goals?.waterDailyMl, unit: "ml", met: status.water)
@@ -84,6 +85,15 @@ struct GoalsCard: View {
             Button("Weekly plan", action: onPlan)
         }
         .font(.subheadline).buttonStyle(.borderless)
+    }
+
+    private func weighInRow(logged: Bool) -> some View {
+        HStack {
+            Text("Weigh-in")
+            Spacer()
+            Text(logged ? "Logged" : "Not yet").font(.subheadline).foregroundStyle(theme.muted)
+            StatusIcon(ok: logged ? true : nil)
+        }
     }
 
     private func goalRow(_ title: String, value: Int?, goal: Int?, unit: String, met: Bool?) -> some View {
