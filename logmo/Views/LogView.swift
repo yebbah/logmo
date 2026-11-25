@@ -76,6 +76,24 @@ struct LogView: View {
         GoalTimeline(weekGoals, campaigns: campaigns.map(\.info)).goals(forDay: date)
     }
 
+    /// Debug aid for screenshots: `-logSection checkin` hides the sections above the check-in.
+    private var showTop: Bool {
+        #if DEBUG
+        return UserDefaults.standard.string(forKey: "logSection") == nil
+        #else
+        return true
+        #endif
+    }
+
+    /// Check-in order for the Log screen, with training performance last.
+    private var checkInOrder: [Rating] {
+        let all = Rating.allCases.filter { $0 != .performance } + [.performance]
+        #if DEBUG
+        if UserDefaults.standard.string(forKey: "logSection") == "performance" { return [.performance] }   // screenshot aid
+        #endif
+        return all
+    }
+
     private func hint(_ goal: Int?) -> String { goal.map { "goal \($0.formatted())" } ?? "—" }
 
     private func existing(_ day: Date) -> DayLog? {
@@ -109,44 +127,48 @@ struct LogView: View {
                 }
                 .listRowBackground(theme.card)
 
-                Section("Weight") {
-                    field("Weight (\(unit.rawValue))", $draft.weight, "—", decimal: true)
-                }
-                .listRowBackground(theme.card)
+                if showTop {
+                    Section("Weight") {
+                        field("Weight (\(unit.rawValue))", $draft.weight, "—", decimal: true)
+                    }
+                    .listRowBackground(theme.card)
 
-                Section("Food") {
-                    field("Calories (kcal)", $draft.calories, "—")
-                    field("Protein (g)", $draft.protein, hint(goals?.proteinDaily))
-                    field("Carbs (g)", $draft.carbs, "—")
-                    field("Fat (g)", $draft.fat, "—")
-                }
-                .listRowBackground(theme.card)
+                    Section("Food") {
+                        field("Calories (kcal)", $draft.calories, "—")
+                        field("Protein (g)", $draft.protein, hint(goals?.proteinDaily))
+                        field("Carbs (g)", $draft.carbs, "—")
+                        field("Fat (g)", $draft.fat, "—")
+                    }
+                    .listRowBackground(theme.card)
 
-                Section("Water") {
-                    field("Total (ml)", $draft.water, hint(goals?.waterDailyMl))
-                    HStack {
-                        ForEach([250, 500, 750, 1000], id: \.self) { ml in
-                            Button("+\(ml)") { addWater(ml) }
-                                .buttonStyle(.bordered).frame(maxWidth: .infinity)
+                    Section("Water") {
+                        field("Total (ml)", $draft.water, hint(goals?.waterDailyMl))
+                        HStack {
+                            ForEach([250, 500, 750, 1000], id: \.self) { ml in
+                                Button("+\(ml)") { addWater(ml) }
+                                    .buttonStyle(.bordered).frame(maxWidth: .infinity)
+                            }
                         }
                     }
-                }
-                .listRowBackground(theme.card)
+                    .listRowBackground(theme.card)
 
-                Section("Activity") {
-                    // The steps hint only applies when the goal is a daily total, not a weekly average.
-                    field("Steps", $draft.steps, hint(goals?.dailyStepsGoal))
+                    Section("Activity") {
+                        // The steps hint only applies when the goal is a daily total, not a weekly average.
+                        field("Steps", $draft.steps, hint(goals?.dailyStepsGoal))
+                    }
+                    .listRowBackground(theme.card)
+
                 }
-                .listRowBackground(theme.card)
 
                 Section("Check-in (1–5, tap again to clear)") {
-                    ForEach(Rating.allCases) { r in
+                    // Training performance comes last: it is the one that can be "not a lifting day".
+                    ForEach(checkInOrder) { r in
                         RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r],
                                   set: { v in
                                       draft.ratings[r] = v
                                       if r == .performance && v != nil { draft.performanceNA = false }
                                   },
-                                  naAllowed: r == .performance, naOn: draft.performanceNA,
+                                  naAllowed: r == .performance, naOn: r == .performance && draft.performanceNA,
                                   onNA: {
                                       draft.performanceNA.toggle()
                                       if draft.performanceNA { draft.ratings[.performance] = nil }
@@ -255,24 +277,22 @@ struct RatingRow: View {
                                 .foregroundStyle(value == n ? theme.onAccent : Color.primary)
                         }
                         .buttonStyle(.borderless)
+                        .disabled(naOn)
+                        .opacity(naOn ? 0.35 : 1)
                         .accessibilityLabel("\(title) \(n): \(n == 1 ? low : n == 5 ? high : "")")
                     }
                 }
             }
+            Text("1 = \(low) · 5 = \(high)").font(.caption).foregroundStyle(theme.muted)
             if naAllowed {
-                HStack {
-                    Spacer()
-                    Button(action: onNA) {
-                        Text("n/a · not a lifting day").font(.footnote.weight(.semibold))
-                            .padding(.horizontal, 10).padding(.vertical, 6)
-                            .background(naOn ? theme.accent : theme.track, in: Capsule())
-                            .foregroundStyle(naOn ? theme.onAccent : Color.primary)
+                Divider()
+                Toggle(isOn: Binding(get: { naOn }, set: { _ in onNA() })) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Not a lifting day (n/a)")
+                        Text("Rest day: not counted as a workout").font(.caption).foregroundStyle(theme.muted)
                     }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("\(title) not applicable, not a lifting day")
                 }
             }
-            Text("1 = \(low) · 5 = \(high)").font(.caption).foregroundStyle(theme.muted)
         }
     }
 }

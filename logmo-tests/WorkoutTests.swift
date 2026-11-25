@@ -115,10 +115,14 @@ final class WorkoutTests: XCTestCase {
         let bad = (2...6).map { fullDay($0, perf: nil, na: true) }
         XCTAssertEqual(Metrics.compliance(bad, today: day(7), windowDays: 6, required: req, timeline: tl, calendar: cal).compliedDays, 0)
     }
-    func testComplianceUsesWeeklyAverageSteps() {
+    func testComplianceUsesWeeklyAverageStepsOnceTheWeekIsFinished() {
         let tl = GoalTimeline(byWeek: [day(2): GoalSet(stepsDaily: 10000, stepsIsWeeklyAverage: true)])
-        let days = (2...4).map { fullDay($0) }                  // 9000 steps/day vs 10000 average goal
-        XCTAssertEqual(Metrics.compliance(days, today: day(4), windowDays: 3, required: Set(Tracker.allCases), timeline: tl, calendar: cal).compliedDays, 0)
+        let req = Set(Tracker.allCases)
+        let week = (2...8).map { fullDay($0) }                  // 9,000 steps a day against a 10,000 average goal
+        // Open week: it can still average out, so nothing is penalised yet.
+        XCTAssertEqual(Metrics.compliance(Array(week.prefix(3)), today: day(4), windowDays: 3, required: req, timeline: tl, calendar: cal).compliedDays, 3)
+        // Finished week short of the average: no day complies.
+        XCTAssertEqual(Metrics.compliance(week, today: day(9), windowDays: 8, required: req, timeline: tl, calendar: cal).compliedDays, 0)
     }
 }
 

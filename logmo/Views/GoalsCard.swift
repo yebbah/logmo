@@ -135,7 +135,7 @@ struct GoalsCard: View {
         guard let avg = w.average, let target = w.dailyTarget else { return "No calories logged yet · \(days)" }
         let diff = Int(abs(avg - target).rounded())
         let side = w.atOrUnder ? (avg <= target ? "under" : "over") : (avg >= target ? "over" : "under")
-        return "\(diff.formatted()) kcal/day \(side) target (\(goal.formatted()) ÷ 7) · \(days)"
+        return "\(diff.formatted()) kcal/day \(side) the \(Int(target.rounded()).formatted()) kcal/day goal · \(days)"
     }
 
     // MARK: Past campaign
@@ -179,7 +179,7 @@ struct GoalsCard: View {
             if let last = r.last {
                 Divider()
                 Text("Goals at the end").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-                if let c = last.caloriesWeekly { summaryLine("Calories per week", "\(c.formatted()) kcal, \(last.caloriesAtOrUnder ? "at or under" : "at or over")") }
+                if let c = last.caloriesWeekly { summaryLine("Calories per day (weekly average)", "\((Double(c) / 7).rounded().formatted()) kcal, \(last.caloriesAtOrUnder ? "at or under" : "at or over")") }
                 if let p = last.proteinDaily { summaryLine("Protein per day", "\(p) g") }
                 if let s = last.stepsDaily { summaryLine(last.stepsIsWeeklyAverage ? "Steps, weekly average" : "Steps per day", s.formatted()) }
                 if let n = last.workoutDaysWeekly { summaryLine("Workout days per week", "\(n)") }

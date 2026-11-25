@@ -247,16 +247,21 @@ enum Metrics {
         return atOrUnder ? total * 7 <= goal * n : total * 7 >= goal * n
     }
 
-    /// Is the week's average calorie intake on target? nil when there is no calorie goal.
-    /// A week in progress is judged on the days logged so far; a finished week on the whole week.
-    static func weekCalorieOK(_ map: [Date: DaySnapshot], weekStart ws: Date, goals: GoalSet?,
+    /// Is the week's average calorie intake on target? nil when there is nothing to judge yet.
+    /// Calories are judged on the whole week so intake can cycle: a finished week is judged on its
+    /// average. While the week is open, a high day isn't a miss, because the week can still average
+    /// out; only a total that has already passed an at-or-under goal for the whole week is.
+    static func weekCalorieOK(_ map: [Date: DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
                               calendar cal: Calendar = .current) -> Bool? {
         guard let goals, let goal = goals.caloriesWeekly else { return nil }
         var total = 0, n = 0
         for i in 0..<7 {
             if let c = map[addDays(i, to: ws, cal)]?.calories { total += c; n += 1 }
         }
-        return calorieAverageOK(total: total, days: n, goal: goal, atOrUnder: goals.caloriesAtOrUnder)
+        if cal.startOfDay(for: today) > addDays(6, to: ws, cal) {
+            return calorieAverageOK(total: total, days: n, goal: goal, atOrUnder: goals.caloriesAtOrUnder)
+        }
+        return goals.caloriesAtOrUnder && total > goal ? false : nil
     }
 
     /// Average-per-day goals (calories, and steps when set as a weekly average), judged on the
@@ -299,10 +304,12 @@ enum Metrics {
                       value: { $0.steps }, today: today, calendar: cal)
     }
 
-    /// Is the week's average steps on target? nil unless the steps goal is a weekly average.
-    static func weekStepsOK(_ map: [Date: DaySnapshot], weekStart ws: Date, goals: GoalSet?,
+    /// Is the week's average steps on target? nil unless the steps goal is a weekly average, and nil
+    /// while the week is open (it can still average out); judged once the week is finished.
+    static func weekStepsOK(_ map: [Date: DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
                             calendar cal: Calendar = .current) -> Bool? {
         guard let g = goals?.weeklyAverageStepsGoal else { return nil }
+        guard cal.startOfDay(for: today) > addDays(6, to: ws, cal) else { return nil }
         var total = 0, n = 0
         for i in 0..<7 { if let c = map[addDays(i, to: ws, cal)]?.steps { total += c; n += 1 } }
         return calorieAverageOK(total: total, days: n, goal: g * 7, atOrUnder: false)
@@ -372,8 +379,8 @@ enum Metrics {
             let goals = timeline.goals(forDay: d, calendar: cal)
             let workout = workoutWeek(days, weekStart: ws, goals: goals, today: today, calendar: cal)
             let ok = dayComplied(s, required: required, goals: goals,
-                                 calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, calendar: cal),
-                                 stepsOK: weekStepsOK(map, weekStart: ws, goals: goals, calendar: cal),
+                                 calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, today: today, calendar: cal),
+                                 stepsOK: weekStepsOK(map, weekStart: ws, goals: goals, today: today, calendar: cal),
                                  workoutOK: workout.target == nil ? nil : workout.outcome != .missed)
             evaluated += 1
             if ok { complied += 1 }

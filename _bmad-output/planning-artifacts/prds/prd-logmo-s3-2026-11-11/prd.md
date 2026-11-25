@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 6.0
+version: 6.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v6.0)
+# logmo: Product Requirements (v6.1)
 
 ## Vision and outcome
 
@@ -33,7 +33,7 @@ Success means the user can log a full day in under a minute and see at a glance 
 - Food: calories (kcal), protein (g), carbs (g), fat (g).
 - Water: total in ml, with quick-add buttons (+250, +500, +750, +1,000).
 - Steps.
-- Biofeedback: seven ratings, each 1–5 (scale below). Tap a selected rating again to clear it. The app shows the meaning of 1 and 5 under every rating. **Training performance** can instead be answered **n/a** (not a lifting day): n/a is not a workout, but it counts as answered, so a rest day can still be a complete check-in. Choosing a rating clears n/a and the reverse.
+- Biofeedback: seven ratings, each 1–5 (scale below). Tap a selected rating again to clear it. The app shows the meaning of 1 and 5 under every rating. **Training performance** is the last check-in item. Under its 1–5 buttons is a switch row, "Not a lifting day (n/a)": n/a is not a workout, but it counts as answered, so a rest day can still be a complete check-in. Switching n/a on dims and clears the rating, and choosing a rating switches n/a off.
 
 | Rating | 1 | 5 |
 |---|---|---|
@@ -52,7 +52,7 @@ Direction differs by category: higher is better for sleep and training performan
 **FR-2. Units.** The user chooses kg or lb. Weight is stored in kg, so switching units never alters data.
 
 **FR-3. Weekly goals, per campaign.** Goals belong to a campaign, not to the app as a whole. Within a campaign they are set per week, expected each Sunday for the coming Monday–Sunday week. A goal set has:
-- **Calories:** a weekly total (kcal), with a direction: *at or under* (default) or *at or over*.
+- **Calories:** a **daily goal** in kcal (for example 1,800 a day), judged on the **week's average**, with a direction: *at or under* (default) or *at or over*. The week's total allowed is the daily goal × 7 (12,600). Because it is judged weekly, calorie cycling is allowed: more on some days and less on others, as long as the week averages out.
 - **Protein:** grams per day.
 - **Steps:** a per-day figure, judged either as a **daily total** (every day must reach it) or as a **weekly average** (the week's average daily steps must reach it). The user chooses which.
 - **Workout days:** a target number of workout days per week (0 to 7).
@@ -68,7 +68,7 @@ Which goals apply:
 
 **FR-4. Goal status.**
 - **Daily:** protein and water, and steps when the steps goal is a daily total, are each met at or above the goal. A goal with no value logged is not met. A day's goals are met when every goal that was set is met; with no daily goals set, nothing counts as met.
-- **Weekly calories:** judged on the week's **average** daily calories (over the days that have calories logged) against the weekly goal ÷ 7, in the chosen direction (*at or under* by default, or *at or over*). An average exactly at the target counts as met.
+- **Weekly calories:** judged on the week's **average** daily calories (over the days that have calories logged) against the daily goal, in the chosen direction (*at or under* by default, or *at or over*). An average exactly at the target counts as met.
   - A *finished* week is met only if calories were logged on all seven days *and* the average is on target.
   - A week in progress shows its running average and whether it is currently on or off target. It is marked missed early once the week's total already exceeds an at-or-under goal, since the final average can no longer come back under it.
 - **Weekly steps average:** when the steps goal is a weekly average it is judged exactly like calories, at or over: the average over the days with steps logged against the daily goal, and a finished week is met only if steps were logged on all seven days.
@@ -83,7 +83,7 @@ Which goals apply:
 
 For logging and daily goals, a day not yet logged *today* does not break the current streak. Each streak's definition is behind a small "i" next to its name (FR-13).
 
-**FR-6. Compliance.** A day is **complied** when every *required* tracker is fully logged, every daily goal that was set is met, *and* the week-level goals of that day's week are on track: the average calories (when a calorie goal exists), the average steps (when the steps goal is a weekly average), and the workout days (when a target exists, they must be reached or still reachable). These tests look at the whole week (the week so far, while it is in progress), not the single day, so a day can change from complied to not complied as the week unfolds. A missing training performance answer (a rating or n/a) keeps the check-in incomplete. Required trackers are chosen in Settings, all five by default. Over a 7- or 30-day window (today inclusive) the Streaks tab shows the share of days complied and, per tracker, the days it was fully logged. The count is always out of the full window (7 or 30 days). Today counts in the total and becomes a complied day once everything for it is done, so the ratio can rise during the day.
+**FR-6. Compliance.** A day is **complied** when every *required* tracker is fully logged, every daily goal that was set is met, *and* the week-level goals of that day's week are on track: the average calories (when a calorie goal exists), the average steps (when the steps goal is a weekly average), and the workout days (when a target exists, they must be reached or still reachable). Calories and weekly-average steps are judged on the **whole week**, so cycling works: while the week is open, a high or low day is not a miss (the only exception is a calorie total that has already passed the whole week's allowance for an at-or-under goal, which can no longer recover), and once the week is finished all of its days comply or none do, according to the week's average. Workout days must be reached or still reachable. So a day's status can change while its week is open. A missing training performance answer (a rating or n/a) keeps the check-in incomplete. Required trackers are chosen in Settings, all five by default. Over a 7- or 30-day window (today inclusive) the Streaks tab shows the share of days complied and, per tracker, the days it was fully logged. The count is always out of the full window (7 or 30 days). Today counts in the total and becomes a complied day once everything for it is done, so the ratio can rise during the day.
 
 **FR-7. Weight trend and biofeedback.** Show weigh-ins and the smoothed trend as two separate lines: weigh-ins connected with markers, the trend as a thick line, with a legend. Ranges are 14 days, 30 days, 90 days or All (of the period selected with the Showing control, FR-12). The latest trend value and last weigh-in are shown, and value labels appear when 15 or fewer points are on screen. The trend is computed over all data and only displayed per period, so it never restarts at a campaign boundary.
 - Smoothing: `trend = α × weight + (1 − α) × previous trend`, α = 2 / (N + 1). Default N = 16, matching the workbook's value for male input; the user can choose 7, 10, 14, 16 or 20. The first weigh-in seeds the trend, and days without a weigh-in carry the previous trend forward.
@@ -202,3 +202,5 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D39 | The workout target is assessed per week and feeds compliance and the weekly streak. Compliance stays red for every day of a week once its target is out of reach | Assumption: confirm, since it colours the whole week |
 | D40 | A finished week with the steps goal as a weekly average needs steps on all seven days to be met, like calories | Assumption |
 | D41 | Workout days need no 7-day logging: a finished week is met if the count reached the target | Assumption |
+| D42 | The calorie goal is entered per day and stored as a weekly total (× 7). Older goals entered as weekly totals keep their value and show as the per-day equivalent (14,500 a week shows as 2,071 a day) | Decided: the user asked for per-day entry |
+| D43 | Calorie cycling is allowed. Calories and weekly-average steps affect compliance only when the week is finished, apart from a calorie total already past an at-or-under allowance | Assumption: the user's request was cut off after "like this;", so confirm this is what was meant |

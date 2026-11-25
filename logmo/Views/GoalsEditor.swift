@@ -10,7 +10,8 @@ struct GoalsEditor: View {
 
     let campaign: CampaignInfo
     @State private var weekStart: Date
-    @State private var calories = ""
+    @State private var calories = ""                // per day, on average
+    @State private var loadedWeekly: Int?           // the stored weekly total, kept if the field isn't touched
     @State private var protein = ""
     @State private var steps = ""
     @State private var stepsAverage = false
@@ -78,13 +79,13 @@ struct GoalsEditor: View {
             .listRowBackground(theme.card)
 
             Section {
-                row("Weekly total (kcal)", $calories)
+                row("Calories per day (kcal)", $calories)
                 Picker("Goal is to stay", selection: $atOrUnder) {
                     Text("At or under").tag(true)
                     Text("At or over").tag(false)
                 }
-            } header: { Text("Weekly") } footer: {
-                Text("Enter the weekly total. It is judged on the week's average: average daily calories at or under (or over) the total ÷ 7. A finished week needs calories logged on all seven days to count as met.")
+            } header: { Text("Calories") } footer: {
+                Text("Enter your daily goal, for example 1,800. It is judged on the week's average, so you can cycle: more on some days and less on others, as long as the week averages out (1,800 a day is 12,600 for the week). A finished week needs calories logged on all seven days to count as met.")
             }
             .listRowBackground(theme.card)
 
@@ -133,6 +134,7 @@ struct GoalsEditor: View {
     private func row(_ title: String, _ text: Binding<String>) -> some View {
         LabeledContent(title) {
             TextField("none", text: text).keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                .frame(maxWidth: 110)
         }
     }
 
@@ -142,7 +144,8 @@ struct GoalsEditor: View {
 
     private func load() {
         let g = timeline.goals(forWeekStarting: weekStart)
-        calories = g?.caloriesWeekly.map(String.init) ?? ""
+        loadedWeekly = g?.caloriesWeekly
+        calories = g?.caloriesWeekly.map { String(Int((Double($0) / 7).rounded())) } ?? ""
         protein = g?.proteinDaily.map(String.init) ?? ""
         steps = g?.stepsDaily.map(String.init) ?? ""
         stepsAverage = g?.stepsIsWeeklyAverage ?? false
@@ -156,7 +159,14 @@ struct GoalsEditor: View {
         let goal = goals.first { $0.campaignID == campaign.id && $0.weekStart == weekStart } ?? {
             let g = WeekGoal(weekStart: weekStart, campaignID: campaign.id); context.insert(g); return g
         }()
-        goal.caloriesWeekly = Int(calories)
+        // Entered per day; stored as the weekly total. An untouched field keeps the stored total, so
+        // an older goal (for example 14,500 a week) isn't rounded to 14,497 by re-saving.
+        if let perDay = Int(calories) {
+            let untouched = loadedWeekly.map { String(Int((Double($0) / 7).rounded())) == calories } ?? false
+            goal.caloriesWeekly = untouched ? loadedWeekly : perDay * 7
+        } else {
+            goal.caloriesWeekly = nil
+        }
         goal.caloriesAtOrUnder = atOrUnder
         goal.proteinDaily = Int(protein)
         goal.stepsDaily = Int(steps)
