@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 1)**, built to PRD v20.2, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 1)**, built to PRD v20.3, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -53,7 +53,7 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 - A **days-left badge** in the Dashboard's top-left corner shows the days remaining in the running campaign.
 
 ### Estimated maintenance (TDEE)
-- **Dashboard card** laid out like the workbook: the estimate with its status (Updating, Holding or Formula), goal against it, a plain seven-day average beside the smoothed intake (with a warning when logs look incomplete), a chart over time, and a weekly table of goal, eaten and maintenance.
+- **Dashboard card** laid out like the workbook: the estimate with its status (Updating, Holding or Formula), your goal against it in one line (with a warning when logs look incomplete), a chart over time, and a weekly table of goal, eaten and maintenance.
 - Worked out from your smoothed weight, your smoothed intake and the weekly change in trend (about 1,100 kcal per kg), after four weeks of logging in all, across every campaign; held while logs are thin. An optional **About you** profile (sex, age, height, activity) gives a formula estimate until your logs have built one, and a cross-check afterwards.
 - **In the weekly suggestion:** shown as evidence, used to size a calorie move and check its direction, and to flag low targets.
 

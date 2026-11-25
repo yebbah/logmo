@@ -641,10 +641,9 @@ struct MaintenanceCard: View {
                     .font(.caption).foregroundStyle(theme.muted)
             }
             let week = Maintenance.sevenDayAverage(snaps, through: scope.end)
-            HStack(alignment: .top, spacing: 14) {
-                if let goal { stat("Goal", "\(goal.formatted())", sub: relation(goal, e.kcalPerDay)) }
-                if let week { stat("Eating", "\(week.formatted())", sub: "last 7 days") }
-                if let eat = e.intakeKcal { stat("Smoothed", "\(eat.formatted())", sub: "used for the estimate") }
+            if let goal {
+                Text("Your goal of \(goal.formatted()) a day is \(relation(goal, e.kcalPerDay)).")
+                    .font(.subheadline.weight(.semibold))
             }
             if e.source == .trend, let f = e.formulaKcal {
                 Text("A formula from your height, age, sex and activity gives \(f.formatted()) as a cross-check.").font(.caption).foregroundStyle(theme.muted)
@@ -660,19 +659,10 @@ struct MaintenanceCard: View {
             if e.series.compactMap(\.tdee).count >= 2 { chart(e, goal: goal) }
             weekly(e)
             Text(e.source == .trend
-                 ? "Eating is the plain average of the days you logged; the smoothed figure is what the estimate uses. Weight is smoothed like the trend line, and the weekly change in it is turned into calories (about 1,100 a day for each kg a week) and taken off what you eat. It holds while weigh-ins or calorie logs are missing, and never treats a missing day as zero."
+                 ? "The estimate is built from your smoothed intake (\(e.intakeKcal.map { $0.formatted() } ?? "–") a day), which moves slowly; the table shows what you actually ate each week. Weight is smoothed like the trend line, and the weekly change in it is turned into calories (about 1,100 a day for each kg a week) and taken off what you eat. It holds while weigh-ins or calorie logs are missing, and never treats a missing day as zero."
                  : "A formula (Mifflin-St Jeor times your activity) is only a starting point.")
                 .font(.caption).foregroundStyle(theme.muted)
         }
-    }
-
-    private func stat(_ title: String, _ value: String, sub: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.caption).foregroundStyle(theme.muted)
-            Text(value).font(.system(size: 20, weight: .semibold, design: .rounded))
-            Text(sub).font(.caption2).foregroundStyle(theme.muted)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// "440 below maintenance" and the percentage.
@@ -680,7 +670,7 @@ struct MaintenanceCard: View {
         let diff = goal - maintenance
         if abs(diff) < 25 { return "about maintenance" }
         let pct = Int((abs(Double(diff)) / Double(maintenance) * 100).rounded())
-        return "\(abs(diff).formatted()) \(diff < 0 ? "below" : "above") (\(pct)%)"
+        return "\(abs(diff).formatted()) kcal \(diff < 0 ? "below" : "above") it (\(pct)%)"
     }
 
     private func chart(_ e: MaintenanceEstimate, goal: Int?) -> some View {
