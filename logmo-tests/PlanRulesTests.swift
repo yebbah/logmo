@@ -101,6 +101,16 @@ final class PlanRulesTests: XCTestCase {
         XCTAssertEqual(rows[1].trendChangeKg ?? 0, -0.7, accuracy: 0.01)
         XCTAssertNil(rows.last(where: { $0.phase == .future })?.trendKg)       // future weeks have none
     }
+    func testWeeksCountProteinGoalDaysAndLeaveOutTodayUntilItIsHit() {
+        let c = camp(start: 2, weeks: 4)
+        let g = GoalSet(proteinDaily: 150)
+        let tl = GoalTimeline(byWeek: [day(2): g])
+        func snap(_ n: Int, protein: Int?) -> DaySnapshot { DaySnapshot(date: day(n), weightKg: nil, logged: [], proteinG: protein) }
+        let snaps = [snap(2, protein: 160), snap(3, protein: 100), snap(4, protein: nil), snap(5, protein: 100)]
+        let rows = Insights.weeklyPlan(c, snaps: snaps, weeks: [day(2): g], explicit: [day(2)], timeline: tl, required: [], today: day(5), calendar: cal)
+        XCTAssertEqual(rows[0].proteinHit, 1)
+        XCTAssertEqual(rows[0].proteinDays, 3)      // the 5th (today, under the goal) is not counted yet
+    }
     func testAFutureWeekHasGoalsButNoDays() {
         let c = camp(start: 2, weeks: 12)
         let g = GoalSet(caloriesWeekly: 14000)

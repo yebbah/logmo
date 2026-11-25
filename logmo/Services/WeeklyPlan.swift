@@ -31,6 +31,8 @@ struct WeekPlanRow: Identifiable, Equatable {
     var trendKg: Double? = nil         // the weight trend at the end of the week (so far, for the current week); nil for a future week or no trend yet
     var trendChangeKg: Double? = nil   // from the end of the week before; nil is N/A (nothing before it, or the campaign restarted the trend)
     var trendChangePercent: Double? = nil
+    var proteinHit: Int = 0            // days of the week (inside the campaign, so far) the protein goal was reached
+    var proteinDays: Int = 0           // days of the week that had a protein goal; 0 when there was none
     var id: Date { weekStart }
 }
 
@@ -119,11 +121,17 @@ extension Insights {
                 outcome = phase == .future ? .inProgress : Metrics.weeklyOutcome(snaps, weekStart: ws, goals: goals, today: today, calendar: cal)
                 if outcome == .missed { reason = missReason(snaps, ws, goals, today, cal) }
             }
+            // Protein goal days. Today is left out of the count until the goal is reached, since the day isn't over.
+            var protein = from <= to ? Insights.proteinDays(snaps, timeline: timeline, from: from, to: to, calendar: cal) : (hit: 0, missed: 0)
+            if phase == .current, from <= t, t <= to {
+                protein.missed -= Insights.proteinDays(snaps, timeline: timeline, from: t, to: t, calendar: cal).missed
+            }
             let tr = phase == .future ? nil : trendRows[ws]
             rows.append(WeekPlanRow(weekStart: ws, phase: phase, goals: goals, previous: prev, isSet: explicit.contains(ws),
                                     days: strip.count, compliedDays: strip.filter { $0 == .complied }.count,
                                     strip: strip, outcome: outcome, reason: reason,
-                                    trendKg: tr?.trendKg, trendChangeKg: tr?.changeKg, trendChangePercent: tr?.changePercent))
+                                    trendKg: tr?.trendKg, trendChangeKg: tr?.changeKg, trendChangePercent: tr?.changePercent,
+                                    proteinHit: protein.hit, proteinDays: protein.hit + protein.missed))
             ws = cal.date(byAdding: .day, value: 7, to: ws)!
         }
         return rows

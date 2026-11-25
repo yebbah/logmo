@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 20.7
+version: 20.8
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v20.7)
+# logmo: Product Requirements (v20.8)
 
 ## Vision and outcome
 
@@ -69,7 +69,7 @@ Every goal is optional; an empty field means no goal. Within a campaign, a week 
 When a campaign starts, including the automatic default one, it begins with a **copy of the most recent weekly goals** of the other campaigns, placed on the Monday of the week it starts, so nothing starts unset. That copy counts as *carried over* until the user confirms or changes it. If there are no goals anywhere yet, it starts with none. Goals made before goals were per campaign move to the campaign that contains their week.
 
 Which goals apply:
-- **A day** uses the goals of the campaign it belongs to (the latest set for its week or earlier). Daily goal status, the daily-goals streak, compliance and the protein donut all follow this.
+- **A day** uses the goals of the campaign it belongs to (the latest set for its week or earlier). Daily goal status, the daily-goals streak, compliance and the weekly protein-goal days all follow this.
 - **A week's calorie goal** belongs to the campaign that contains the week's Monday. If a campaign starts mid-week, the new campaign's goals apply to its own days, and the week's calorie goal still comes from the campaign that held the Monday.
 
 **FR-4. Goal status.**
@@ -96,7 +96,7 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 **FR-7. Weight trend and biofeedback.** Show weigh-ins and the smoothed trend as two separate lines: weigh-ins connected with markers, the trend as a thick line, with a legend. Ranges are 14 days, 30 days, 90 days or All (of the period selected with the Showing control, FR-12). The latest trend value and last weigh-in are shown, and value labels appear when 15 or fewer points are on screen. The trend is computed over all data and only displayed per period, so it never restarts at a campaign boundary. When cycle tracking is on, a day marked as on the period is a **red dot** on the weigh-in and on the trend at that date, with an "On period" entry in the legend (also in full screen).
 - **The trend is seeded by each campaign's starting weight.** On a campaign's first day the trend is that starting weight, as if it were the trend the day before, and a weigh-in that day moves it like any other (with no weigh-in that day the trend is the starting weight, which is what the workbook's Setup weight does when day one is blank). From then on it smooths as usual. **A restart is not a change in weight.** If a campaign's starting weight lands more than 0.3 kg from where the trend was the day before, the trend is marked as restarted on that day, and any change measured across it (the weekly rate of change, the daily rate-of-change bars, the 7, 14 and 21-day changes) is left blank, shown as N/A or a dash, rather than showing the jump as a gain or loss. A starting weight that carries the trend on (within 0.3 kg, the usual case since it defaults to the current trend) is not a restart. A campaign without a starting weight carries the running trend on; before any campaign's first day, the trend starts at the first weigh-in. Past campaigns keep their own seed, so each campaign's trend, charts and report reflect it.
 
-**Protein intake** sits under the chart in the same card and follows the same range selector (14 days, 30 days, 90 days, All): days the protein goal was hit out of days with a protein goal in that range, as a donut with "n/m". An unlogged day with a goal counts as missed. It is not shown in the landscape full-screen view.
+**Protein goal days** are no longer on the weigh-ins card (v20.8): they are a goal result, not a weight measure, and the range chips didn't apply to them. Each week of the weekly plan (FR-17) shows "Protein goal reached 4 of 6 days", counting only that week's days inside the campaign that had a protein goal; unlogged days count as missed, and today is left out until the goal is reached ("so far" on the current week).
 - Smoothing: `trend = α × weight + (1 − α) × previous trend`, α = 2 / (N + 1). Default N = 16, matching the workbook's value for male input; the user can choose 7, 10, 14, 16 or 20. The first weigh-in seeds the trend, and days without a weigh-in carry the previous trend forward.
 - **Biofeedback overlay:** a switch adds one smoothed trend line per rating beside the weight line, each with its own tick box to show or hide it. Ratings use a right-hand 1–5 axis and a fixed 7-day smoothing. The choices are remembered on the device.
 
@@ -129,7 +129,7 @@ Rules:
 2. **Plan prompt** (FR-17), shown when the weekly plan needs a decision.
 3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's weigh-in (logged or not yet), protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), an **Edit goals** button and a **Weekly plan** link, and a "Carried over" chip when this week's goals were not set or confirmed. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
 4. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
-5. **Weigh-ins and trend** chart (FR-7), with the protein intake summary under it.
+5. **Weigh-ins and trend** chart (FR-7), (the chart only).
 6. **Weekly rate of change** (the one rate-of-change view; the earlier daily bar chart was removed as a duplicate of it).
 7. **Steps and calories:** last 14 days as grouped bars (steps on the left axis, calories on the right) and the past-7-day averages.
 8. **Biofeedback, last 7 days:** one small bar chart per rating with its 7-day average and which direction is better: higher for sleep and training performance, lower for fatigue, stress, hunger and soreness, and none for appetite. Days without a rating have no bar.
@@ -164,7 +164,7 @@ The three streaks (logging, daily goals, weekly goals) are **not campaign-specif
 - **This week** comes first, then **Plan ahead**, then past weeks (locked).
 - **Plan ahead:** the next four weeks, each with its goals (changes from the week before highlighted, with the old value), a "Set by you" or "Carried over" chip, and **Same as before** (confirms it) and **Edit**.
 - **This week:** the same, with its compliance so far.
-- **Past weeks**, newest first, **locked**: goals, set or carried over, "n of 7 days complied" under that week's goals, a strip of the days, and the result with its reason. Every week that has begun, past or current, also carries its **weight trend at the end of the week and its change from the week before** (kg and %, "N/A" when nothing earlier or the campaign restarted the trend; "so far" for the current week), kept as that week's history. The same rows appear in the campaign's detailed view. There is no way to edit them.
+- **Past weeks**, newest first, **locked**: goals, set or carried over, "n of 7 days complied" under that week's goals, a strip of the days, and the result with its reason. Every week that has begun, past or current, also carries its **protein-goal days** and its **weight trend at the end of the week and its change from the week before** (kg and %, "N/A" when nothing earlier or the campaign restarted the trend; "so far" for the current week), kept as that week's history. The same rows appear in the campaign's detailed view. There is no way to edit them.
 - **Plan prompt**, on the Dashboard and at the top of the plan: with no goals at all, "Set your weekly goals"; on any day but Sunday when this week is only carried over, "This week's goals are carried over" with **Keep them** (confirms them) and **Change them**; on Sunday, if next week isn't set, "Plan next week" with **Same as this week** and **Change it**. Confirming counts as setting the week, so the prompt goes away.
 
 **FR-18. Reminders.** In Settings, a **Weekly plan reminder** switch with a day of the week and a time the user chooses (Sunday 18:00 by default). When on, a local notification repeats weekly at that time: "Plan your week. Set next week's goals in logmo." It carries nothing from the user's logs. Turning it on asks iOS for permission; if that is refused the switch goes back off and Settings points to iOS Settings. Turning it off cancels the notification, and changing the day or time reschedules it.
@@ -282,7 +282,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D27 | Five tabs, in this order: Dashboard (campaign-filtered), Streaks (not filtered), Log, Campaigns, Settings. The Streaks tab is named "Streaks" although it also holds goals-related history, compliance and the overall journey (it was four tabs before the Campaigns tab, D52) | Decided: mockup approved |
 | D28 | The Streaks tab opens with the streaks, then the weekly-goals banner; the campaign filter sits at the top of the Dashboard tab | Decided: mockup approved |
 | D29 | Landscape is used only for full-screen charts; everything else is portrait | Decided |
-| D30 | All four charts (weigh-ins and trend, rate of change, steps and calories, overall journey) can go full screen. Biofeedback bars and the protein donut cannot | Assumption: the user said "the graph" |
+| D30 | All four charts (weigh-ins and trend, rate of change, steps and calories, overall journey) can go full screen. Biofeedback bars cannot | Assumption: the user said "the graph" |
 | D31 | Weekly goals are stored per campaign, not globally | Decided: the user asked for it |
 | D32 | A new campaign (including the automatic default) starts with a copy of the most recent goals | Decided: the user chose copy |
 | D33 | A day uses its own campaign's goals; a week's weekly goals belong to the campaign containing the week's Monday | Decided: accepted by the user, to be tuned after use |
@@ -299,7 +299,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D44 | Cycle tracking is an opt-in toggle in Settings ("Track my menstrual cycle"), not a sex field in a profile. The daily question is optional and not part of compliance | Decided: accepted by the user |
 | D45 | Period days are shown as red dots whenever cycle tracking is on, independent of the "Show biofeedback" switch | Decided: accepted by the user |
 | D46 | A new campaign can start up to a year ahead; an upcoming campaign counts as the one real campaign and can be cancelled | Decided |
-| D47 | Protein intake follows the weigh-ins range selector and is no longer its own card | Decided: the user asked for it |
+| D47 | Protein intake follows the weigh-ins range selector and is no longer its own card (superseded by D139) | Decided: the user asked for it |
 | D48 | The app icon and in-app logo come from the supplied logo sheet (kept in `design/`), redrawn at 1024 px | Decided |
 | D49 | App version starts at 1.0.0 (build 1) | Assumption: bump `MARKETING_VERSION` in project.yml per release |
 | D50 | A campaign can carry an optional label; the name shown is the label or "Campaign N · Type", always followed by its dates, which are worked out from the campaign and so change if it is ended early | Decided: the user asked for it |
@@ -391,3 +391,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D136 | The days-left badge sits in the top-right corner of the navigation bar so it no longer pushes the Dashboard title and content down | Decided: the user asked |
 | D137 | The days-left badge sits at the right end of the week line, not in the navigation bar: any navigation-bar item adds an empty row above the large title | Decided: the user disliked the empty space (seen in the simulator); the Dashboard top now matches the other tabs |
 | D138 | Repeat for the weeks after replaces weeks already set or confirmed, instead of skipping them | Decided: the user repeated an edited water goal over four weeks and only the edited week changed, because the others had been confirmed earlier and were silently skipped |
+| D139 | The protein ring is removed from the Dashboard; each week of the weekly plan shows the days its protein goal was reached, next to the weight trend and its change | Decided: the user found it confusing under the weigh-ins range chips and asked for it in the weekly plan |

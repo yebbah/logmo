@@ -174,6 +174,10 @@ struct WeekRowCard: View {
                 strip
             }
             if let t = row.trendKg { trendLine(t) }
+            if row.proteinDays > 0 {
+                Label("Protein goal reached \(row.proteinHit) of \(row.proteinDays) \(row.proteinDays == 1 ? "day" : "days")" + (row.phase == .current ? " (so far)" : ""),
+                      systemImage: "fork.knife").font(.caption).foregroundStyle(theme.muted).labelStyle(.titleAndIcon)
+            }
             if row.phase == .past {
                 Label("Locked", systemImage: "lock.fill").font(.caption2).foregroundStyle(theme.muted)
             }

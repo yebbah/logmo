@@ -78,11 +78,6 @@ struct WeightChartBody: View {
             } else {
                 chart.chartHeight(height)
                 legend
-                if !compact {
-                    Divider()
-                    ProteinIntakeSection(snaps: snaps, timeline: timeline, from: from, to: scope.end,
-                                         rangeLabel: range == 0 ? "this period" : "the last \(range) days")
-                }
             }
         }
     }
@@ -353,44 +348,6 @@ struct BiofeedbackBarsCard: View {
         }
         .padding(10)
         .background(theme.bg.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
-    }
-}
-
-/// Protein intake for the range chosen on the weigh-ins card: days the goal was hit out of days with a goal.
-struct ProteinIntakeSection: View {
-    @Environment(\.theme) private var theme
-    let snaps: [DaySnapshot]
-    let timeline: GoalTimeline
-    let from: Date
-    let to: Date
-    let rangeLabel: String
-
-    private struct Slice: Identifiable { var id: String; var count: Int }
-
-    var body: some View {
-        let r = Insights.proteinDays(snaps, timeline: timeline, from: from, to: to)
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Protein intake").font(.subheadline.weight(.semibold))
-            if r.hit + r.missed == 0 {
-                Text("No protein goal set for this period.").font(.subheadline).foregroundStyle(theme.muted)
-            } else {
-                HStack(spacing: 20) {
-                    Chart([Slice(id: "Days hit", count: r.hit), Slice(id: "Days missed", count: r.missed)]) { s in
-                        SectorMark(angle: .value("Days", s.count), innerRadius: .ratio(0.62), angularInset: 1.5)
-                            .foregroundStyle(by: .value("Result", s.id))
-                    }
-                    .chartForegroundStyleScale(["Days hit": theme.accent, "Days missed": theme.track])
-                    .chartLegend(.hidden)
-                    .frame(width: 110, height: 110)
-                    .overlay { Text("\(r.hit)/\(r.hit + r.missed)").font(.title3.bold()) }
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) { Circle().fill(theme.accent).frame(width: 8, height: 8); Text("Days hit") }
-                        HStack(spacing: 6) { Circle().fill(theme.track).frame(width: 8, height: 8); Text("Days missed or unlogged") }
-                        Text("Over \(rangeLabel)").font(.caption).foregroundStyle(theme.muted)
-                    }.font(.caption)
-                }
-            }
-        }
     }
 }
 

@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 1)**, built to PRD v20.7, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 1)**, built to PRD v20.8, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -46,6 +46,7 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 - Imported values count for goals, streaks, compliance, reminders and the weekly suggestion like typed ones.
 
 ### The week and the weekly rate of change
+- The protein ring is gone from the Dashboard. Each week of the weekly plan now shows how many days its protein goal was reached, beside that week's weight trend and change.
 - **Repeat for the weeks after** now replaces weeks you already set or confirmed, and the editor says how many; before, those weeks were skipped without a word.
 - The Dashboard keeps one rate-of-change view, the weekly table; each week of a campaign's weekly plan (and the campaign's detailed view) shows that week's trend weight and change as history.
 - The Dashboard shows **which week you are in** ("Week 4 of 8" and this week's dates) and a **Weekly rate of change** card like the workbook's weekly line.
