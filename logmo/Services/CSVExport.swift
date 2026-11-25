@@ -27,20 +27,20 @@ enum CSVExport {
     static let ratingColumns = ["sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness"]
     static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns + ["performance_na", "on_period", "sick", "campaign_number", "campaign", "campaign_kind",
                                                                                        "goal_calories_per_day", "goal_calories_basis", "goal_protein_g", "goal_steps", "goal_steps_basis",
-                                                                                       "goal_water_ml", "goal_workout_days"])
+                                                                                       "goal_water_ml", "goal_workout_days", "goal_carbs_g", "goal_fat_g"])
         .joined(separator: ",")
 
     static func quote(_ t: String) -> String {
         t.contains(",") || t.contains("\"") || t.contains("\n") ? "\"" + t.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : t
     }
 
-    /// calories per day, basis, protein, steps, steps basis, water, workout days
+    /// calories per day, basis, protein, steps, steps basis, water, workout days, carbs guide, fat guide
     static func goalCells(_ g: GoalSet?) -> [String] {
-        guard let g else { return Array(repeating: "", count: 7) }
+        guard let g else { return Array(repeating: "", count: 9) }
         func c(_ v: Int?) -> String { v.map(String.init) ?? "" }
         return [c(g.caloriesWeekly.map { Int((Double($0) / 7).rounded()) }), g.caloriesWeekly == nil ? "" : (g.caloriesAtOrUnder ? "at_or_under" : "at_least"),
                 c(g.proteinDaily), c(g.stepsDaily), g.stepsDaily == nil ? "" : (g.stepsIsWeeklyAverage ? "weekly_average" : "each_day"),
-                c(g.waterDailyMl), c(g.workoutDaysWeekly)]
+                c(g.waterDailyMl), c(g.workoutDaysWeekly), c(g.carbsDaily), c(g.fatDaily)]
     }
 
     static func isoDay(_ d: Date, _ cal: Calendar = .current) -> String {
@@ -62,7 +62,7 @@ enum CSVExport {
     /// One line per campaign-week of weekly goals.
     static func weeklyGoalsCSV(_ goals: [(campaign: CampaignInfo?, week: Date, goals: GoalSet, confirmed: Bool)],
                                calendar cal: Calendar = .current) -> String {
-        let head = "campaign_number,campaign,week_start,goal_calories_per_day,goal_calories_basis,goal_protein_g,goal_steps,goal_steps_basis,goal_water_ml,goal_workout_days,set_by_you"
+        let head = "campaign_number,campaign,week_start,goal_calories_per_day,goal_calories_basis,goal_protein_g,goal_steps,goal_steps_basis,goal_water_ml,goal_workout_days,goal_carbs_g,goal_fat_g,set_by_you"
         let lines = goals.sorted { ($0.campaign?.number ?? 0, $0.week) < ($1.campaign?.number ?? 0, $1.week) }.map { g in
             ([g.campaign.map { String($0.number) } ?? "", quote(g.campaign.map { $0.label ?? $0.title } ?? ""), isoDay(g.week, cal)]
              + goalCells(g.goals) + [g.confirmed ? "true" : "false"]).joined(separator: ",")

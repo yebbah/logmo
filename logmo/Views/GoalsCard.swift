@@ -11,6 +11,7 @@ struct GoalsCard: View {
     let explicitWeeks: Set<Date>          // the Mondays the user set or confirmed
     let onEdit: () -> Void
     let onPlan: () -> Void
+    var onSuggest: (() -> Void)? = nil     // "Suggest next week", only for a campaign that is running
 
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: Date()) }
@@ -83,6 +84,7 @@ struct GoalsCard: View {
         HStack(spacing: 18) {
             if live || upcoming { Button("Edit goals", action: onEdit) }
             Button("Weekly plan", action: onPlan)
+            if live, let onSuggest { Button { onSuggest() } label: { Label("Suggest", systemImage: "sparkles") } }
         }
         .font(.subheadline).buttonStyle(.borderless)
     }

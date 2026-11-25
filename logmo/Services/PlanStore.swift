@@ -22,6 +22,8 @@ enum PlanStore {
         g.stepsIsWeeklyAverage = s.stepsIsWeeklyAverage
         g.waterDailyMl = s.waterDailyMl
         g.workoutDaysWeekly = s.workoutDaysWeekly
+        g.carbsDaily = s.carbsDaily
+        g.fatDaily = s.fatDaily
         g.confirmed = true
         g.updatedAt = Date()
     }

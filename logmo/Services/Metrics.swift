@@ -44,6 +44,8 @@ struct GoalSet: Equatable {
     var stepsIsWeeklyAverage: Bool = false   // false: each day's total must reach it; true: the week's daily average must
     var waterDailyMl: Int?
     var workoutDaysWeekly: Int?              // target workout days per week (days with a training performance rating)
+    var carbsDaily: Int?                     // guidance only: shown, never judged as met or missed
+    var fatDaily: Int?                       // guidance only
 
     /// Steps goal when it is judged day by day.
     var dailyStepsGoal: Int? { stepsIsWeeklyAverage ? nil : stepsDaily }

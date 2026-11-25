@@ -11,6 +11,7 @@ struct PlanPromptBanner: View {
     let prompt: PlanPrompt
     let onKeep: () -> Void
     let onChange: () -> Void
+    var onSuggest: (() -> Void)? = nil
 
     var body: some View {
         switch prompt {
@@ -41,6 +42,13 @@ struct PlanPromptBanner: View {
             HStack(spacing: 10) {
                 if let keep { pill(keep, filled: false, action: onKeep) }
                 pill(change, filled: true, action: onChange)
+            }
+            if let onSuggest {
+                Button(action: onSuggest) {
+                    Label("Suggest next week", systemImage: "sparkles").font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity).padding(.vertical, 9)
+                        .foregroundStyle(theme.accent).background(theme.card, in: RoundedRectangle(cornerRadius: 10))
+                }.buttonStyle(.plain)
             }
         }
         .padding(14)
@@ -74,6 +82,8 @@ struct GoalsLine: View {
         if let s = g.stepsDaily { out.append("\(s.formatted()) steps\(g.stepsIsWeeklyAverage ? " avg" : "")") }
         if let w = g.waterDailyMl { out.append("\(w.formatted()) ml") }
         if let n = g.workoutDaysWeekly { out.append("\(n) workouts") }
+        if let c = g.carbsDaily { out.append("\(c) g carbs") }
+        if let f = g.fatDaily { out.append("\(f) g fat") }
         return out
     }
 
@@ -204,8 +214,9 @@ struct WeeklyPlanView: View {
 
     let campaign: CampaignInfo
     @State private var editing: EditTarget?
+    @State private var suggesting = false
 
-    struct EditTarget: Identifiable { var week: Date; var id: Date { week } }
+    struct EditTarget: Identifiable { var week: Date; var prefill: GoalSet? = nil; var id: Date { week } }
 
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
 
@@ -227,7 +238,8 @@ struct WeeklyPlanView: View {
                     .font(.footnote).foregroundStyle(theme.muted).padding(.horizontal, 2)
                 Text("Each campaign keeps its own weekly goals.").font(.caption).foregroundStyle(theme.muted).padding(.horizontal, 2)
 
-                PlanPromptBanner(prompt: prompt, onKeep: { keep(prompt) }, onChange: { change(prompt) })
+                PlanPromptBanner(prompt: prompt, onKeep: { keep(prompt) }, onChange: { change(prompt) },
+                                 onSuggest: editable ? { suggesting = true } : nil)
 
                 let future = rows.filter { $0.phase == .future }
                 let current = rows.filter { $0.phase == .current }
@@ -259,7 +271,17 @@ struct WeeklyPlanView: View {
         .background(theme.bg)
         .navigationTitle("Weekly plan")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $editing) { t in GoalsSheet(campaign: campaign, week: t.week) }
+        .sheet(item: $editing) { t in GoalsSheet(campaign: campaign, week: t.week, prefill: t.prefill) }
+        .sheet(isPresented: $suggesting) {
+            SuggestSheet(campaign: campaign) { goals, week in editing = EditTarget(week: week, prefill: goals) }
+        }
+        .toolbar {
+            if editable {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { suggesting = true } label: { Label("Suggest next week", systemImage: "sparkles") }
+                }
+            }
+        }
     }
 
     private func sectionTitle(_ t: String) -> some View {

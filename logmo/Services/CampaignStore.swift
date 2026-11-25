@@ -60,6 +60,8 @@ enum CampaignStore {
         g.stepsIsWeeklyAverage = seed.goals.stepsIsWeeklyAverage
         g.waterDailyMl = seed.goals.waterDailyMl
         g.workoutDaysWeekly = seed.goals.workoutDaysWeekly
+        g.carbsDaily = seed.goals.carbsDaily
+        g.fatDaily = seed.goals.fatDaily
         context.insert(g)
     }
 

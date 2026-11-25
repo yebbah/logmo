@@ -19,12 +19,16 @@ struct GoalsEditor: View {
     @State private var stepsAverage = false
     @State private var workouts = ""
     @State private var water = ""
+    @State private var carbs = ""
+    @State private var fat = ""
+    @State private var pendingPrefill: GoalSet?        // a suggestion to start from ("Edit first")
     @State private var atOrUnder = true
     @State private var repeatOn = false
     @State private var repeatCount = 1
 
-    init(campaign: CampaignInfo, week: Date? = nil) {
+    init(campaign: CampaignInfo, week: Date? = nil, prefill: GoalSet? = nil) {
         self.campaign = campaign
+        _pendingPrefill = State(initialValue: prefill)
         _weekStart = State(initialValue: GoalsEditor.initialWeek(campaign, requested: week))
     }
 
@@ -143,6 +147,14 @@ struct GoalsEditor: View {
         }
         .listRowBackground(theme.card)
 
+        Section {
+            row("Carbs (g)", $carbs, was: wasText(previous?.carbsDaily, carbs))
+            row("Fat (g)", $fat, was: wasText(previous?.fatDaily, fat))
+        } header: { Text("Guidance") } footer: {
+            Text("A guide for what to eat. It shows as a hint on the Log screen and is never judged as met or missed.")
+        }
+        .listRowBackground(theme.card)
+
         if followingAvailable > 0 {
             Section {
                 Toggle("Repeat for the weeks after", isOn: $repeatOn)
@@ -208,10 +220,15 @@ struct GoalsEditor: View {
         stepsAverage = g.stepsIsWeeklyAverage
         workouts = g.workoutDaysWeekly.map(String.init) ?? ""
         water = g.waterDailyMl.map(String.init) ?? ""
+        carbs = g.carbsDaily.map(String.init) ?? ""
+        fat = g.fatDaily.map(String.init) ?? ""
         atOrUnder = g.caloriesAtOrUnder
     }
 
-    private func load() { fill(PlanRules.effective(campaignWeeks, at: weekStart)) }
+    private func load() {
+        if let p = pendingPrefill { pendingPrefill = nil; fill(p); return }       // the first load shows the suggestion
+        fill(PlanRules.effective(campaignWeeks, at: weekStart))
+    }
 
     private func currentGoals() -> GoalSet {
         // Entered per day; stored as the weekly total. An untouched field keeps the stored total, so an
@@ -223,7 +240,8 @@ struct GoalsEditor: View {
         }
         return GoalSet(caloriesWeekly: weekly, caloriesAtOrUnder: atOrUnder, proteinDaily: Int(protein),
                        stepsDaily: Int(steps), stepsIsWeeklyAverage: stepsAverage, waterDailyMl: Int(water),
-                       workoutDaysWeekly: Int(workouts).map { min(max($0, 0), 7) })
+                       workoutDaysWeekly: Int(workouts).map { min(max($0, 0), 7) },
+                       carbsDaily: Int(carbs), fatDaily: Int(fat))
     }
 
     private func save() {
@@ -242,9 +260,10 @@ struct GoalsSheet: View {
     @Environment(\.dismiss) private var dismiss
     let campaign: CampaignInfo
     var week: Date? = nil
+    var prefill: GoalSet? = nil
     var body: some View {
         NavigationStack {
-            GoalsEditor(campaign: campaign, week: week).toolbar {
+            GoalsEditor(campaign: campaign, week: week, prefill: prefill).toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
         }

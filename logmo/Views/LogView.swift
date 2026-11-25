@@ -112,7 +112,7 @@ struct LogView: View {
         return all
     }
 
-    private func hint(_ goal: Int?) -> String { goal.map { "goal \($0.formatted())" } ?? "—" }
+    private func hint(_ goal: Int?, word: String = "goal") -> String { goal.map { "\(word) \($0.formatted())" } ?? "—" }
 
     private func existing(_ day: Date) -> DayLog? {
         logs.first { Calendar.current.isDate($0.day, inSameDayAs: day) }
@@ -194,8 +194,8 @@ struct LogView: View {
                     Section("Food") {
                         field("Calories (kcal)", $draft.calories, "—")
                         field("Protein (g)", $draft.protein, hint(goals?.proteinDaily))
-                        field("Carbs (g)", $draft.carbs, "—")
-                        field("Fat (g)", $draft.fat, "—")
+                        field("Carbs (g)", $draft.carbs, hint(goals?.carbsDaily, word: "guide"))
+                        field("Fat (g)", $draft.fat, hint(goals?.fatDaily, word: "guide"))
                     }
                     .listRowBackground(theme.card)
 

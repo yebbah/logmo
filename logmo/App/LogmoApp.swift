@@ -63,6 +63,7 @@ struct RootView: View {
                 case "about": NavigationStack { Form { AboutSection().listRowBackground(theme.card) }.scrollContentBackground(.hidden).background(theme.bg).navigationTitle("Settings") }
                 case "campaigndetail": DebugCampaignDetail().environment(AppNavigation())
                 case "plan": DebugPlan()
+                case "suggest": DebugSuggest()
                 default: CampaignsView().environment(AppNavigation())
                 }
             }

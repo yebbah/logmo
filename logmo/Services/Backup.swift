@@ -29,7 +29,7 @@ struct BackupFile: Codable, Equatable {
         var id: UUID; var campaignID: UUID?; var weekStart: Date; var updatedAt: Date
         var caloriesWeekly: Int?; var caloriesAtOrUnder: Bool
         var proteinDaily, stepsDaily: Int?; var stepsIsWeeklyAverage: Bool
-        var workoutDaysWeekly: Int?; var confirmed: Bool; var waterDailyMl: Int?
+        var workoutDaysWeekly: Int?; var confirmed: Bool; var waterDailyMl: Int?; var carbsDaily, fatDaily: Int?
     }
     struct CampaignRecord: Codable, Equatable {
         var id: UUID; var number: Int; var kindRaw: String; var isDefault: Bool
@@ -52,7 +52,7 @@ enum Backup {
             .init(id: $0.id, campaignID: $0.campaignID, weekStart: $0.weekStart, updatedAt: $0.updatedAt,
                   caloriesWeekly: $0.caloriesWeekly, caloriesAtOrUnder: $0.caloriesAtOrUnder, proteinDaily: $0.proteinDaily,
                   stepsDaily: $0.stepsDaily, stepsIsWeeklyAverage: $0.stepsIsWeeklyAverage, workoutDaysWeekly: $0.workoutDaysWeekly,
-                  confirmed: $0.confirmed, waterDailyMl: $0.waterDailyMl)
+                  confirmed: $0.confirmed, waterDailyMl: $0.waterDailyMl, carbsDaily: $0.carbsDaily, fatDaily: $0.fatDaily)
         }
         f.campaigns = try context.fetch(FetchDescriptor<Campaign>(sortBy: [SortDescriptor(\.number)])).map {
             .init(id: $0.id, number: $0.number, kindRaw: $0.kindRaw, isDefault: $0.isDefault, targetWeightKg: $0.targetWeightKg,
@@ -94,7 +94,7 @@ enum Backup {
             let g = WeekGoal(weekStart: r.weekStart, campaignID: r.campaignID); g.id = r.id; g.updatedAt = r.updatedAt
             g.caloriesWeekly = r.caloriesWeekly; g.caloriesAtOrUnder = r.caloriesAtOrUnder; g.proteinDaily = r.proteinDaily
             g.stepsDaily = r.stepsDaily; g.stepsIsWeeklyAverage = r.stepsIsWeeklyAverage
-            g.workoutDaysWeekly = r.workoutDaysWeekly; g.confirmed = r.confirmed; g.waterDailyMl = r.waterDailyMl
+            g.workoutDaysWeekly = r.workoutDaysWeekly; g.confirmed = r.confirmed; g.waterDailyMl = r.waterDailyMl; g.carbsDaily = r.carbsDaily; g.fatDaily = r.fatDaily
             context.insert(g)
         }
         for r in f.campaigns {

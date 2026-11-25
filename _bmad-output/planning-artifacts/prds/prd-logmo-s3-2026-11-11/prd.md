@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 12.1
+version: 13.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v12.1)
+# logmo: Product Requirements (v13.0)
 
 ## Vision and outcome
 
@@ -172,6 +172,14 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 
 **FR-22. Setup and nudges.** (a) **No campaign:** when no real campaign is running or upcoming, the Dashboard shows a *Set up a campaign* card with a three-step checklist (start a campaign, set weekly goals, log a first day). Its main button does the next step; for the campaign step it opens the Campaigns tab with the new-campaign form already open. **Not now** hides the card for the rest of the day. While it shows, the separate "Set your weekly goals" banner is hidden. (b) **Finished campaign:** a real campaign whose planned weeks are over but which is still open shows a card on the Dashboard: **End & see results** (closes it on its last planned day, not as ended early, and opens the Campaigns tab) or **Extend 2 weeks** (refused if it would run into a later campaign). (c) **Log completeness:** under the date, the Log tab shows one icon per required tracker (scale, fork and knife, drop, walking figure, checklist), grey until complete and then green with a tick, each with a spoken label such as "Water, done"; no words, so nothing can be cut short (ticked when complete: food needs all four macros, check-in all seven ratings, with n/a counting for training performance) and "n of m".
 
+**FR-23. Weekly suggestion (Apple Intelligence).** On demand, any day, the user can ask for a suggestion for next week's goals: the **Suggest** link on the live Goals card, the sparkles button on the Weekly plan screen, and a third button on the "Plan next week" and "carried over" prompts. It is not tied to Sunday.
+- **What is shared.** A sheet first shows exactly what the assistant will see, as numbers only: campaign type and week, weight trend per week, average calories, protein, carbs, fat and steps against goal, workout days, days with daily goals met, the check-in averages for the week, and (only if the user tracks them, each with its own switch for this suggestion) period days and sick days. No name, email, campaign label, dates or notes. The user chooses to assess **This week so far** (the default when at least three days are logged) or **Last week**. At least three logged days are needed.
+- **Who runs it.** Apple Intelligence's on-device model (the Foundation Models framework, iOS 26 or later on a supported iPhone with Apple Intelligence on), so nothing leaves the phone and no key or server is involved. Otherwise a **basic, rule-based suggestion** is used and the sheet says why.
+- **What it proposes.** Calories a day, protein, carbs, fat, steps, lifting days and water for next week, with three to five short reasons tied to the numbers. The campaign type sets what a good pace is (cut about -0.3 to -1.0% of body weight a week, bulk about +0.1 to +0.6%, maintenance within 0.25%). Sick days mean no harder cut, no more steps and lighter lifting; period days mean a stall isn't read as a reason to cut harder; fatigue, soreness or poor training performance mean one lifting day fewer and no harder cut; high hunger on a cut is noted.
+- **Guard rails.** Whoever proposes, the numbers are held in the app: calories move at most 150 a day from this week's goal and never below 1,200, steps at most 2,000, lifting days at most 1, and a cut never gets harder in a sick or very fatigued week.
+- **Approval.** Nothing is saved until the user taps **Use for next week** (saved as "Set by you", keeping the week's judging modes), or **Edit first** (opens the week editor filled with the suggestion), or **Not now**. It is a suggestion, not medical advice, and the sheet says so.
+- **Carbs and fat guidance.** Weekly goals gain a **carbs** and a **fat** figure (g a day), set in the week editor or by a suggestion. They are guidance: shown in the plan line, as hints in the Log screen's carbs and fat fields, in the exports and the backup, and carried over like other goals. They are never judged as met or missed and never affect compliance or streaks.
+
 ## Extensibility (provisions, not features)
 
 - **Apple Health:** a `HealthSource` interface exists; each weight records its source (`manual` now). When Health is added, imports must not overwrite a manual value for the same day.
@@ -281,3 +289,9 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D71 | Sick tracking is its own opt-in switch (Settings → Health), separate from cycle tracking | Decided |
 | D72 | Sick days are yellow dots; sick takes the weigh-in dot's colour over period red when both apply | Assumption |
 | D77 | A day's daily goals are met only if a weight was logged, in the Streaks row, the daily-goals streak, the Goals card and campaign reports; with no daily goals set there is nothing to judge | Decided: the user asked |
+| D78 | The weekly suggestion uses Apple Intelligence on the device, not a cloud AI, so there is no key, server or data leaving the phone | Decided: the user chose it |
+| D79 | The suggestion is on demand, any day, not only on Sunday | Decided: the user asked |
+| D80 | Carbs and fat are guidance only: shown and exported, never judged | Decided: the user chose it |
+| D81 | The user sees exactly what is shared, and approves before anything is saved | Decided |
+| D82 | The on-device model refines a rule-based baseline and its numbers are clamped, because a small model can be wrong | Decided: safety |
+| D83 | Weight change for the suggestion is the slope of the weigh-ins over the assessed week and the week before, not the smoothed trend, which lags too much for a single week | Decided |

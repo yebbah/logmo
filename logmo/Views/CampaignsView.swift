@@ -710,6 +710,15 @@ struct DebugCampaignDetail: View {
 
 #if DEBUG
 /// Debug aid for screenshots: `-debugScreen plan -campaignNumber 2` opens that campaign's weekly plan.
+struct DebugSuggest: View {
+    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
+    var body: some View {
+        if let c = campaigns.map(\.info).last(where: { CampaignRules.contains($0, day: Calendar.current.startOfDay(for: Date())) }) {
+            SuggestSheet(campaign: c) { _, _ in }
+        }
+    }
+}
+
 struct DebugPlan: View {
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
     var body: some View {

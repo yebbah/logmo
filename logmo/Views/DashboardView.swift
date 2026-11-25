@@ -18,10 +18,11 @@ struct DashboardView: View {
 
     @State private var goalsTarget: GoalsTarget?
     @State private var planCampaign: CampaignInfo?
+    @State private var suggestCampaign: CampaignInfo?
     @State private var editUpcoming: Campaign?
     @AppStorage("closingDismissed") private var closingDismissed = ""      // "<campaign id>|<yyyy-MM-dd>" the closing-soon card was put off
 
-    struct GoalsTarget: Identifiable { var campaign: CampaignInfo; var week: Date?; var id: UUID { campaign.id } }
+    struct GoalsTarget: Identifiable { var campaign: CampaignInfo; var week: Date?; var prefill: GoalSet? = nil; var id: UUID { campaign.id } }
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
     private var cal: Calendar { .current }
@@ -50,10 +51,12 @@ struct DashboardView: View {
                                                              explicit: explicit, today: today)
                             // The setup card already asks for goals, so don't ask twice.
                             let prompt: PlanPrompt = (rawPrompt == .setGoals && setupStep(infos) != nil && !setupDismissedToday) ? .none : rawPrompt
-                            PlanPromptBanner(prompt: prompt, onKeep: { keep(prompt, gc) }, onChange: { change(prompt, gc) })
+                            PlanPromptBanner(prompt: prompt, onKeep: { keep(prompt, gc) }, onChange: { change(prompt, gc) },
+                                             onSuggest: { suggestCampaign = gc })
                             GoalsCard(campaign: gc, snaps: snaps, timeline: timeline, explicitWeeks: explicit,
                                       onEdit: { goalsTarget = GoalsTarget(campaign: gc, week: nil) },
-                                      onPlan: { planCampaign = gc }).id("goals")
+                                      onPlan: { planCampaign = gc },
+                                      onSuggest: { suggestCampaign = gc }).id("goals")
                         }
                         PerformanceCard(snaps: snaps, trend: trend, scope: scope).id("performance")
                         WeightChartCard(title: "Weigh-ins and trend", trend: trend, snaps: snaps, scope: scope,
@@ -76,7 +79,10 @@ struct DashboardView: View {
             }
             .background(theme.bg)
             .navigationTitle("Dashboard")
-            .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week) }
+            .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week, prefill: t.prefill) }
+            .sheet(item: $suggestCampaign) { c in
+                SuggestSheet(campaign: c) { goals, week in goalsTarget = GoalsTarget(campaign: c, week: week, prefill: goals) }
+            }
 .navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
             .sheet(item: $editUpcoming) { m in
                 EditUpcomingForm(campaign: m, earliest: CampaignRules.earliestUpcomingStart(existing: infos, excluding: m.id, today: today))

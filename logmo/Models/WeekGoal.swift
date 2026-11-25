@@ -21,6 +21,8 @@ final class WeekGoal {
     /// (a new campaign starts with a copy of the latest goals), shown as "carried over".
     var confirmed: Bool = true
     var waterDailyMl: Int?                // ml per day
+    var carbsDaily: Int?                  // g per day, guidance only (never judged)
+    var fatDaily: Int?                    // g per day, guidance only
 
     init(weekStart: Date, campaignID: UUID? = nil) {
         self.weekStart = weekStart
@@ -30,7 +32,8 @@ final class WeekGoal {
     var goalSet: GoalSet {
         GoalSet(caloriesWeekly: caloriesWeekly, caloriesAtOrUnder: caloriesAtOrUnder,
                 proteinDaily: proteinDaily, stepsDaily: stepsDaily, stepsIsWeeklyAverage: stepsIsWeeklyAverage,
-                waterDailyMl: waterDailyMl, workoutDaysWeekly: workoutDaysWeekly)
+                waterDailyMl: waterDailyMl, workoutDaysWeekly: workoutDaysWeekly,
+                carbsDaily: carbsDaily, fatDaily: fatDaily)
     }
 }
 
