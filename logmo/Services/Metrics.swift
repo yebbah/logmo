@@ -129,6 +129,7 @@ struct TrendPoint: Identifiable, Equatable {
     var trendKg: Double     // smoothed
     var onPeriod: Bool = false   // the day was marked as on the cycle (shown in red on the chart)
     var isSick: Bool = false     // the day was marked as sick (shown in yellow on the chart)
+    var restart: Bool = false    // a campaign's starting weight restarted the trend here and it jumped (see Metrics.trendRestartKg)
     var id: Date { date }
 }
 
@@ -136,6 +137,7 @@ struct ValuePoint: Identifiable, Equatable {
     var date: Date
     var value: Double?
     var trend: Double
+    var restart: Bool = false        // the trend started afresh here and jumped; a change measured across it isn't a change in weight
     var id: Date { date }
 }
 
@@ -153,6 +155,10 @@ struct Compliance: Equatable {
 enum Metrics {
     /// Workbook default: 16-day smoothing, alpha = 2 / (N + 1) ≈ 0.1176.
     static func alpha(forDays n: Int) -> Double { 2.0 / Double(n + 1) }
+
+    /// A campaign's starting weight that lands more than this far from where the trend was is a restart, not a gain or a loss.
+    /// Changes measured across one (a weekly change, a 7-day change) are left blank instead of showing the jump.
+    static let trendRestartKg = 0.3
 
     private static func byDay(_ days: [DaySnapshot], _ cal: Calendar) -> [Date: DaySnapshot] {
         var out: [Date: DaySnapshot] = [:]
@@ -456,9 +462,14 @@ enum Metrics {
         var cursor = first
         while cursor <= end {
             let v = values[cursor]
-            if let seed = seeds[cursor] { trend = v.map { a * $0 + (1 - a) * seed } ?? seed }
+            var restart = false
+            if let seed = seeds[cursor] {
+                let before = trend
+                trend = v.map { a * $0 + (1 - a) * seed } ?? seed
+                if let before, let now = trend, abs(now - before) > trendRestartKg { restart = true }
+            }
             else if let v { trend = trend.map { a * v + (1 - a) * $0 } ?? v }
-            if let trend { out.append(ValuePoint(date: cursor, value: v, trend: trend)) }
+            if let trend { out.append(ValuePoint(date: cursor, value: v, trend: trend, restart: restart)) }
             cursor = addDays(1, to: cursor, cal)
         }
         return out
@@ -476,7 +487,7 @@ enum Metrics {
             if s.isSick { sick.insert(d) }
         }
         return smoothed(vals, through: through, smoothingDays: smoothingDays, seeds: seeds, calendar: cal)
-            .map { TrendPoint(date: $0.date, weightKg: $0.value, trendKg: $0.trend, onPeriod: period.contains($0.date), isSick: sick.contains($0.date)) }
+            .map { TrendPoint(date: $0.date, weightKg: $0.value, trendKg: $0.trend, onPeriod: period.contains($0.date), isSick: sick.contains($0.date), restart: $0.restart) }
     }
 
     /// Smoothed trend for one biofeedback rating (1–5).
@@ -493,6 +504,7 @@ enum Metrics {
         guard let last = trend.last,
               let target = cal.date(byAdding: .day, value: -days, to: last.date),
               let past = trend.first(where: { $0.date == target }) else { return nil }
+        if trend.contains(where: { $0.restart && $0.date > target && $0.date <= last.date }) { return nil }     // the trend restarted in between
         return last.trendKg - past.trendKg
     }
 }
@@ -533,7 +545,9 @@ extension Metrics {
             let sunday = cal.date(byAdding: .day, value: 6, to: ws)!
             let last = min(sunday, end)
             if let t = trendOn(last) {
-                let prev = trendOn(cal.date(byAdding: .day, value: -1, to: ws)!)
+                var prev = trendOn(cal.date(byAdding: .day, value: -1, to: ws)!)
+                // A campaign that restarted the trend this week (its starting weight jumped from the old trend): nothing to compare, N/A.
+                if trend.contains(where: { $0.restart && cal.startOfDay(for: $0.date) >= ws && cal.startOfDay(for: $0.date) <= last }) { prev = nil }
                 out.append(WeeklyTrendRow(weekStart: ws, endDay: last, trendKg: t, changeKg: prev.map { t - $0 },
                                           changePercent: prev.flatMap { $0 > 0 ? (t - $0) / $0 * 100 : nil }, inProgress: last < sunday))
             }

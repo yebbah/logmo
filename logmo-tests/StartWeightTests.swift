@@ -200,3 +200,54 @@ final class WeeklyRateAndWeekHeadlineTests: XCTestCase {
         XCTAssertEqual(CampaignRules.weekHeadline([past], today: day(20), calendar: cal).title, "This week")
     }
 }
+
+final class RateOfChangeAcrossARestartTests: XCTestCase {
+    var cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; c.firstWeekday = 2; return c }()
+    func day(_ n: Int) -> Date { cal.date(byAdding: .day, value: n - 1, to: cal.date(from: DateComponents(year: 2026, month: 11, day: 2))!)! }     // day 1 = Mon 2 Nov
+
+    /// The reported case: weigh-ins around 55 before a one-week campaign (days 22 to 28) that starts at 55.8 with nothing logged in it.
+    func scenario() -> [TrendPoint] {
+        let days = (1...21).filter { $0 % 3 == 0 }.map { DaySnapshot(date: day($0), weightKg: 55.0, logged: []) }
+        return Metrics.weightTrend(days, through: day(28), smoothingDays: 20, seeds: [day(22): 55.8], calendar: cal)
+    }
+
+    func testTheSeedLandingFarFromTheOldTrendIsMarkedARestart() {
+        let t = scenario()
+        XCTAssertTrue(t.first { $0.date == day(22) }!.restart)
+        XCTAssertEqual(t.first { $0.date == day(22) }!.trendKg, 55.8, accuracy: 1e-9)
+        XCTAssertEqual(t.filter(\.restart).count, 1)
+    }
+
+    func testTheWeeklyRowForTheRestartWeekIsNotAChange() {
+        let rows = Metrics.weeklyTrendRows(scenario(), from: day(22), through: day(28), calendar: cal)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows[0].trendKg, 55.8, accuracy: 1e-9)
+        XCTAssertNil(rows[0].changeKg)                                                    // N/A, not +0.8 kg
+        XCTAssertNil(rows[0].changePercent)
+    }
+
+    func testTheDailyAndSevenDayChangesAreBlankAcrossTheRestart() {
+        let t = scenario()
+        let rates = Insights.rateOfChange(t, calendar: cal).filter { $0.date >= day(22) && $0.date <= day(28) }
+        XCTAssertTrue(rates.isEmpty)                                                      // every day of the week reaches back across the restart
+        XCTAssertNil(Metrics.trendChange(t.filter { $0.date >= day(10) }, overDays: 7, calendar: cal))
+        XCTAssertNotNil(Metrics.trendChange(t.filter { $0.date <= day(21) }, overDays: 7, calendar: cal))     // before it, changes work as usual
+    }
+
+    func testTheWeekAfterTheRestartIsComparedWithTheNewTrend() {
+        let days = (1...21).filter { $0 % 3 == 0 }.map { DaySnapshot(date: day($0), weightKg: 55.0, logged: []) }
+            + [DaySnapshot(date: day(30), weightKg: 55.4, logged: [])]
+        let t = Metrics.weightTrend(days, through: day(35), smoothingDays: 20, seeds: [day(22): 55.8], calendar: cal)
+        let rows = Metrics.weeklyTrendRows(t, from: day(22), through: day(35), calendar: cal)
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertNil(rows[1].changeKg)                                                    // the campaign's first week
+        XCTAssertNotNil(rows[0].changeKg); XCTAssertEqual(rows[0].changeKg!, rows[0].trendKg - 55.8, accuracy: 1e-9)    // the next week moves from 55.8
+    }
+
+    func testAStartingWeightThatMatchesTheTrendIsNotARestart() {
+        let days = (1...30).map { DaySnapshot(date: day($0), weightKg: 55.0, logged: []) }
+        let t = Metrics.weightTrend(days, through: day(30), smoothingDays: 20, seeds: [day(22): 55.0], calendar: cal)
+        XCTAssertTrue(t.allSatisfy { !$0.restart })
+        XCTAssertNotNil(Metrics.weeklyTrendRows(t, from: day(1), through: day(30), calendar: cal).first?.changeKg)
+    }
+}

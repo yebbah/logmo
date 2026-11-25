@@ -71,7 +71,7 @@ Choose which trackers count as required in **Settings → Required for a complet
 
 ## 6. Campaigns and the weekly plan
 
-The Dashboard opens with **which week you are in** ("Week 4 of 8") and this week's dates. A **Weekly rate of change** card, like your workbook's weekly line, lists each week's trend weight and how far it moved from the week before. The Dashboard's top-left corner shows how many **days are left** in your running campaign. Tap it to open the Campaigns tab.
+The Dashboard opens with **which week you are in** ("Week 4 of 8") and this week's dates. A **Weekly rate of change** card, like your workbook's weekly line, lists each week's trend weight and how far it moved from the week before. In a campaign's first week, if its starting weight is more than 0.3 kg from where your trend was, the change shows **N/A**: the jump is the trend restarting from the weight you entered, not weight you gained or lost. The Dashboard's top-left corner shows how many **days are left** in your running campaign. Tap it to open the Campaigns tab.
 
 ### Campaigns tab
 - **Every campaign has a start and an end.** There is no automatic campaign: you start each one, with a start date and a length (maintenance too). When none covers today the Dashboard and this tab say **No campaign running** and offer **Start a campaign**. Days between campaigns belong to none, so goals, goal streaks and compliance only count days inside a campaign; logging and your charts don't need one. A new campaign can start in the past to cover earlier days you logged.

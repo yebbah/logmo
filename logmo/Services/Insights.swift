@@ -123,6 +123,7 @@ enum Insights {
         let byDate = Dictionary(trend.map { ($0.date, $0.trendKg) }, uniquingKeysWith: { a, _ in a })
         return trend.compactMap { p in
             guard let prev = cal.date(byAdding: .day, value: -n, to: p.date), let before = byDate[prev] else { return nil }
+            if trend.contains(where: { $0.restart && $0.date > prev && $0.date <= p.date }) { return nil }      // the trend restarted in between
             return RatePoint(date: p.date, kgPerWeek: (p.trendKg - before) * 7 / Double(n))
         }
     }

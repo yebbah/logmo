@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 20.1
+version: 20.2
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v20.1)
+# logmo: Product Requirements (v20.2)
 
 ## Vision and outcome
 
@@ -94,7 +94,7 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 **FR-6. Compliance.** A day is **complied** when every *required* tracker is fully logged, every daily goal that was set is met, *and* the week-level goals of that day's week are on track: the average calories (when a calorie goal exists), the average steps (when the steps goal is a weekly average), and the workout days (when a target exists, they must be reached or still reachable). Calories and weekly-average steps are judged on the **whole week**, so cycling works: while the week is open, a high or low day is not a miss (the only exception is a calorie total that has already passed the whole week's allowance for an at-or-under goal, which can no longer recover), and once the week is finished all of its days comply or none do, according to the week's average. Workout days must be reached or still reachable. So a day's status can change while its week is open. A missing training performance answer (a rating or n/a) keeps the check-in incomplete. Required trackers are chosen in Settings, all five by default. Over a 7- or 30-day window (today inclusive) the Streaks tab shows the share of days complied and, per tracker, the days it was fully logged. The count is always out of the full window (7 or 30 days). Today counts in the total and becomes a complied day once everything for it is done, so the ratio can rise during the day.
 
 **FR-7. Weight trend and biofeedback.** Show weigh-ins and the smoothed trend as two separate lines: weigh-ins connected with markers, the trend as a thick line, with a legend. Ranges are 14 days, 30 days, 90 days or All (of the period selected with the Showing control, FR-12). The latest trend value and last weigh-in are shown, and value labels appear when 15 or fewer points are on screen. The trend is computed over all data and only displayed per period, so it never restarts at a campaign boundary. When cycle tracking is on, a day marked as on the period is a **red dot** on the weigh-in and on the trend at that date, with an "On period" entry in the legend (also in full screen).
-- **The trend is seeded by each campaign's starting weight.** On a campaign's first day the trend is that starting weight, as if it were the trend the day before, and a weigh-in that day moves it like any other (with no weigh-in that day the trend is the starting weight, which is what the workbook's Setup weight does when day one is blank). From then on it smooths as usual. A campaign without a starting weight carries the running trend on; before any campaign's first day, the trend starts at the first weigh-in. Past campaigns keep their own seed, so each campaign's trend, charts and report reflect it.
+- **The trend is seeded by each campaign's starting weight.** On a campaign's first day the trend is that starting weight, as if it were the trend the day before, and a weigh-in that day moves it like any other (with no weigh-in that day the trend is the starting weight, which is what the workbook's Setup weight does when day one is blank). From then on it smooths as usual. **A restart is not a change in weight.** If a campaign's starting weight lands more than 0.3 kg from where the trend was the day before, the trend is marked as restarted on that day, and any change measured across it (the weekly rate of change, the daily rate-of-change bars, the 7, 14 and 21-day changes) is left blank, shown as N/A or a dash, rather than showing the jump as a gain or loss. A starting weight that carries the trend on (within 0.3 kg, the usual case since it defaults to the current trend) is not a restart. A campaign without a starting weight carries the running trend on; before any campaign's first day, the trend starts at the first weigh-in. Past campaigns keep their own seed, so each campaign's trend, charts and report reflect it.
 
 **Protein intake** sits under the chart in the same card and follows the same range selector (14 days, 30 days, 90 days, All): days the protein goal was hit out of days with a protein goal in that range, as a donut with "n/m". An unlogged day with a goal counts as missed. It is not shown in the landscape full-screen view.
 - Smoothing: `trend = α × weight + (1 − α) × previous trend`, α = 2 / (N + 1). Default N = 16, matching the workbook's value for male input; the user can choose 7, 10, 14, 16 or 20. The first weigh-in seeds the trend, and days without a weigh-in carry the previous trend forward.
@@ -385,3 +385,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D130 | A new campaign may start in the past (after the last day any campaign covers) so earlier logged days can be given a campaign | Assumption |
 | D131 | The Dashboard shows the campaign week and this week's dates as a headline, and a weekly rate-of-change table like the workbook's weekly line | Decided: the user asked |
 | D132 | The three streaks are global, not per campaign; goal streaks judge each day or week against its own campaign's goals, and a day or week outside every campaign breaks them | Decided: confirmed with the user; the days-outside-a-campaign rule follows from D127 |
+| D133 | A change in the trend measured across a campaign's restart (starting weight more than 0.3 kg from the old trend) is blank, not the jump | Decided: fixes a +0.78 kg weekly change shown for a one-week campaign with nothing logged |
