@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 13.0
+version: 13.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v13.0)
+# logmo: Product Requirements (v13.1)
 
 ## Vision and outcome
 
@@ -180,6 +180,11 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 - **Approval.** Nothing is saved until the user taps **Use for next week** (saved as "Set by you", keeping the week's judging modes), or **Edit first** (opens the week editor filled with the suggestion), or **Not now**. It is a suggestion, not medical advice, and the sheet says so.
 - **Carbs and fat guidance.** Weekly goals gain a **carbs** and a **fat** figure (g a day), set in the week editor or by a suggestion. They are guidance: shown in the plan line, as hints in the Log screen's carbs and fat fields, in the exports and the backup, and carried over like other goals. They are never judged as met or missed and never affect compliance or streaks.
 
+**FR-24. Daily log reminder.** In Settings → Reminders, a **Daily log reminder** switch with a time the user chooses (20:00 by default), separate from the weekly plan reminder (FR-18). Turning it on asks iOS for notification permission; if refused it goes back off and Settings points to iOS Settings.
+- **Only when needed.** A reminder is sent on a day only if that day's daily goals aren't done: with daily goals set, until all are met (the weigh-in, protein, steps and water that are set; FR-6); with none set, until every required tracker is complete, or, if none is required, until anything is logged.
+- **How.** iOS can't decide at delivery time, so the app schedules one notification a day for the next seven days and re-plans whenever a log is saved, the app opens or leaves the foreground, or the switch or time changes. When today's goals are met, today's notification is cancelled; tomorrow's stays. Days the app isn't opened still get their reminder, which is the point.
+- **Content.** "Time to log: You haven't finished today's goals in logmo yet." Nothing from the user's logs. Turning the switch off cancels all of them. The switch and time are in the full backup.
+
 ## Extensibility (provisions, not features)
 
 - **Apple Health:** a `HealthSource` interface exists; each weight records its source (`manual` now). When Health is added, imports must not overwrite a manual value for the same day.
@@ -188,7 +193,7 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 
 ## Out of scope
 
-Social features, Android, accounts, notifications, and everything listed under Later phases.
+Social features, Android, accounts, push notifications from a server (the app only schedules local ones), and everything listed under Later phases.
 
 ## Later phases (carried over from the draft PRD)
 
@@ -204,7 +209,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 
 ## Quality and privacy
 
-- Weight, nutrition and menstrual-related data is sensitive; do not log it, and request no permissions (the app currently asks for none).
+- Weight, nutrition and menstrual-related data is sensitive; do not log it. The only permission the app asks for is notifications, and only when the user turns on a reminder. Apple Intelligence suggestions run on the device (FR-23).
 - Streak, goal, compliance and trend calculations are unit-tested, including missing days, a day not yet logged, goals exactly at the limit, finished weeks with an unlogged day, week boundaries, and no-data cases.
 - Calculations never substitute a plausible value for missing data: no trend without a weigh-in, no 7-day change without 7 days of history, and a week with an unlogged day is never "met".
 
@@ -295,3 +300,5 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D81 | The user sees exactly what is shared, and approves before anything is saved | Decided |
 | D82 | The on-device model refines a rule-based baseline and its numbers are clamped, because a small model can be wrong | Decided: safety |
 | D83 | Weight change for the suggestion is the slope of the weigh-ins over the assessed week and the week before, not the smoothed trend, which lags too much for a single week | Decided |
+| D84 | The daily reminder is local, scheduled a week ahead and re-planned on every change, because iOS can't evaluate "goals not met" at delivery | Decided |
+| D85 | "Daily goals done" for the reminder includes the weigh-in whenever daily goals exist; with none it uses the required trackers | Decided: matches FR-6 and the required-trackers setting |

@@ -15,7 +15,7 @@ struct BackupFile: Codable, Equatable {
 
     /// Preferences stored in UserDefaults that belong in a backup. Strings only, so any value type round-trips.
     static let settingKeys = [SettingsKey.unit, SettingsKey.smoothing, SettingsKey.required, SettingsKey.bioOverlay,
-                              SettingsKey.bioShown, SettingsKey.theme, SettingsKey.trackCycle, SettingsKey.trackSick, SettingsKey.reminderOn,
+                              SettingsKey.bioShown, SettingsKey.theme, SettingsKey.trackCycle, SettingsKey.trackSick, SettingsKey.dailyReminderOn, SettingsKey.dailyReminderMinutes, SettingsKey.reminderOn,
                               SettingsKey.reminderWeekday, SettingsKey.reminderMinutes, "campaignFilter"]
 
     struct LogRecord: Codable, Equatable {

@@ -88,3 +88,39 @@ final class ExportTests: XCTestCase {
         XCTAssertTrue(g.hasSuffix("3,Summer,2026-11-02,,,140,,,,,,,false\n"), g)
     }
 }
+
+final class DailyReminderTests: XCTestCase {
+    var cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }()
+    func at(_ day: Int, _ h: Int, _ m: Int = 0) -> Date { cal.date(from: DateComponents(year: 2026, month: 11, day: day, hour: h, minute: m))! }
+    let goals = GoalSet(proteinDaily: 140, stepsDaily: 8000)
+
+    func snap(weight: Double? = 80, protein: Int? = 150, steps: Int? = 9000) -> DaySnapshot {
+        DaySnapshot(date: at(10, 0), weightKg: weight, logged: Set(Tracker.allCases), complete: Set(Tracker.allCases), proteinG: protein, steps: steps)
+    }
+
+    func testReminderIsNeededUntilTheDailyGoalsAreMet() {
+        XCTAssertTrue(DailyReminderRules.needsReminder(day: nil, goals: goals, required: []))
+        XCTAssertTrue(DailyReminderRules.needsReminder(day: snap(protein: 100), goals: goals, required: []))
+        XCTAssertTrue(DailyReminderRules.needsReminder(day: snap(weight: nil), goals: goals, required: []))      // no weigh-in yet
+        XCTAssertFalse(DailyReminderRules.needsReminder(day: snap(), goals: goals, required: []))
+    }
+
+    func testWithoutDailyGoalsItFollowsTheRequiredTrackers() {
+        let none = GoalSet(caloriesWeekly: 14000)
+        var partial = snap(); partial.complete = [.weight]
+        XCTAssertTrue(DailyReminderRules.needsReminder(day: partial, goals: none, required: [.weight, .food]))
+        XCTAssertFalse(DailyReminderRules.needsReminder(day: partial, goals: none, required: [.weight]))
+        XCTAssertTrue(DailyReminderRules.needsReminder(day: nil, goals: nil, required: []))                       // nothing required: wants anything logged
+        XCTAssertFalse(DailyReminderRules.needsReminder(day: snap(), goals: nil, required: []))
+    }
+
+    func testFireDatesCoverAWeekAndSkipTodayWhenDoneOrPast() {
+        let now = at(10, 15)                                                          // 15:00, reminder at 20:00
+        let all = DailyReminderRules.fireDates(now: now, minutes: 20 * 60, todayNeedsReminder: true, calendar: cal)
+        XCTAssertEqual(all.count, 7); XCTAssertEqual(all.first, at(10, 20)); XCTAssertEqual(all.last, at(16, 20))
+        let done = DailyReminderRules.fireDates(now: now, minutes: 20 * 60, todayNeedsReminder: false, calendar: cal)
+        XCTAssertEqual(done.count, 6); XCTAssertEqual(done.first, at(11, 20))         // today's cancelled, tomorrow's kept
+        let late = DailyReminderRules.fireDates(now: at(10, 21), minutes: 20 * 60, todayNeedsReminder: true, calendar: cal)
+        XCTAssertEqual(late.first, at(11, 20)); XCTAssertEqual(late.count, 6)         // today's time has passed
+    }
+}

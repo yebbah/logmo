@@ -36,6 +36,8 @@ final class AppNavigation {
 }
 
 struct RootView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsKey.theme) private var themeRaw = AppTheme.clean.rawValue
     private var theme: AppTheme { AppTheme(rawValue: themeRaw) ?? .clean }
 
@@ -86,6 +88,7 @@ struct RootView: View {
                     .onTapGesture { skipLanding() }             // tap to skip
             }
         }
+        .onChange(of: scenePhase) { _, _ in Task { await DailyReminder.refresh(context) } }   // today's goals may have changed
         .task {
             try? await Task.sleep(for: .milliseconds(300))      // let the landing paint first
             showTabs = true
@@ -127,6 +130,8 @@ enum SettingsKey {
     static let reminderOn = "reminderOn"
     static let reminderWeekday = "reminderWeekday"
     static let reminderMinutes = "reminderMinutes"
+    static let dailyReminderOn = "dailyReminderOn"
+    static let dailyReminderMinutes = "dailyReminderMinutes"
 }
 
 #if DEBUG

@@ -361,6 +361,7 @@ struct LogView: View {
         }
         try? context.save()
         baseline = draft
+        Task { await DailyReminder.refresh(context) }          // goals met today? then today's reminder is cancelled
     }
 }
 

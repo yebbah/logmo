@@ -13,6 +13,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.reminderOn) private var reminderOn = false
     @AppStorage(SettingsKey.reminderWeekday) private var reminderWeekday = Reminders.defaultWeekday
     @AppStorage(SettingsKey.reminderMinutes) private var reminderMinutes = Reminders.defaultMinutes
+    @AppStorage(SettingsKey.dailyReminderOn) private var dailyOn = false
+    @AppStorage(SettingsKey.dailyReminderMinutes) private var dailyMinutes = DailyReminderRules.defaultMinutes
     @State private var reminderDenied = false
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
@@ -95,13 +97,34 @@ struct SettingsView: View {
                                 reminderMinutes = (c.hour ?? 18) * 60 + (c.minute ?? 0)
                             }), displayedComponents: .hourAndMinute)
                     }
+                    Toggle("Daily log reminder", isOn: Binding(
+                        get: { dailyOn },
+                        set: { on in
+                            if on {
+                                Task {
+                                    if await Reminders.requestAuthorization() {
+                                        dailyOn = true; reminderDenied = false
+                                        await DailyReminder.refresh(context)
+                                    } else { dailyOn = false; reminderDenied = true }
+                                }
+                            } else { dailyOn = false; Task { await DailyReminder.cancelAll() } }
+                        }))
+                    if dailyOn {
+                        DatePicker("Daily time", selection: Binding(
+                            get: { Calendar.current.date(bySettingHour: dailyMinutes / 60, minute: dailyMinutes % 60, second: 0, of: Date()) ?? Date() },
+                            set: { d in
+                                let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                                dailyMinutes = (c.hour ?? 20) * 60 + (c.minute ?? 0)
+                                Task { await DailyReminder.refresh(context) }
+                            }), displayedComponents: .hourAndMinute)
+                    }
                     if reminderDenied {
                         Text("Notifications are turned off for logmo in iOS Settings.").font(.footnote).foregroundStyle(theme.bad)
                         Button("Open iOS Settings") { if let u = URL(string: UIApplication.openSettingsURLString) { openURL(u) } }
                             .font(.footnote)
                     }
                 } header: { Text("Reminders") } footer: {
-                    Text("A notification once a week, at the day and time you choose, to plan the week ahead. It says only \"Plan your week\", nothing from your logs.")
+                    Text("The weekly reminder is a notification once a week, at the day and time you choose, to plan the week ahead. The daily one comes at your chosen time, but only on days you haven't finished your daily goals (weigh-in, protein, steps, water; or your required trackers if you set no daily goals). Log what's needed and today's is cancelled. They say only \"Plan your week\" and \"Time to log\", nothing from your logs.")
                 }
                 .listRowBackground(theme.card)
 
