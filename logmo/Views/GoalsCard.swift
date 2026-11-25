@@ -8,7 +8,9 @@ struct GoalsCard: View {
     let campaign: CampaignInfo
     let snaps: [DaySnapshot]
     let timeline: GoalTimeline
+    let explicitWeeks: Set<Date>          // the Mondays the user set or confirmed
     let onEdit: () -> Void
+    let onPlan: () -> Void
 
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: Date()) }
@@ -16,7 +18,12 @@ struct GoalsCard: View {
     private var upcoming: Bool { CampaignRules.isUpcoming(campaign, today: today) }
 
     var body: some View {
-        Card(title: live ? "Goals" : (upcoming ? "Goals for this campaign" : "Goals in this campaign")) {
+        Card(title: live ? "Goals" : (upcoming ? "Goals for this campaign" : "Goals in this campaign"), trailing: {
+            if live && !explicitWeeks.contains(Metrics.weekStart(of: today)) && timeline.goals(forDay: today) != nil {
+                Text("Carried over").font(.caption2.weight(.semibold)).foregroundStyle(theme.warn)
+                    .padding(.horizontal, 8).padding(.vertical, 3).background(theme.warn.opacity(0.14), in: Capsule())
+            }
+        }) {
             Text(CampaignRules.titleWithPeriod(campaign, today: today)).font(.caption).foregroundStyle(theme.muted)
             if live { liveBody } else if upcoming { upcomingBody } else { summaryBody }
         }
@@ -36,7 +43,11 @@ struct GoalsCard: View {
         }
         Text("They start as a copy of your latest goals and take effect when the campaign starts.")
             .font(.caption).foregroundStyle(theme.muted)
-        Button("Edit goals", action: onEdit).font(.subheadline)
+        HStack(spacing: 18) {
+            if live || upcoming { Button("Edit goals", action: onEdit) }
+            Button("Weekly plan", action: onPlan)
+        }
+        .font(.subheadline).buttonStyle(.borderless)
     }
 
     // MARK: Live
@@ -68,7 +79,11 @@ struct GoalsCard: View {
                 if workouts.target != nil { workoutRow(workouts) }
             }
         }
-        Button("Edit goals", action: onEdit).font(.subheadline)
+        HStack(spacing: 18) {
+            if live || upcoming { Button("Edit goals", action: onEdit) }
+            Button("Weekly plan", action: onPlan)
+        }
+        .font(.subheadline).buttonStyle(.borderless)
     }
 
     private func goalRow(_ title: String, value: Int?, goal: Int?, unit: String, met: Bool?) -> some View {

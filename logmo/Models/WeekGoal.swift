@@ -17,6 +17,9 @@ final class WeekGoal {
     var stepsDaily: Int?                  // steps per day (the daily total, or the weekly average, see below)
     var stepsIsWeeklyAverage: Bool = false
     var workoutDaysWeekly: Int?           // target workout days per week
+    /// true once the user set or confirmed this week. False for goals that were only copied in
+    /// (a new campaign starts with a copy of the latest goals), shown as "carried over".
+    var confirmed: Bool = true
     var waterDailyMl: Int?                // ml per day
 
     init(weekStart: Date, campaignID: UUID? = nil) {

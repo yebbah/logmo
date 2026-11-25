@@ -8,6 +8,11 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
+    @AppStorage(SettingsKey.reminderOn) private var reminderOn = false
+    @AppStorage(SettingsKey.reminderWeekday) private var reminderWeekday = Reminders.defaultWeekday
+    @AppStorage(SettingsKey.reminderMinutes) private var reminderMinutes = Reminders.defaultMinutes
+    @State private var reminderDenied = false
+    @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
     @State private var confirmDelete = false
 
@@ -17,6 +22,7 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             Form {
                 Section {
                     Picker("Theme", selection: $themeRaw) {
@@ -58,6 +64,41 @@ struct SettingsView: View {
                 }
                 .listRowBackground(theme.card)
                 Section {
+                    Toggle("Weekly plan reminder", isOn: Binding(
+                        get: { reminderOn },
+                        set: { on in
+                            if on {
+                                Task {
+                                    if await Reminders.requestAuthorization() {
+                                        reminderOn = true; reminderDenied = false
+                                        await Reminders.schedule(weekday: reminderWeekday, minutes: reminderMinutes)
+                                    } else { reminderOn = false; reminderDenied = true }
+                                }
+                            } else { reminderOn = false; Reminders.cancel() }
+                        }))
+                    .id("reminders")
+                    if reminderOn {
+                        Picker("Day", selection: $reminderWeekday) {
+                            ForEach(Reminders.weekdays, id: \.0) { Text($0.1).tag($0.0) }
+                        }
+                        DatePicker("Time", selection: Binding(
+                            get: { Calendar.current.date(bySettingHour: reminderMinutes / 60, minute: reminderMinutes % 60, second: 0, of: Date()) ?? Date() },
+                            set: { d in
+                                let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                                reminderMinutes = (c.hour ?? 18) * 60 + (c.minute ?? 0)
+                            }), displayedComponents: .hourAndMinute)
+                    }
+                    if reminderDenied {
+                        Text("Notifications are turned off for logmo in iOS Settings.").font(.footnote).foregroundStyle(theme.bad)
+                        Button("Open iOS Settings") { if let u = URL(string: UIApplication.openSettingsURLString) { openURL(u) } }
+                            .font(.footnote)
+                    }
+                } header: { Text("Reminders") } footer: {
+                    Text("A notification once a week, at the day and time you choose, to plan the week ahead. It says only \"Plan your week\", nothing from your logs.")
+                }
+                .listRowBackground(theme.card)
+
+                Section {
                     Toggle("Track my menstrual cycle", isOn: $trackCycle)
                 } header: { Text("Cycle") } footer: {
                     Text("Adds a daily \"on your period?\" question to the Log screen. Days you mark yes show as red dots on the weigh-in and the trend. Optional: it never counts against compliance. Stored only on this iPhone.")
@@ -76,7 +117,7 @@ struct SettingsView: View {
                     }
                     .disabled(logs.isEmpty)
                 } header: { Text("Backup") } footer: {
-                    Text("Data lives only on this iPhone. Export saves daily logs (not goals) as a copy you can keep in Files or iCloud Drive.")
+                    Text("Data lives only on this iPhone. Export saves daily logs (not goals or campaigns) as a copy you can keep in Files or iCloud Drive.")
                 }
                 .listRowBackground(theme.card)
                 AboutSection()
@@ -88,6 +129,15 @@ struct SettingsView: View {
             }
             .scrollContentBackground(.hidden)
             .background(theme.bg)
+            .onAppear {
+                #if DEBUG
+                // Debug aid for screenshots: -scrollTo reminders
+                if let id = UserDefaults.standard.string(forKey: "scrollTo") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo(id, anchor: .top) }
+                }
+                #endif
+            }
+            }
             .navigationTitle("Settings")
             .confirmationDialog("Delete every log, goal and campaign on this iPhone?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete all", role: .destructive) {

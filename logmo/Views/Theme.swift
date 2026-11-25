@@ -32,6 +32,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var good: Color { self == .clean ? Color(hex: 0x1E8E3E) : Color(hex: 0x4ADE80) }
     var bad: Color { self == .clean ? Color(hex: 0xD93025) : Color(hex: 0xFF7A7A) }
     var track: Color { self == .clean ? Color(hex: 0xE4E4EA) : Color(hex: 0x243049) }
+    /// Amber, for things that need a look but aren't wrong (goals only carried over).
+    var warn: Color { self == .clean ? Color(hex: 0x9A5B00) : Color(hex: 0xFFB454) }
 
     func color(for r: Rating) -> Color {
         let clean: [Rating: UInt32] = [.sleep: 0x5B4BDB, .fatigue: 0xE07B00, .stress: 0xD14343, .hunger: 0xB8960C,

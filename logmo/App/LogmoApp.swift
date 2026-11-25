@@ -47,6 +47,11 @@ struct RootView: View {
         return n
     }()
 
+    /// The landing screen shows for three seconds on launch, then fades out. It is drawn alone first and
+    /// the tabs are added a moment later, so the heavy first Dashboard render can't hold up the landing.
+    @State private var showLanding = true
+    @State private var showTabs = false
+
     var body: some View {
         #if DEBUG
         // Debug aid for screenshots: -debugScreen campaigns | newcampaign
@@ -56,14 +61,34 @@ struct RootView: View {
                 case "newcampaign": NewCampaignForm(minStart: Calendar.current.startOfDay(for: Date()))
                 case "about": NavigationStack { Form { AboutSection().listRowBackground(theme.card) }.scrollContentBackground(.hidden).background(theme.bg).navigationTitle("Settings") }
                 case "campaigndetail": DebugCampaignDetail().environment(AppNavigation())
+                case "plan": DebugPlan()
                 default: CampaignsView().environment(AppNavigation())
                 }
             }
             .environment(\.theme, theme).preferredColorScheme(theme.scheme).tint(theme.accent)
-        } else { tabs }
+        } else { withLanding }
         #else
-        tabs
+        withLanding
         #endif
+    }
+
+    private var withLanding: some View {
+        ZStack {
+            if showTabs { tabs }
+            if showLanding {
+                LandingView()
+                    .environment(\.theme, theme)
+                    .preferredColorScheme(theme.scheme)
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+        }
+        .task {
+            try? await Task.sleep(for: .milliseconds(300))      // let the landing paint first
+            showTabs = true
+            try? await Task.sleep(for: .milliseconds(2700))     // three seconds in all
+            withAnimation(.easeInOut(duration: 0.7)) { showLanding = false }
+        }
     }
 
     private var tabs: some View {
@@ -89,6 +114,9 @@ enum SettingsKey {
     static let bioShown = "bioShown"
     static let theme = "theme"
     static let trackCycle = "trackCycle"
+    static let reminderOn = "reminderOn"
+    static let reminderWeekday = "reminderWeekday"
+    static let reminderMinutes = "reminderMinutes"
 }
 
 #if DEBUG

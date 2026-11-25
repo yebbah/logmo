@@ -66,6 +66,7 @@ enum DemoData {
             let g = WeekGoal(weekStart: ws, campaignID: GoalRules.assignedCampaign(for: ws, in: infos)?.id)
             g.caloriesWeekly = 14500; g.proteinDaily = 140; g.stepsDaily = 8000; g.waterDailyMl = 2200
             g.workoutDaysWeekly = 4
+            if w == 0 && CommandLine.arguments.contains("-demo-carried") { g.confirmed = false }   // this week only carried over
             context.insert(g)
         }
         try? context.save()

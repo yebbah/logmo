@@ -17,7 +17,7 @@ enum CampaignKind: String, CaseIterable, Identifiable {
 /// Every day belongs to exactly one campaign. When no real campaign is running, an
 /// automatic *default* maintenance campaign is open, numbered after the previous one,
 /// so the stretches between campaigns keep their own history.
-struct CampaignInfo: Identifiable, Equatable {
+struct CampaignInfo: Identifiable, Equatable, Hashable {
     var id: UUID = UUID()
     var number: Int
     var kind: CampaignKind

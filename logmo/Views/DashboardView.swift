@@ -14,7 +14,10 @@ struct DashboardView: View {
     @Query private var weekGoals: [WeekGoal]
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
 
-    @State private var showGoals = false
+    @State private var goalsTarget: GoalsTarget?
+    @State private var planCampaign: CampaignInfo?
+
+    struct GoalsTarget: Identifiable { var campaign: CampaignInfo; var week: Date?; var id: UUID { campaign.id } }
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
     private var cal: Calendar { .current }
@@ -35,8 +38,13 @@ struct DashboardView: View {
                         campaignPicker(infos)
                         campaignCard(selected, scope, trend, infos)
                         if let gc = goalCampaign(selected, infos) {
-                            if CampaignRules.contains(gc, day: today) && needsGoals(gc) { goalsBanner(gc) }
-                            GoalsCard(campaign: gc, snaps: snaps, timeline: timeline, onEdit: { showGoals = true }).id("goals")
+                            let explicit = PlanStore.explicitWeeks(weekGoals, campaignID: gc.id)
+                            let prompt = PlanRules.prompt(gc, hasAnyGoals: weekGoals.contains { $0.campaignID == gc.id },
+                                                          explicit: explicit, today: today)
+                            PlanPromptBanner(prompt: prompt, onKeep: { keep(prompt, gc) }, onChange: { change(prompt, gc) })
+                            GoalsCard(campaign: gc, snaps: snaps, timeline: timeline, explicitWeeks: explicit,
+                                      onEdit: { goalsTarget = GoalsTarget(campaign: gc, week: nil) },
+                                      onPlan: { planCampaign = gc }).id("goals")
                         }
                         PerformanceCard(snaps: snaps, trend: trend, scope: scope).id("performance")
                         WeightChartCard(title: "Weigh-ins and trend", trend: trend, snaps: snaps, scope: scope,
@@ -59,9 +67,8 @@ struct DashboardView: View {
             }
             .background(theme.bg)
             .navigationTitle("Dashboard")
-            .sheet(isPresented: $showGoals) {
-                if let gc = goalCampaign(selectedCampaign(infos), infos) { GoalsSheet(campaign: gc) }
-            }
+            .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week) }
+            .navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
         }
     }
 
@@ -73,33 +80,20 @@ struct DashboardView: View {
         selected ?? CampaignRules.campaign(for: today, in: infos)
     }
 
-    /// Sunday is when goals get set for the coming week; also prompt if the campaign has none yet.
-    private func needsGoals(_ c: CampaignInfo) -> Bool {
-        let mine = Set(weekGoals.filter { $0.campaignID == c.id }.map(\.weekStart))
-        if mine.isEmpty { return true }
-        guard cal.component(.weekday, from: today) == 1 else { return false }
-        let next = cal.date(byAdding: .day, value: 7, to: Metrics.weekStart(of: today))!
-        let inCampaign = c.end.map { next <= Metrics.weekStart(of: $0) } ?? true
-        return inCampaign && !mine.contains(next)
+    /// "Keep them" / "Same as this week": the user decided the carried-over goals stand.
+    private func keep(_ p: PlanPrompt, _ c: CampaignInfo) {
+        switch p {
+        case .carriedOver(let w), .planNext(let w): PlanStore.confirm(context, campaignID: c.id, week: w)
+        default: break
+        }
     }
 
-    private func goalsBanner(_ c: CampaignInfo) -> some View {
-        let none = !weekGoals.contains { $0.campaignID == c.id }
-        return Button { showGoals = true } label: {
-            HStack {
-                Image(systemName: "target")
-                VStack(alignment: .leading) {
-                    Text(none ? "Set your weekly goals" : "Set goals for next week").font(.headline)
-                    Text(none ? "Calories, protein, steps and water, for this campaign." : "It's Sunday: plan the week ahead.")
-                        .font(.caption).foregroundStyle(theme.muted)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(theme.muted)
-            }
-            .padding().frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+    private func change(_ p: PlanPrompt, _ c: CampaignInfo) {
+        switch p {
+        case .carriedOver(let w), .planNext(let w): goalsTarget = GoalsTarget(campaign: c, week: w)
+        case .setGoals: goalsTarget = GoalsTarget(campaign: c, week: nil)
+        case .none: break
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: Campaign filter

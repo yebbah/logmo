@@ -38,6 +38,7 @@ enum CampaignStore {
         let existing = source ?? allGoals(context).map(\.stored)
         guard let seed = GoalRules.seed(for: info, from: existing) else { return }
         let g = WeekGoal(weekStart: seed.weekStart, campaignID: info.id)
+        g.confirmed = false                                     // a copy: the user hasn't set it yet
         g.caloriesWeekly = seed.goals.caloriesWeekly
         g.caloriesAtOrUnder = seed.goals.caloriesAtOrUnder
         g.proteinDaily = seed.goals.proteinDaily

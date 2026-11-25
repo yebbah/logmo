@@ -62,3 +62,26 @@ final class AppInfoTests: XCTestCase {
         XCTAssertNotEqual(AppInfo.build, "?")
     }
 }
+
+final class RemindersTests: XCTestCase {
+    func testScheduleComponents() {
+        let c = Reminders.components(weekday: 1, minutes: 18 * 60 + 30)           // Sunday 18:30
+        XCTAssertEqual(c.weekday, 1); XCTAssertEqual(c.hour, 18); XCTAssertEqual(c.minute, 30)
+        let d = Reminders.components(weekday: 3, minutes: 7 * 60)
+        XCTAssertEqual(d.weekday, 3); XCTAssertEqual(d.hour, 7); XCTAssertEqual(d.minute, 0)
+    }
+    func testOutOfRangeValuesAreClamped() {
+        let c = Reminders.components(weekday: 9, minutes: 99_999)
+        XCTAssertEqual(c.weekday, 7); XCTAssertEqual(c.hour, 23); XCTAssertEqual(c.minute, 59)
+        XCTAssertEqual(Reminders.components(weekday: 0, minutes: -5).weekday, 1)
+        XCTAssertEqual(Reminders.components(weekday: 0, minutes: -5).hour, 0)
+    }
+    func testThePickerListsAllSevenDaysMondayFirst() {
+        XCTAssertEqual(Reminders.weekdays.count, 7)
+        XCTAssertEqual(Reminders.weekdays.first?.1, "Monday"); XCTAssertEqual(Reminders.weekdays.last?.1, "Sunday")
+        XCTAssertEqual(Set(Reminders.weekdays.map(\.0)), Set(1...7))
+    }
+    func testDefaultIsSundayEvening() {
+        XCTAssertEqual(Reminders.defaultWeekday, 1); XCTAssertEqual(Reminders.defaultMinutes, 1080)
+    }
+}

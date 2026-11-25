@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 8.0
+version: 9.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v8.0)
+# logmo: Product Requirements (v9.0)
 
 ## Vision and outcome
 
@@ -59,9 +59,11 @@ Direction differs by category: higher is better for sleep and training performan
 - **Workout days:** a target number of workout days per week (0 to 7).
 - **Water:** ml per day.
 
-Every goal is optional; an empty field means no goal. Within a campaign, a week with no goals of its own inherits that campaign's most recent earlier week, and the editor says so. The editor opens on the campaign shown on the Dashboard (or the campaign whose card on the Campaigns tab was used), and can move between that campaign's weeks: any past week of the campaign, the current week, or next week, never later or outside the campaign.
+Every goal is optional; an empty field means no goal. Within a campaign, a week with no goals of its own inherits that campaign's most recent earlier week. A week is **Set by you** once the user has set or confirmed its goals, and **Carried over** while it only has goals inherited from an earlier week (or copied in when a campaign started).
 
-When a campaign starts, including the automatic default one, it begins with a **copy of the most recent weekly goals** of the other campaigns, placed on the Monday of the week it starts, so nothing starts unset. If there are no goals anywhere yet, it starts with none. Goals made before goals were per campaign move to the campaign that contains their week.
+**Setting a week** (the editor, FR-17): only **this week and the following four weeks**, inside the campaign, can be changed. **Earlier weeks are locked**: changing one would change its result and the streaks. The editor starts from last week's goals, so only what differs needs changing; each field that differs shows "was …" beside it. **Start from** offers *Last week* and *Blank*. **Repeat for the weeks after** gives the following weeks (up to four, inside the campaign) the same goals, and never overwrites a week the user already set. A campaign that has ended has no editable weeks.
+
+When a campaign starts, including the automatic default one, it begins with a **copy of the most recent weekly goals** of the other campaigns, placed on the Monday of the week it starts, so nothing starts unset. That copy counts as *carried over* until the user confirms or changes it. If there are no goals anywhere yet, it starts with none. Goals made before goals were per campaign move to the campaign that contains their week.
 
 Which goals apply:
 - **A day** uses the goals of the campaign it belongs to (the latest set for its week or earlier). Daily goal status, the daily-goals streak, compliance and the protein donut all follow this.
@@ -115,8 +117,8 @@ Rules:
 
 **FR-12. Dashboard tab (follows the campaign filter).** The app has five tabs: **Dashboard, Streaks, Log, Campaigns, Settings**. The Dashboard tab shows what can be filtered by campaign, including the goals. Its **Showing** control sits under a small "Showing" label and uses the full row, so a long campaign name wraps instead of running over the card. Choices are *Current campaign* (default), *Overall (all time)*, or any past campaign. Sections, top to bottom:
 1. **Campaign card:** the label (or standard name), then "#number type · dates", **days left** (a countdown from today to the last planned day, counting today: 28 on the first day of a 4-week campaign, 1 on the last planned day, 0 once it has passed), week x of y, target weight and distance from it (using the trend). For an upcoming campaign it shows the number of days until it starts and its planned length. Overall shows all data since the first weigh-in.
-2. **Set your weekly goals banner** (FR-3), shown when the campaign running today has no goals yet and on Sundays when next week has none.
-3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), and an **Edit goals** button. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
+2. **Plan prompt** (FR-17), shown when the weekly plan needs a decision.
+3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), an **Edit goals** button and a **Weekly plan** link, and a "Carried over" chip when this week's goals were not set or confirmed. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
 4. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
 5. **Weigh-ins and trend** chart (FR-7), with the protein intake summary under it.
 6. **Rate of change per week:** one bar per day, trend weight today minus 7 days earlier, over the last 12 weeks, with the latest value and its percent of body weight.
@@ -137,17 +139,27 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 **FR-15. About, version and contact.** Settings has an About section with the logmo logo, the tagline "Track progress with clarity", the **version** and build ("1.0.0 (1)", set in `project.yml`), and **Contact the developer**: it opens a prepared email to connectwithsvetlanamae@gmail.com with a subject and a footer that carry only the app and iOS versions, never anything from the user's logs. The address is also shown with a Copy button for people without a mail app set up. The app icon is the supplied logo: a blue square with a white check above four rising bars.
 
 **FR-16. Campaigns tab.** The home for campaigns: managing the one running, and looking back at all of them. Goals and campaigns are no longer in Settings.
-- **Running now** card, for the campaign that today belongs to: its name, "#number type · dates", week x of y and days left with a progress bar for a real campaign. A real campaign has **Edit goals**, **Rename** and **End campaign** (with a confirmation; it stays in history and a default campaign starts the next day). The automatic default campaign shows "No campaign running" with **Start a campaign**, **Edit goals** and **Rename**. **+ New** (top right) opens the new-campaign form (FR-11); it and Start are disabled while a real campaign is running or upcoming.
-- **Upcoming** card (FR-11) with its countdown, **Edit goals**, **Rename** and **Cancel it**.
+- **Running now** card, for the campaign that today belongs to: its name, "#number type · dates", week x of y and days left with a progress bar for a real campaign. A real campaign has **Weekly plan**, **Rename** and **End campaign** (with a confirmation; it stays in history and a default campaign starts the next day). The automatic default campaign shows "No campaign running" with **Start a campaign**, **Weekly plan** and **Rename**. **+ New** (top right) opens the new-campaign form (FR-11); it and Start are disabled while a real campaign is running or upcoming.
+- **Upcoming** card (FR-11) with its countdown, **Weekly plan**, **Rename** and **Cancel it**.
 - **Look back**: one card per campaign, newest first, each with its name, status (running, upcoming, closed, completed, ended early), "#number type · dates · length" (for one ended early, days run out of days planned), the **trend weight change** with start and end weights and the target, and three figures: **compliance** (complied days of days so far, as a percent), **average steps** and **average calories**, then a line with weekly goals met of finished weeks and workout days a week against the target. A campaign with no weigh-ins says so; an upcoming one shows only its start.
 - **A campaign's look back** (tap a card):
   - Header: name, status, "#number type · dates", and planned versus actual length.
   - **Result:** trend weight change, start to end, how far from the target, a small trend chart with the target line, the average change a week (change across the campaign, per week; needs a week of data), the **fastest week** (the largest 7-day change in the trend) and days weighed of days.
   - **Compliance:** percent and complied days of days so far, one square per day (complied, not complied, or still open for today) and bars per tracker (days fully logged).
-  - **Goals:** daily goals met (days with daily goals), weekly goals met (finished weeks whose goals belonged to the campaign), and the campaign's averages against its final goals (calories a day, protein, steps, water, workout days a week). Anything without a goal is left out.
+  - **Weekly plan** (read-only): the weeks that have begun, newest first, each with the goals set for it (changes from the week before highlighted), whether it was set by the user or carried over, how many of its days complied under its goals, a one-square-per-day strip, and whether its weekly goals were met or missed with the reason (for example "calories averaged 2,050 against 1,800", "1 of 3 workouts"). It shows four weeks and expands to all. A campaign that is running or upcoming also links to its editable plan.
   - **Averages:** calories, protein, carbs, fat, steps, water, and the biofeedback averages with which direction is better. A rating that was never logged has no average.
   - **Label** (editable) and **Open on Dashboard**: switches to the Dashboard tab with this campaign chosen in the Showing control. It is hidden for a campaign that hasn't started.
 - Compliance for a campaign counts every day from its start to its end (or today), the same rules as FR-6; a running campaign counts today.
+
+**FR-17. Weekly plan.** A campaign's weekly goals, week by week, opened from the **Weekly plan** button on the Campaigns tab or the link on the Dashboard Goals card.
+- **Plan ahead:** the next four weeks, each with its goals (changes from the week before highlighted, with the old value), a "Set by you" or "Carried over" chip, and **Same as before** (confirms it) and **Edit**.
+- **This week:** the same, with its compliance so far.
+- **Past weeks**, newest first, **locked**: goals, set or carried over, "n of 7 days complied" under that week's goals, a strip of the days, and the result with its reason. There is no way to edit them.
+- **Plan prompt**, on the Dashboard and at the top of the plan: with no goals at all, "Set your weekly goals"; on any day but Sunday when this week is only carried over, "This week's goals are carried over" with **Keep them** (confirms them) and **Change them**; on Sunday, if next week isn't set, "Plan next week" with **Same as this week** and **Change it**. Confirming counts as setting the week, so the prompt goes away.
+
+**FR-18. Reminders.** In Settings, a **Weekly plan reminder** switch with a day of the week and a time the user chooses (Sunday 18:00 by default). When on, a local notification repeats weekly at that time: "Plan your week. Set next week's goals in logmo." It carries nothing from the user's logs. Turning it on asks iOS for permission; if that is refused the switch goes back off and Settings points to iOS Settings. Turning it off cancels the notification, and changing the day or time reschedules it.
+
+**FR-19. Launch.** The launch screen shows the logo on a plain background from the first moment, with no white flash. The landing screen then shows the logo, "logmo", the tagline and the version for three seconds in all, and fades into the Dashboard. The Dashboard is built behind it, so the landing is on screen immediately.
 
 ## Extensibility (provisions, not features)
 
@@ -215,7 +227,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D32 | A new campaign (including the automatic default) starts with a copy of the most recent goals | Decided: the user chose copy |
 | D33 | A day uses its own campaign's goals; a week's weekly goals belong to the campaign containing the week's Monday | Decided: accepted by the user, to be tuned after use |
 | D34 | Goals are shown and set on the Dashboard tab; Overall shows the current campaign's goals; past campaigns' goals are read-only summaries | Decided: accepted by the user |
-| D35 | The goals editor opens from the Goals card on the Dashboard and from the Campaigns tab, for the campaign concerned. It is no longer in Settings (superseded: it was first reachable from Settings) | Decided |
+| D35 | The goals editor opens from the Dashboard prompt, the Goals card and the weekly plan, for the campaign concerned and a chosen week. It is not in Settings or on the campaign card | Decided |
 | D36 | Saving on the Log screen is automatic; there is no Save button | Decided |
 | D37 | A steps goal is either a daily total or a weekly average, chosen per goal set | Decided: the user asked for both |
 | D38 | A workout day is a day with a training performance rating (1–5); n/a means not a lifting day and is not a workout | Decided |
@@ -236,3 +248,11 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D53 | A campaign's compliance, averages and goal results cover its own days only, from its start to its end (or today); the trend is the one computed over all data, so start and end weights come from a series that doesn't restart | Decided |
 | D54 | "Open on Dashboard" switches tabs and selects the campaign, replacing the old "Show on dashboard" button that only changed the filter | Decided: the user pointed out the label implied navigation |
 | D55 | "Fastest week" is the largest 7-day change of the trend within the campaign | Assumption |
+| D56 | Past weeks of the plan are locked, with no way to edit them | Decided |
+| D57 | Planning reaches four weeks ahead (this week plus four), inside the campaign | Decided |
+| D58 | A weekly-plan reminder is optional, switchable, and its day and time are the user's choice | Decided |
+| D59 | The landing screen shows for three seconds in all and fades out. It is drawn alone first so it appears immediately | Decided |
+| D60 | The launch screen shows the logo on a light or dark background matching the system appearance | Assumption: it can't know the in-app theme choice |
+| D61 | "Set by you" means the user set or confirmed a week. Goals copied in when a campaign starts, and inherited ones, are "carried over" until then | Decided |
+| D62 | The prompt on days other than Sunday concerns this week; on Sunday it concerns next week and not this one | Assumption |
+| D63 | Confirming a week ("Keep them", "Same as before") creates that week's own record with the carried-over goals | Decided |

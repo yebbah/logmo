@@ -20,7 +20,7 @@ struct CampaignsView: View {
     @State private var showNew = false
     @State private var confirmEnd = false
     @State private var confirmCancel = false
-    @State private var goalsFor: CampaignInfo?
+    @State private var planCampaign: CampaignInfo?
     @State private var renameTarget: Campaign?
     @State private var renameText = ""
 
@@ -36,6 +36,13 @@ struct CampaignsView: View {
         let current = campaigns.first { CampaignRules.contains($0.info, day: today) }
         let upcoming = campaigns.first { !$0.isDefault && $0.end == nil && CampaignRules.isUpcoming($0.info, today: today) }
         let busy = campaigns.contains { !$0.isDefault && $0.end == nil }          // running or upcoming
+        let required0 = required
+        let weekRows: (CampaignInfo) -> [WeekPlanRow] = { c in
+            let mine = weekGoals.filter { $0.campaignID == c.id }
+            return Insights.weeklyPlan(c, snaps: snaps, weeks: Dictionary(mine.map { ($0.weekStart, $0.goalSet) }, uniquingKeysWith: { a, _ in a }),
+                                       explicit: PlanStore.explicitWeeks(weekGoals, campaignID: c.id), timeline: timeline,
+                                       required: required0, today: today)
+        }
         let report: (CampaignInfo) -> CampaignReport = { c in
             Insights.campaignReport(c, snaps: snaps, trend: trend, timeline: timeline, required: required, today: today)
         }
@@ -56,7 +63,7 @@ struct CampaignsView: View {
                     ForEach(campaigns) { m in
                         let r = report(m.info)
                         NavigationLink {
-                            CampaignDetail(info: m.info, report: r, trend: trend)
+                            CampaignDetail(info: m.info, report: r, weeks: weekRows(m.info), trend: trend)
                         } label: {
                             lookBackCard(m.info, r)
                         }
@@ -75,7 +82,7 @@ struct CampaignsView: View {
             }
             .onAppear { CampaignStore.ensureDefault(context) }
             .sheet(isPresented: $showNew) { NewCampaignForm(minStart: openDefaultStart) }
-            .sheet(item: $goalsFor) { c in GoalsSheet(campaign: c) }
+            .navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
             .alert("Rename campaign", isPresented: Binding(get: { renameTarget != nil }, set: { if !$0 { renameTarget = nil } })) {
                 TextField("Label", text: $renameText)
                 Button("Save") { if let m = renameTarget { CampaignStore.rename(context, m, to: renameText) }; renameTarget = nil }
@@ -112,7 +119,7 @@ struct CampaignsView: View {
             }
             HStack(spacing: 10) {
                 if real {
-                    actionButton("Edit goals") { goalsFor = c }
+                    actionButton("Weekly plan") { planCampaign = c }
                     actionButton("Rename") { renameText = c.label ?? ""; renameTarget = m }
                     actionButton("End campaign", destructive: true) { confirmEnd = true }
                         .confirmationDialog("End \(c.name) today?", isPresented: $confirmEnd, titleVisibility: .visible) {
@@ -120,7 +127,7 @@ struct CampaignsView: View {
                         } message: { Text("It stays in your history. A default maintenance campaign starts tomorrow.") }
                 } else {
                     actionButton("Start a campaign", prominent: true) { showNew = true }.disabled(busy)
-                    actionButton("Edit goals") { goalsFor = c }
+                    actionButton("Weekly plan") { planCampaign = c }
                     actionButton("Rename") { renameText = c.label ?? ""; renameTarget = m }
                 }
             }
@@ -140,7 +147,7 @@ struct CampaignsView: View {
                 Text(n == 1 ? "day until it starts" : "days until it starts").foregroundStyle(theme.muted)
             }
             HStack(spacing: 10) {
-                actionButton("Edit goals") { goalsFor = c }
+                actionButton("Weekly plan") { planCampaign = c }
                 actionButton("Rename") { renameText = c.label ?? ""; renameTarget = m }
                 actionButton("Cancel it", destructive: true) { confirmCancel = true }
                     .confirmationDialog("Cancel \(c.name)?", isPresented: $confirmCancel, titleVisibility: .visible) {
@@ -236,6 +243,7 @@ struct CampaignDetail: View {
 
     let info: CampaignInfo
     let report: CampaignReport
+    let weeks: [WeekPlanRow]
     let trend: [TrendPoint]
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
@@ -243,18 +251,28 @@ struct CampaignDetail: View {
 
     var body: some View {
         let planned = (info.plannedWeeks ?? 0) * 7
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 16) {
                 header(planned)
                 if report.started {
                     resultCard
                     complianceCard
-                    goalsCard
+                    WeeklyPlanCard(rows: weeks, report: report).id("plan")
                     averagesCard
                 }
                 actionsCard
             }
             .padding()
+        }
+        .onAppear {
+            #if DEBUG
+            // Debug aid for screenshots: -scrollTo plan
+            if UserDefaults.standard.string(forKey: "scrollTo") == "plan" {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo("plan", anchor: .top) }
+            }
+            #endif
+        }
         }
         .background(theme.bg)
         .navigationTitle("Campaign \(info.number)")
@@ -270,7 +288,7 @@ struct CampaignDetail: View {
                                  : (info.endedEarly ? "ended early" : (info.isDefault ? "closed" : "completed"))
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(info.name).font(.system(size: 28, weight: .bold)).lineLimit(2)
+                Text(info.name).font(.system(size: 26, weight: .bold)).lineLimit(3).minimumScaleFactor(0.8)
                 Spacer()
                 Text(st).font(.caption.weight(.semibold)).foregroundStyle(theme.muted)
                     .padding(.horizontal, 9).padding(.vertical, 4).background(theme.muted.opacity(0.12), in: Capsule())
@@ -369,34 +387,6 @@ struct CampaignDetail: View {
         }
     }
 
-    // MARK: goals
-
-    private var goalsCard: some View {
-        let g = report.goalsAtEnd
-        let a = report.averages
-        return Card(title: "Goals") {
-            if report.dailyGoalDays == 0 && report.weeklyGoals == 0 && g == nil {
-                Text("No goals were set in this campaign.").foregroundStyle(theme.muted)
-            } else {
-                if report.dailyGoalDays > 0 { line("Daily goals met", "\(report.dailyGoalDaysMet) of \(report.dailyGoalDays) days") }
-                if report.weeklyGoals > 0 { line("Weekly goals met", "\(report.weeklyGoalsMet) of \(report.weeklyGoals) finished weeks") }
-                if let g {
-                    Divider()
-                    if let c = g.caloriesWeekly { line("Calories, average a day", "\(whole(a.calories)) of \((Double(c) / 7).rounded().formatted()) goal") }
-                    if let p = g.proteinDaily { line("Protein, average", "\(whole(a.proteinG)) g of \(p) g goal") }
-                    if let s = g.stepsDaily { line(g.stepsIsWeeklyAverage ? "Steps, weekly average" : "Steps, average a day", "\(whole(a.steps)) of \(s.formatted()) goal") }
-                    if let w = g.waterDailyMl { line("Water, average a day", "\(whole(a.waterMl)) of \(w.formatted()) ml goal") }
-                    if let n = g.workoutDaysWeekly { line("Workout days, average a week", "\(report.workoutsPerWeek.map { fmt($0) } ?? "—") of \(n) target") }
-                }
-            }
-        }
-    }
-
-    private func line(_ k: String, _ v: String) -> some View {
-        HStack(alignment: .firstTextBaseline) { Text(k); Spacer(); Text(v).foregroundStyle(theme.muted).multilineTextAlignment(.trailing) }
-            .font(.subheadline)
-    }
-
     // MARK: averages
 
     private var averagesCard: some View {
@@ -438,6 +428,19 @@ struct CampaignDetail: View {
                 TextField(info.title, text: $labelText)
                     .multilineTextAlignment(.trailing).submitLabel(.done)
                     .onSubmit { saveLabel() }
+            }
+            if info.end == nil {
+                Divider()
+                NavigationLink { WeeklyPlanView(campaign: info) } label: {
+                    HStack {
+                        Label("Open the weekly plan", systemImage: "calendar")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(theme.muted)
+                    }
+                    .foregroundStyle(theme.accent)
+                }
+                .buttonStyle(.plain)
+                Text("Plan ahead and set each week's goals.").font(.caption).foregroundStyle(theme.muted)
             }
             if report.started {
                 Divider()
@@ -577,11 +580,28 @@ struct DebugCampaignDetail: View {
         let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
         let n = UserDefaults.standard.integer(forKey: "campaignNumber")
         if let c = infos.first(where: { $0.number == n }) ?? infos.first {
+            let tl = GoalTimeline(weekGoals, campaigns: infos)
+            let req = RequiredTrackers.parse(requiredRaw)
+            let mine = weekGoals.filter { $0.campaignID == c.id }
             NavigationStack {
-                CampaignDetail(info: c, report: Insights.campaignReport(c, snaps: snaps, trend: trend,
-                               timeline: GoalTimeline(weekGoals, campaigns: infos), required: RequiredTrackers.parse(requiredRaw), today: today),
+                CampaignDetail(info: c, report: Insights.campaignReport(c, snaps: snaps, trend: trend, timeline: tl, required: req, today: today),
+                               weeks: Insights.weeklyPlan(c, snaps: snaps, weeks: Dictionary(mine.map { ($0.weekStart, $0.goalSet) }, uniquingKeysWith: { a, _ in a }),
+                                                          explicit: PlanStore.explicitWeeks(weekGoals, campaignID: c.id), timeline: tl, required: req, today: today),
                                trend: trend)
             }
+        }
+    }
+}
+#endif
+
+#if DEBUG
+/// Debug aid for screenshots: `-debugScreen plan -campaignNumber 2` opens that campaign's weekly plan.
+struct DebugPlan: View {
+    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
+    var body: some View {
+        let n = UserDefaults.standard.integer(forKey: "campaignNumber")
+        if let c = campaigns.map(\.info).first(where: { $0.number == n }) ?? campaigns.last?.info {
+            NavigationStack { WeeklyPlanView(campaign: c) }
         }
     }
 }

@@ -20,7 +20,9 @@ targets:
         CFBundleDisplayName: logmo
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
-        UILaunchScreen: {}
+        UILaunchScreen:
+          UIImageName: LaunchLogo          # the logo is on screen from the first moment, then the landing takes over
+          UIColorName: LaunchBackground
         # Landscape is allowed only so a chart can open full screen; AppDelegate keeps everything else portrait.
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # Added when Apple Health lands:
