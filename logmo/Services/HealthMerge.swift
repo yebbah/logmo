@@ -63,7 +63,8 @@ struct HealthDay: Equatable {
     var strengthMinutes: Int?
     var sleepMinutes: Int?
     var sleepAwakeMinutes: Int?
-    var sleepDeepRemMinutes: Int?
+    var sleepDeepMinutes: Int?
+    var sleepREMMinutes: Int?
     var sleepScore: Int?                       // the 1 to 5 rating worked out from the night; nil while the night may be unfinished
     var restingHR: Int?
     var hrv: Int?

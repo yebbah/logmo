@@ -61,6 +61,7 @@ struct DashboardView: View {
                         PerformanceCard(snaps: snaps, trend: trend, scope: scope).id("performance")
                         WeightChartCard(title: "Weigh-ins and trend", trend: trend, snaps: snaps, scope: scope,
                                         smoothing: smoothing, timeline: timeline).id("weight")
+                        MaintenanceCard(snaps: snaps, timeline: timeline, scope: scope, smoothing: smoothing, profile: MaintenanceProfile.load()).id("maintenance")
                         BodyCompositionCard(logs: logs, scope: scope, unit: unit).id("body")
                         RateCard(trend: trend, scope: scope).id("rate")
                         StepsCaloriesCard(snaps: snaps, scope: scope).id("steps")

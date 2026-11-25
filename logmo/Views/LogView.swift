@@ -387,7 +387,7 @@ struct LogView: View {
     /// What Health recorded for the night, how it was scored, and why. The score fills the sleep rating below it.
     @ViewBuilder private var sleepHealthNote: some View {
         if let log = existing(date), let m = log.healthSleepMinutes {
-            let res = SleepScore.score(asleepMinutes: m, awakeMinutes: log.healthSleepAwakeMinutes, deepRemMinutes: log.healthSleepDeepRemMinutes)
+            let res = SleepScore.score(asleepMinutes: m, awakeMinutes: log.healthSleepAwakeMinutes, deepMinutes: log.healthSleepDeepMinutes, remMinutes: log.healthSleepREMMinutes)
             let finished = SleepScore.isFinished(day: date, now: Date())
             VStack(alignment: .leading, spacing: 5) {
                 switch healthSource(.sleep) {

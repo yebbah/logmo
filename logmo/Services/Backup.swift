@@ -15,7 +15,7 @@ struct BackupFile: Codable, Equatable {
 
     /// Preferences stored in UserDefaults that belong in a backup. Strings only, so any value type round-trips.
     static let settingKeys = [SettingsKey.unit, SettingsKey.smoothing, SettingsKey.required, SettingsKey.bioOverlay,
-                              SettingsKey.bioShown, SettingsKey.theme, SettingsKey.trackCycle, SettingsKey.trackSick, SettingsKey.dailyReminderOn, SettingsKey.dailyReminderMinutes, SettingsKey.reminderOn,
+                              SettingsKey.bioShown, MaintenanceProfile.sexKey, MaintenanceProfile.ageKey, MaintenanceProfile.heightKey, MaintenanceProfile.activityKey, SettingsKey.theme, SettingsKey.trackCycle, SettingsKey.trackSick, SettingsKey.dailyReminderOn, SettingsKey.dailyReminderMinutes, SettingsKey.reminderOn,
                               SettingsKey.reminderWeekday, SettingsKey.reminderMinutes, "campaignFilter"]
 
     struct LogRecord: Codable, Equatable {
@@ -24,7 +24,7 @@ struct BackupFile: Codable, Equatable {
         var calories, proteinG, fatG, carbsG, waterMl, steps: Int?
         var sleep, fatigue, stress, hunger, performance, appetite, soreness: Int?
         var performanceNA: Bool; var onPeriod: Bool?; var isSick: Bool?; var importedFields, overriddenFields: String?
-        var healthSleepMinutes, healthSleepAwakeMinutes, healthSleepDeepRemMinutes, healthRestingHR, healthHRV: Int?; var healthBodyFat, healthLeanKg: Double?
+        var healthSleepMinutes, healthSleepAwakeMinutes, healthSleepDeepMinutes, healthSleepREMMinutes, healthRestingHR, healthHRV: Int?; var healthBodyFat, healthLeanKg: Double?
     }
     struct GoalRecord: Codable, Equatable {
         var id: UUID; var campaignID: UUID?; var weekStart: Date; var updatedAt: Date
@@ -50,7 +50,7 @@ enum Backup {
                   appetite: $0.appetite, soreness: $0.soreness, performanceNA: $0.performanceNA, onPeriod: $0.onPeriod, isSick: $0.isSick,
                   importedFields: $0.importedFields, overriddenFields: $0.overriddenFields,
                   healthSleepMinutes: $0.healthSleepMinutes, healthSleepAwakeMinutes: $0.healthSleepAwakeMinutes,
-                  healthSleepDeepRemMinutes: $0.healthSleepDeepRemMinutes, healthRestingHR: $0.healthRestingHR, healthHRV: $0.healthHRV,
+                  healthSleepDeepMinutes: $0.healthSleepDeepMinutes, healthSleepREMMinutes: $0.healthSleepREMMinutes, healthRestingHR: $0.healthRestingHR, healthHRV: $0.healthHRV,
                   healthBodyFat: $0.healthBodyFat, healthLeanKg: $0.healthLeanKg)
         }
         f.goals = try context.fetch(FetchDescriptor<WeekGoal>(sortBy: [SortDescriptor(\.weekStart)])).map {
@@ -94,7 +94,7 @@ enum Backup {
             l.performance = r.performance; l.appetite = r.appetite; l.soreness = r.soreness
             l.performanceNA = r.performanceNA; l.onPeriod = r.onPeriod; l.isSick = r.isSick
             l.importedFields = r.importedFields ?? ""; l.overriddenFields = r.overriddenFields ?? ""
-            l.healthSleepAwakeMinutes = r.healthSleepAwakeMinutes; l.healthSleepDeepRemMinutes = r.healthSleepDeepRemMinutes
+            l.healthSleepAwakeMinutes = r.healthSleepAwakeMinutes; l.healthSleepDeepMinutes = r.healthSleepDeepMinutes; l.healthSleepREMMinutes = r.healthSleepREMMinutes
             l.healthSleepMinutes = r.healthSleepMinutes; l.healthRestingHR = r.healthRestingHR; l.healthHRV = r.healthHRV
             l.healthBodyFat = r.healthBodyFat; l.healthLeanKg = r.healthLeanKg
             context.insert(l)

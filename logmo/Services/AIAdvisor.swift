@@ -52,6 +52,9 @@ enum AIAdvisor {
         if let hr = s.avgRestingHR { l.append("resting heart rate bpm: average \(hr)" + (s.restingHRChange.map { String(format: ", change %+.0f on the week before", $0) } ?? "")) }
         if let h = s.avgHRV { l.append("hrv ms: average \(h)" + (s.hrvChangePercent.map { String(format: ", change %+.0f%% on the week before", $0) } ?? "")) }
         if let m = s.avgSleepMinutes { l.append(String(format: "sleep recorded by Health: %.1f hours on average over %d nights", Double(m) / 60, s.sleepNights)) }
+        if let m = s.estimatedMaintenance {
+            l.append("estimated maintenance kcal per day: \(m) (from \(s.maintenanceSource == .trend ? "weight trend and intake" : "a height, age, sex and activity formula"); status \(s.maintenanceStatus == .updating ? "updating" : "holding"))")
+        }
         if let p = s.periodDays { l.append("period days: \(p)") }
         if let k = s.sickDays { l.append("sick days: \(k)") }
         if !a.cautions.isEmpty { l.append("cautions found by the app: " + a.cautions.joined(separator: " ")) }

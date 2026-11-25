@@ -585,3 +585,167 @@ struct BodyCompositionCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+/// Estimated maintenance calories (TDEE), laid out like the workbook: the estimate now, your goal and what you eat against it,
+/// the smoothed estimate over time, and a weekly table of goal, eaten and maintenance.
+struct MaintenanceCard: View {
+    @Environment(\.theme) private var theme
+    let snaps: [DaySnapshot]
+    let timeline: GoalTimeline
+    let scope: DateScope
+    let smoothing: Int
+    let profile: MaintenanceProfile?
+
+    private var cal: Calendar { .current }
+
+    var body: some View {
+        let estimate = Maintenance.estimate(snaps, through: scope.end, smoothingDays: smoothing, profile: profile)
+        let hasData = snaps.contains { $0.weightKg != nil || $0.calories != nil }
+        if hasData {
+            Card(title: "Estimated maintenance", trailing: { statusChip(estimate) }) {
+                if let e = estimate { content(e) } else { empty }
+            }
+        }
+    }
+
+    // MARK: Pieces
+
+    @ViewBuilder private func statusChip(_ e: MaintenanceEstimate?) -> some View {
+        if let e {
+            let (text, color): (String, Color) = e.source == .formula ? ("Formula", theme.muted) : (e.status == .updating ? ("Updating", theme.good) : ("Holding", theme.warn))
+            Text(text).font(.caption2.weight(.semibold)).foregroundStyle(color)
+                .padding(.horizontal, 8).padding(.vertical, 3).background(color.opacity(0.14), in: Capsule())
+        }
+    }
+
+    private var empty: some View {
+        let counts = snaps.filter { $0.calories != nil }.count
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Not enough yet").font(.subheadline.weight(.semibold))
+            Text("Maintenance is worked out from your weight trend and what you eat. It starts after about ten days of history, with a weigh-in on at least five of the last ten days and calories on at least seven (\(counts) days with calories so far). Or add your height, age, sex and activity in Settings → About you for a formula estimate in the meantime.")
+                .font(.caption).foregroundStyle(theme.muted)
+        }
+    }
+
+    @ViewBuilder private func content(_ e: MaintenanceEstimate) -> some View {
+        let goal = timeline.goals(forDay: scope.end)?.caloriesWeekly.map { Int((Double($0) / 7).rounded()) }
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(e.kcalPerDay.formatted()).font(.system(size: 40, weight: .bold, design: .rounded))
+                    Text("kcal a day").foregroundStyle(theme.muted)
+                }
+                Text(e.source == .formula ? "From your height, age, sex and activity. Your own logs will replace this."
+                     : (e.status == .updating ? "From your weight trend and what you eat." : "Held from earlier: recent weigh-ins or calorie logs are too few to move it."))
+                    .font(.caption).foregroundStyle(theme.muted)
+            }
+            HStack(alignment: .top, spacing: 14) {
+                if let goal { stat("Goal", "\(goal.formatted())", sub: relation(goal, e.kcalPerDay)) }
+                if let eat = e.intakeKcal { stat("Eating", "\(eat.formatted())", sub: "smoothed") }
+                if e.source == .trend, let f = e.formulaKcal { stat("Formula", "\(f.formatted())", sub: "cross-check") }
+            }
+            if e.series.compactMap(\.tdee).count >= 2 { chart(e, goal: goal) }
+            weekly(e)
+            Text(e.source == .trend
+                 ? "Weight is smoothed like the trend line, and the weekly change in it is turned into calories (about 1,100 a day for each kg a week) and taken off what you eat. It holds while weigh-ins or calorie logs are missing, and never treats a missing day as zero."
+                 : "A formula (Mifflin-St Jeor times your activity) is only a starting point.")
+                .font(.caption).foregroundStyle(theme.muted)
+        }
+    }
+
+    private func stat(_ title: String, _ value: String, sub: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.caption).foregroundStyle(theme.muted)
+            Text(value).font(.system(size: 20, weight: .semibold, design: .rounded))
+            Text(sub).font(.caption2).foregroundStyle(theme.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// "440 below maintenance" and the percentage.
+    private func relation(_ goal: Int, _ maintenance: Int) -> String {
+        let diff = goal - maintenance
+        if abs(diff) < 25 { return "about maintenance" }
+        let pct = Int((abs(Double(diff)) / Double(maintenance) * 100).rounded())
+        return "\(abs(diff).formatted()) \(diff < 0 ? "below" : "above") (\(pct)%)"
+    }
+
+    private func chart(_ e: MaintenanceEstimate, goal: Int?) -> some View {
+        let pts = e.series.filter { $0.date >= scope.start && $0.date <= scope.end }
+        let values = pts.compactMap(\.tdee) + pts.compactMap(\.intake) + (goal.map { [Double($0)] } ?? [])
+        let lo = (values.min() ?? 1500) - 100, hi = (values.max() ?? 3000) + 100
+        return Chart {
+            ForEach(pts) { p in
+                if let i = p.intake {
+                    LineMark(x: .value("Date", p.date), y: .value("Eating", i), series: .value("S", "eating"))
+                        .foregroundStyle(theme.muted.opacity(0.7)).lineStyle(StrokeStyle(lineWidth: 1.5))
+                }
+                if let t = p.tdee {
+                    LineMark(x: .value("Date", p.date), y: .value("Maintenance", t), series: .value("S", "tdee"))
+                        .foregroundStyle(theme.accent).lineStyle(StrokeStyle(lineWidth: 3)).interpolationMethod(.monotone)
+                }
+            }
+            if let goal {
+                RuleMark(y: .value("Goal", goal)).foregroundStyle(theme.good).lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            }
+        }
+        .chartYScale(domain: lo...hi)
+        .chartYAxis { AxisMarks(position: .leading) }
+        .frame(height: 170)
+        .overlay(alignment: .bottomLeading) {
+            HStack(spacing: 12) {
+                legend(theme.accent, "Maintenance"); legend(theme.muted, "Eating"); if goal != nil { legend(theme.good, "Goal") }
+            }
+            .font(.caption2).foregroundStyle(theme.muted).offset(y: 22)
+        }
+        .padding(.bottom, 22)
+    }
+
+    private func legend(_ c: Color, _ t: String) -> some View {
+        HStack(spacing: 4) { Capsule().fill(c).frame(width: 12, height: 3); Text(t) }
+    }
+
+    /// One row per week, newest first, like the workbook's weekly anchors.
+    @ViewBuilder private func weekly(_ e: MaintenanceEstimate) -> some View {
+        let rows = weeklyRows(e)
+        if !rows.isEmpty {
+            VStack(spacing: 8) {
+                HStack {
+                    Text("Week of").frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Goal").frame(width: 62, alignment: .trailing)
+                    Text("Eaten").frame(width: 62, alignment: .trailing)
+                    Text("Maintenance").frame(width: 92, alignment: .trailing)
+                }
+                .font(.caption2.weight(.semibold)).foregroundStyle(theme.muted)
+                ForEach(rows, id: \.week) { r in
+                    HStack {
+                        Text(r.week.formatted(.dateTime.day().month(.abbreviated))).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(r.goal.map { $0.formatted() } ?? "–").frame(width: 62, alignment: .trailing)
+                        Text(r.eaten.map { $0.formatted() } ?? "–").frame(width: 62, alignment: .trailing)
+                        Text(r.maintenance.map { $0.formatted() } ?? "–").frame(width: 92, alignment: .trailing).fontWeight(.semibold)
+                    }
+                    .font(.subheadline).monospacedDigit()
+                    Divider()
+                }
+            }
+        }
+    }
+
+    private struct WeekRow { var week: Date; var goal: Int?; var eaten: Int?; var maintenance: Int? }
+
+    private func weeklyRows(_ e: MaintenanceEstimate) -> [WeekRow] {
+        let thisWeek = Metrics.weekStart(of: scope.end)
+        let map = Dictionary(snaps.map { (cal.startOfDay(for: $0.date), $0) }, uniquingKeysWith: { a, _ in a })
+        var rows: [WeekRow] = []
+        for k in 0..<6 {
+            guard let ws = cal.date(byAdding: .day, value: -7 * k, to: thisWeek), ws >= Metrics.weekStart(of: scope.start) else { break }
+            let days = (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: ws) }.filter { $0 <= scope.end }
+            let cals = days.compactMap { map[$0]?.calories }
+            let eaten = cals.isEmpty ? nil : Int((Double(cals.reduce(0, +)) / Double(cals.count)).rounded())
+            let goal = timeline.goals(forWeekStarting: ws)?.caloriesWeekly.map { Int((Double($0) / 7).rounded()) }
+            let m = e.series.last(where: { $0.tdee != nil && $0.date <= (days.last ?? ws) && $0.date >= ws })?.tdee.map { Int($0.rounded()) }
+            if goal != nil || eaten != nil || m != nil { rows.append(WeekRow(week: ws, goal: goal, eaten: eaten, maintenance: m)) }
+        }
+        return rows
+    }
+}

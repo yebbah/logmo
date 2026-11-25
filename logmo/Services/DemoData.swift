@@ -42,7 +42,7 @@ enum DemoData {
             log.healthSleepMinutes = 380 + Int(rnd() * 90); log.healthRestingHR = 55 + Int(rnd() * 5); log.healthHRV = 44 + Int(rnd() * 10)
             if i == 0 {                             // today: some values from Health, one typed over, and a workout to ask about
                 log.imported = [.steps, .calories, .protein, .carbs, .fat, .water, .sleep]
-                log.healthSleepMinutes = 166; log.healthSleepAwakeMinutes = 25; log.healthSleepDeepRemMinutes = 60; log.sleep = 1
+                log.healthSleepMinutes = 166; log.healthSleepAwakeMinutes = 25; log.healthSleepDeepMinutes = 25; log.healthSleepREMMinutes = 35; log.sleep = 1
                 log.overridden = [.weight]
                 log.healthWorkoutMinutes = 52
                 log.performance = nil; log.performanceNA = false

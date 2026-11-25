@@ -269,13 +269,62 @@ final class WeekSuggestionTests: XCTestCase {
         XCTAssertEqual(suggestion(.cut, data(weightPerDay: 0, calories: 1450), goals: mid).caloriesPerDay, 1450)
     }
 
-    func testATargetFarBelowEstimatedMaintenanceIsFlaggedEvenAboveTheFixedThreshold() {
+    func testATargetFarBelowMaintenanceFromTheLogsIsFlaggedEvenAboveTheFixedThreshold() {
         var g = goals; g.caloriesWeekly = 1800 * 7
-        let s = summary(.cut, data(weightPerDay: -0.1, calories: 1800), goals: g)       // losing about 0.7 kg a week on 1,800
-        XCTAssertNotNil(s.estimatedMaintenance)
+        let s = summary(.cut, data(from: -38, weightPerDay: -0.1, calories: 1800), goals: g)       // two months: losing 0.7 kg a week on 1,800
+        XCTAssertEqual(s.maintenanceSource, .trend)
+        XCTAssertGreaterThan(s.estimatedMaintenance!, 2400)
         let p = SuggestionRules.baseline(s)
-        XCTAssertGreaterThanOrEqual(p.caloriesPerDay, 1800)
-        XCTAssertTrue(p.cautions.contains { $0.contains("already low") || $0.contains("below your estimated maintenance") } || s.estimatedMaintenance! >= 2400)
+        XCTAssertGreaterThanOrEqual(p.caloriesPerDay, 1800)                                         // never lowered
+        XCTAssertTrue(p.cautions.contains { $0.contains("already low") && $0.contains("below your estimated maintenance") }, p.cautions.joined(separator: "|"))
+    }
+
+    func testTheFormulaFlagsALowTargetBeforeTheLogsHaveBuiltAnEstimate() {
+        var g = goals; g.caloriesWeekly = 1900 * 7
+        let profile = MaintenanceProfile(sex: .male, age: 30, heightCm: 180, activity: .moderate)
+        let c = CampaignInfo(number: 1, kind: .cut, start: day(2), plannedWeeks: 12)
+        let s = SuggestionRules.summary(campaign: c, snaps: data(from: 17, weightPerDay: -0.05, calories: 1900), current: g, window: .thisWeekSoFar,
+                                        includeCycle: true, includeSick: true, today: day(22), profile: profile, calendar: cal)
+        XCTAssertEqual(s.maintenanceSource, .formula)
+        let p = SuggestionRules.baseline(s)
+        XCTAssertTrue(p.cautions.contains { $0.contains("already low") }, p.cautions.joined(separator: "|"))
+        XCTAssertTrue(p.evidence.contains { $0.contains("formula estimate") })
+    }
+
+    func testMaintenanceFromTheLogsIsShownAsEvidenceAndSizesTheMove() {
+        // Plateau on 2,100 with a lot of room: the move is the weekly limit of 100, and the evidence says why.
+        let s = summary(.cut, data(from: -38, weightPerDay: 0, calories: 2100))
+        let p = SuggestionRules.baseline(s)
+        XCTAssertEqual(p.caloriesPerDay, 2000)
+        XCTAssertTrue(p.evidence.contains { $0.contains("Your estimated maintenance is about 2,1") || $0.contains("Your estimated maintenance is about 2,0") })
+        XCTAssertTrue(p.evidence.contains { $0.contains("Moving 100 now keeps the change gradual") })
+    }
+
+    func testASmallGapToTheTargetPaceGivesASmallMove() {
+        // Maintenance about 2,100, a cut aims near -0.65% a week (about 570 kcal below maintenance), so a target of 1,600 is already
+        // there; a stalled cut on 1,650 only needs a step of 50 to reach it.
+        var g = goals; g.caloriesWeekly = 1650 * 7
+        let s = summary(.cut, data(from: -38, weightPerDay: 0, calories: 1650), goals: g)
+        let p = SuggestionRules.baseline(s)
+        XCTAssertGreaterThanOrEqual(p.caloriesPerDay, 1650 - 100)
+        XCTAssertLessThanOrEqual(p.caloriesPerDay, 1650)
+    }
+
+    func testWhenTheEstimateSaysTheTargetIsAlreadyAtPaceTheTargetStays() {
+        // Cut stalling although intake sits far below estimated maintenance: the data disagree with themselves, so no change.
+        var g = goals; g.caloriesWeekly = 1400 * 7
+        let snaps = data(from: -38, weightPerDay: -0.07, calories: 2100)                          // building a ~2,650 maintenance
+        var tail = snaps; for i in tail.indices where i >= tail.count - 21 { tail[i].calories = 1400; tail[i].weightKg = 80 - 0.07 * Double(i) }
+        let s = summary(.cut, tail, goals: g)
+        let p = SuggestionRules.baseline(s)
+        XCTAssertGreaterThanOrEqual(p.caloriesPerDay, 1400)
+    }
+
+    func testThePromptCarriesTheMaintenanceFact() {
+        let s = summary(.cut, data(from: -38, weightPerDay: -0.07))
+        let t = AIAdvisor.facts(s, SuggestionRules.assess(s))
+        XCTAssertTrue(t.contains("estimated maintenance kcal per day: "), t)
+        XCTAssertTrue(t.contains("from weight trend and intake"))
     }
 
     func testAIChoicesAreClampedToWhatTheEvidenceSupports() {

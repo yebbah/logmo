@@ -26,25 +26,51 @@ final class SleepScoreTests: XCTestCase {
         XCTAssertNil(SleepScore.score(asleepMinutes: 200).caveat)
     }
 
-    func testABrokenNightLowersTheScoreByOneAndOnlyOne() {
+    // MARK: Stages
+
+    func testGoodStagesKeepTheTopScoreAndCanLiftAGoodNightByOne() {
+        let top = SleepScore.score(asleepMinutes: 480, awakeMinutes: 20, deepMinutes: 80, remMinutes: 110)       // unbroken, 17% deep, 23% REM
+        XCTAssertEqual(top.score, 5); XCTAssertEqual(top.stageAdjustment, 0)
+        XCTAssertTrue(top.detail.contains("deep 1 h 20 min (17%)")); XCTAssertTrue(top.detail.contains("REM 1 h 50 min (23%)"))
+        XCTAssertTrue(top.detail.contains("keep it at the top"))
+        let lifted = SleepScore.score(asleepMinutes: 410, awakeMinutes: 15, deepMinutes: 65, remMinutes: 90)     // 6 h 50 min is a 4 on duration
+        XCTAssertEqual(lifted.score, 5); XCTAssertEqual(lifted.stageAdjustment, 1)
+        XCTAssertTrue(lifted.detail.contains("raise the score by one"))
+    }
+
+    func testStagesCannotLiftANightUnderSixHours() {
+        XCTAssertEqual(SleepScore.score(asleepMinutes: 340, awakeMinutes: 5, deepMinutes: 55, remMinutes: 75).score, 2)
+    }
+
+    func testWeakStagesLowerTheScore() {
+        let weak = SleepScore.score(asleepMinutes: 480, awakeMinutes: 20, deepMinutes: 20, remMinutes: 40)       // 4% deep, 8% REM
+        XCTAssertEqual(weak.score, 4); XCTAssertEqual(weak.stageAdjustment, -1)
+        let veryWeak = SleepScore.score(asleepMinutes: 480, awakeMinutes: 100, deepMinutes: 10, remMinutes: 20)
+        XCTAssertEqual(veryWeak.score, 3); XCTAssertEqual(veryWeak.stageAdjustment, -2)
+        XCTAssertTrue(veryWeak.detail.contains("lower the score by two"))
+    }
+
+    func testABrokenNightAlwaysLosesAPointEvenWithGoodStages() {
+        let r = SleepScore.score(asleepMinutes: 480, awakeMinutes: 150, deepMinutes: 80, remMinutes: 110)       // 76% unbroken
+        XCTAssertEqual(r.score, 4); XCTAssertEqual(r.stageAdjustment, -1)
+        XCTAssertTrue(r.detail.contains("awake 2 h 30 min (76% of the night asleep)"))
+    }
+
+    func testWithoutStageDataOnlyDurationCounts() {
         XCTAssertEqual(SleepScore.score(asleepMinutes: 480).score, 5)
-        let broken = SleepScore.score(asleepMinutes: 480, awakeMinutes: 150)               // 76% efficient
-        XCTAssertEqual(broken.score, 4)
-        XCTAssertTrue(broken.detail.contains("awake for about 150 min"))
-        let both = SleepScore.score(asleepMinutes: 480, awakeMinutes: 150, deepRemMinutes: 40)   // low deep and REM as well: still only -1
-        XCTAssertEqual(both.score, 4)
-        XCTAssertEqual(SleepScore.score(asleepMinutes: 100, awakeMinutes: 100).score, 1)   // never below 1
+        XCTAssertEqual(SleepScore.score(asleepMinutes: 480, awakeMinutes: 150).score, 5)                          // awake time alone, no stages: not judged
+        XCTAssertEqual(SleepScore.score(asleepMinutes: 480, awakeMinutes: 20, deepMinutes: 80, remMinutes: nil).stageAdjustment, 0)
+        XCTAssertEqual(SleepScore.score(asleepMinutes: 480).stageAdjustment, 0)
     }
 
-    func testLowDeepAndREMLowersTheScoreOnlyForNightsOfSixHoursOrMore() {
-        XCTAssertEqual(SleepScore.score(asleepMinutes: 480, awakeMinutes: 20, deepRemMinutes: 60).score, 4)     // 12%
-        XCTAssertEqual(SleepScore.score(asleepMinutes: 480, awakeMinutes: 20, deepRemMinutes: 150).score, 5)    // 31%
-        XCTAssertEqual(SleepScore.score(asleepMinutes: 300, awakeMinutes: 10, deepRemMinutes: 20).score, 2)     // short night: judged on hours
-        XCTAssertEqual(SleepScore.score(asleepMinutes: 480).score, 5)                                           // no stage data: not judged
+    func testTheScoreNeverLeavesOneToFive() {
+        XCTAssertEqual(SleepScore.score(asleepMinutes: 100, awakeMinutes: 100, deepMinutes: 1, remMinutes: 1).score, 1)
+        XCTAssertEqual(SleepScore.score(asleepMinutes: 500, awakeMinutes: 5, deepMinutes: 90, remMinutes: 110).score, 5)
     }
 
-    func testAnAdequateNightWithGoodStagesIsNeverRaisedAboveItsDuration() {
-        XCTAssertEqual(SleepScore.score(asleepMinutes: 380, awakeMinutes: 5, deepRemMinutes: 150).score, 3)
+    func testStageQualityWithoutTimeAwakeSharesTheWeightBetweenDeepAndREM() {
+        XCTAssertEqual(SleepScore.stageQuality(asleep: 480, awake: nil, deep: 80, rem: 110), 1, accuracy: 1e-9)
+        XCTAssertEqual(SleepScore.stageQuality(asleep: 480, awake: nil, deep: 20, rem: 110), 0.5, accuracy: 1e-9)
     }
 
     func testANightIsScoredOnlyOnceTheMorningIsOver() {
@@ -105,12 +131,12 @@ final class SleepScoreSyncTests: XCTestCase {
 
     func testSleepStageMinutesSurviveBackup() throws {
         let context = try makeContext()
-        var h = HealthDay(day: today, sleepMinutes: 440, sleepAwakeMinutes: 30, sleepDeepRemMinutes: 130); h.sleepScore = 5
+        var h = HealthDay(day: today, sleepMinutes: 440, sleepAwakeMinutes: 30, sleepDeepMinutes: 70, sleepREMMinutes: 60); h.sleepScore = 5
         HealthSync.apply([h], to: context, topics: [.sleep], today: today)
         let data = try Backup.encode(try Backup.make(context))
         try DataReset.deleteAll(context)
         try Backup.restore(try Backup.decode(data), into: context)
         let back = try context.fetch(FetchDescriptor<DayLog>())[0]
-        XCTAssertEqual(back.healthSleepAwakeMinutes, 30); XCTAssertEqual(back.healthSleepDeepRemMinutes, 130); XCTAssertEqual(back.sleep, 5)
+        XCTAssertEqual(back.healthSleepAwakeMinutes, 30); XCTAssertEqual(back.healthSleepDeepMinutes, 70); XCTAssertEqual(back.healthSleepREMMinutes, 60); XCTAssertEqual(back.sleep, 5)
     }
 }

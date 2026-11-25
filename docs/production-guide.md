@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v17.0 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v18.0 and app version 1.0.0 (build 1).
 
 ---
 
@@ -49,6 +49,10 @@ Invariants the code keeps: every day belongs to exactly one campaign; there is a
 
 User preferences live in `UserDefaults` (via `@AppStorage`), keys in `SettingsKey`: units, trend smoothing, required trackers, theme, cycle and sick tracking, biofeedback overlay, campaign filter, weekly and daily reminder switches and times, and a few dismissal markers. They are included in the full backup.
 
+### Estimated maintenance
+
+`Maintenance` (pure, tested) replicates the workbook's TDEE: `series` walks the days from the first log, smoothing intake (a 14-day average of logged days, then an EMA with the weight's coefficient) and applying `1100 × weekly change in trend weight`; it starts after 10 days and updates only when weigh-ins are present on at least 5 of the last 10 days and calories on at least 7 (otherwise the estimate is carried: `waiting`/"Holding"). `estimate` returns the trend estimate, or a Mifflin-St Jeor formula estimate from `MaintenanceProfile` (UserDefaults, optional) when there isn't one, with `DataConfidence`. `WeekSummary` carries it; `SuggestionRules.assess` shows it as evidence, sizes a calorie move by the gap to the target pace (`min(weekly cap, max(50, rounded gap))`), keeps the target if the estimate and the scale disagree, and uses it in the low-target rule. `MaintenanceCard` draws it on the Dashboard. The thresholds are constants in `Maintenance.swift`; changing one means updating `MaintenanceTests` and probably `WeekSuggestionTests`.
+
 ### Apple Health
 
 `AppleHealth` reads from HealthKit (statistics queries for daily sums, a sample query for the day's last weigh-in, a workout query for strength training) and returns plain `HealthDay` values. `HealthSync.apply` merges them into `DayLog` using `HealthMerge`, which is pure and tested:
@@ -56,7 +60,7 @@ User preferences live in `UserDefaults` (via `@AppStorage`), keys in `SettingsKe
 - `DayLog.importedFields` and `overriddenFields` record where each value came from, and saving a Log edit (`DayDraft.apply`) moves a changed or cleared Health value to overridden;
 - zero or missing readings are never imported; future days are ignored; no record is created for a day with nothing.
 
-Besides the fields that merge (weight, calories and macros, water, steps, and the cycle's period flag), Health also fills read-only context on `DayLog`: `healthSleepMinutes`, `healthRestingHR`, `healthHRV`, `healthBodyFat`, `healthLeanKg`, `healthWorkoutMinutes`. Sleep is the union of asleep intervals per wake-up day, with time awake during the night and deep plus REM when stages exist. `SleepScore` (pure, tested) turns that into the 1 to 5 sleep rating: duration tiers, minus one at most for efficiency under 80% or deep plus REM under 20% (nights of 6 h or more), scored only after 11:00 on the night's own day. The score is a `HealthField.sleep` value, so it follows the same typed-wins and Sync rules as the other fields. Thresholds are constants in `SleepScore.swift`; changing one means updating `SleepScoreTests`. The cycle topic starts off and is dropped from a sync unless cycle tracking is on. Resting heart rate and HRV feed `WeekSummary` and can soften a good recovery reading and add a caution, never a target change.
+Besides the fields that merge (weight, calories and macros, water, steps, and the cycle's period flag), Health also fills read-only context on `DayLog`: `healthSleepMinutes`, `healthRestingHR`, `healthHRV`, `healthBodyFat`, `healthLeanKg`, `healthWorkoutMinutes`. Sleep is the union of asleep intervals per wake-up day, with time awake during the night and deep plus REM when stages exist. `SleepScore` (pure, tested) turns that into the 1 to 5 sleep rating: duration tiers, then a stage quality (unbroken, deep share, REM share, weighted 40/30/30) that adds one (nights of 6 h or more), nothing, or takes one or two off, with efficiency under 80% always costing at least one; scored only after 11:00 on the night's own day. Deep and REM minutes are stored separately (`healthSleepDeepMinutes`, `healthSleepREMMinutes`). The score is a `HealthField.sleep` value, so it follows the same typed-wins and Sync rules as the other fields. Thresholds are constants in `SleepScore.swift`; changing one means updating `SleepScoreTests`. The cycle topic starts off and is dropped from a sync unless cycle tracking is on. Resting heart rate and HRV feed `WeekSummary` and can soften a good recovery reading and add a caution, never a target change.
 
 `HealthSync.window` decides how far back a sync reads: the last `days` (7 by default; 30 on first connection; up to 365 on request), stretched back to an older day open on the Log screen. `HealthSettings.currentAuthVersion` is bumped whenever a release reads a new type; a connection whose stored version is lower calls `requestAuthorization` once (iOS prompts only for undecided types).
 
@@ -102,7 +106,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (200 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (220 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 

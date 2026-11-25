@@ -77,7 +77,8 @@ final class DayLog {
     var healthPromptDismissed: Bool = false   // the "rate today's training?" question was answered
     var healthSleepMinutes: Int?          // asleep time Health recorded; scored into the sleep rating
     var healthSleepAwakeMinutes: Int?     // awake time during the night, when Health has it
-    var healthSleepDeepRemMinutes: Int?   // deep plus REM, when Health has sleep stages
+    var healthSleepDeepMinutes: Int?      // deep sleep, when Health has sleep stages
+    var healthSleepREMMinutes: Int?       // REM sleep, when Health has sleep stages
     var healthRestingHR: Int?             // bpm
     var healthHRV: Int?                   // SDNN, ms
     var healthBodyFat: Double?            // percent

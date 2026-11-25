@@ -10,6 +10,10 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
     @AppStorage(SettingsKey.trackSick) private var trackSick = false
+    @AppStorage(MaintenanceProfile.sexKey) private var profileSex = ""
+    @AppStorage(MaintenanceProfile.ageKey) private var profileAge = 0
+    @AppStorage(MaintenanceProfile.heightKey) private var profileHeight = 0.0
+    @AppStorage(MaintenanceProfile.activityKey) private var profileActivity = MaintenanceProfile.Activity.light.rawValue
     @AppStorage(SettingsKey.reminderOn) private var reminderOn = false
     @AppStorage(SettingsKey.reminderWeekday) private var reminderWeekday = Reminders.defaultWeekday
     @AppStorage(SettingsKey.reminderMinutes) private var reminderMinutes = Reminders.defaultMinutes
@@ -65,6 +69,25 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(theme.muted)
                 }
                 .listRowBackground(theme.card)
+                Section {
+                    Picker("Sex", selection: $profileSex) {
+                        Text("Not set").tag("")
+                        ForEach(MaintenanceProfile.Sex.allCases) { Text($0.title).tag($0.rawValue) }
+                    }
+                    LabeledContent("Age") {
+                        TextField("years", value: $profileAge, format: .number.grouping(.never)).keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Height (cm)") {
+                        TextField("cm", value: $profileHeight, format: .number.precision(.fractionLength(0...1))).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                    }
+                    Picker("Activity", selection: $profileActivity) {
+                        ForEach(MaintenanceProfile.Activity.allCases) { Text($0.title).tag($0.rawValue) }
+                    }
+                } header: { Text("About you (optional)") } footer: {
+                    Text("Used only for a formula estimate of your maintenance calories until your own weight and calorie logs have built one, and to cross-check it. Stored only on this iPhone and never sent anywhere. The estimate is a starting point, not advice.")
+                }
+                .listRowBackground(theme.card)
+
                 Section("Trend") {
                     Picker("Weight smoothing", selection: $smoothing) {
                         ForEach([7, 10, 14, 16, 20], id: \.self) { Text("\($0)-day").tag($0) }

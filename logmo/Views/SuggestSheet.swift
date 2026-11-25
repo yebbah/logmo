@@ -9,6 +9,7 @@ struct SuggestSheet: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
     @AppStorage(SettingsKey.trackSick) private var trackSick = false
+    @AppStorage(SettingsKey.smoothing) private var smoothing = 16
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
@@ -34,7 +35,8 @@ struct SuggestSheet: View {
 
     private var summary: WeekSummary {
         SuggestionRules.summary(campaign: campaign, snaps: logs.map(\.snapshot), current: thisWeeksGoals, window: window,
-                                includeCycle: trackCycle && includeCycle, includeSick: trackSick && includeSick, today: today)
+                                includeCycle: trackCycle && includeCycle, includeSick: trackSick && includeSick, today: today,
+                                smoothingDays: smoothing, profile: MaintenanceProfile.load())
     }
 
     private var nextWeekLabel: String {
@@ -66,7 +68,8 @@ struct SuggestSheet: View {
                 chosenDefault = true
                 // This week so far when there is enough of it; otherwise look at last week.
                 window = SuggestionRules.hasEnoughData(SuggestionRules.summary(campaign: campaign, snaps: logs.map(\.snapshot), current: thisWeeksGoals,
-                            window: .thisWeekSoFar, includeCycle: false, includeSick: false, today: today)) ? .thisWeekSoFar : .lastWeek
+                            window: .thisWeekSoFar, includeCycle: false, includeSick: false, today: today,
+                            smoothingDays: smoothing, profile: MaintenanceProfile.load())) ? .thisWeekSoFar : .lastWeek
             }
         }
         .presentationDetents([.large])
@@ -91,6 +94,7 @@ struct SuggestSheet: View {
                 row("Campaign", "\(s.kind.title) · week \(s.weekNumber)" + (s.totalWeeks.map { " of \($0)" } ?? ""))
                 row("Weight trend", s.weightChangeKgPerWeek.map { String(format: "%+.2f kg a week", $0) } ?? "not enough weigh-ins", goal: "\(s.weighIns) weigh-ins, 21 days")
                 row("Calories", "\(s.avgCalories.map { $0.formatted() } ?? "—") a day", goal: s.current.caloriesWeekly.map { "goal \(($0 / 7).formatted())" })
+                if let m = s.estimatedMaintenance { row("Estimated maintenance", "\(m.formatted()) kcal a day", goal: s.maintenanceSource == .trend ? "from your logs" : "formula") }
                 row("Protein, carbs, fat", "\(s.avgProteinG.map(String.init) ?? "—") / \(s.avgCarbsG.map(String.init) ?? "—") / \(s.avgFatG.map(String.init) ?? "—") g")
                 row("Steps", "\(s.avgSteps.map { $0.formatted() } ?? "—") a day", goal: s.current.stepsDaily.map { "goal \($0.formatted())" })
                 row("Workouts", "\(s.workoutDays)", goal: s.current.workoutDaysWeekly.map { "goal \($0)" })

@@ -136,7 +136,7 @@ Choose what to look at with **Showing**: your current campaign, **Overall (all t
 - **The last action wins:** the automatic updates never overwrite what you typed, and if you change or clear an imported value, Health leaves it alone for that day. Pressing **Sync** on the Log screen is different: it replaces what you typed on the day you're viewing with Health's values. Type something afterwards and yours stands until you press Sync again. **Use Health's** under a field hands back just that field.
 - **Nothing is invented:** a zero or missing reading is never imported, and a day with no Health data stays empty.
 - **Strength workouts:** if Health recorded one and you haven't rated the day, logmo asks. **Rate it** takes you to the Training performance row; **Not a lifting day** marks training performance as n/a. It never rates for you.
-- **Sleep** is scored for you: Health only knows how long you slept, so logmo turns that into your **Sleep rating** from 1 to 5 (it shows as a Health value you can change). 7½ to 9½ hours is a 5; 6¾ to 7½ hours a 4; 6 to 6¾ hours a 3; 4½ to 6 hours a 2; under 4½ hours a 1. A night broken up by lots of waking, or with very little deep and REM sleep when your watch records stages, loses one point. The Log screen explains the score, for example "2 h 46 min asleep: 1 of 5". A night is scored after 11:00, and very short nights are flagged in case it's only a partial recording or a nap. It is an estimate from the numbers, not a measure of how rested you feel, so change it whenever it's off.
+- **Sleep** is scored for you: Health only knows how long you slept, so logmo turns that into your **Sleep rating** from 1 to 5 (it shows as a Health value you can change). 7½ to 9½ hours is a 5; 6¾ to 7½ hours a 4; 6 to 6¾ hours a 3; 4½ to 6 hours a 2; under 4½ hours a 1. If your watch records sleep stages, they count too: lots of waking, or very little deep and REM sleep, takes a point or two off, and a night with good deep and REM sleep and few wake-ups can add one (for nights of 6 hours or more). The Log screen explains the score, for example "2 h 46 min asleep: 1 of 5". A night is scored after 11:00, and very short nights are flagged in case it's only a partial recording or a nap. It is an estimate from the numbers, not a measure of how rested you feel, so change it whenever it's off.
 - **Cycle** fills "on your period" with Yes on days Health has menstrual flow recorded.
 - **Resting heart rate and HRV** go into the weekly suggestion as recovery context: if heart rate is up and HRV is down on the week before, it says so. They never change your targets on their own.
 - **Body fat and lean mass** show under your weight on the Log screen and as a Body composition card on the Dashboard, with the change since the first reading in the period.
@@ -144,7 +144,18 @@ Choose what to look at with **Showing**: your current campaign, **Overall (all t
 
 Imported values count for everything else exactly like typed ones: Still to log, goals, streaks, compliance, reminders and the weekly suggestion.
 
-## 12. Backup, export and deleting
+## 12. Estimated maintenance
+
+The **Estimated maintenance** card on the Dashboard shows roughly how many calories hold your weight steady, worked out from your own logs the same way your workbook does: your smoothed weight, what you eat, and how fast your trend is moving. If you're losing weight while eating 2,000 a day, maintenance has to be higher than 2,000, and the card says by how much.
+
+- **The card** shows the estimate with a status (**Updating**, **Holding** or **Formula**), your goal and how far below or above maintenance it is, what you're eating, a chart over time, and a table by week of goal, eaten and maintenance.
+- **It needs data:** about ten days of history, with a weigh-in on at least five of the last ten days and calories on at least seven. When logs are too thin it **holds** the last estimate rather than guessing, and a day you didn't log is never counted as zero.
+- **About you (optional):** in Settings → About you, add your sex, age, height and activity level. Until your own logs have built an estimate, logmo shows a formula estimate from these, and afterwards it uses it as a cross-check. It stays on your iPhone and is never sent anywhere.
+- **In the weekly suggestion,** maintenance is shown as evidence and used to size a calorie change and to make sure the change is going the right way. It never raises the weekly limit on how much a target can move.
+
+It's an estimate, not a measurement, and not medical advice. If it looks wrong, the usual cause is incomplete calorie or weigh-in logging.
+
+## 13. Backup, export and deleting
 
 **Settings → Backup**
 - **Save a full backup:** one file with all your logs, weekly goals, campaigns and settings. Keep it in Files or iCloud Drive. Do this regularly.
@@ -153,12 +164,12 @@ Imported values count for everything else exactly like typed ones: Still to log,
 
 **Delete all data** (bottom of Settings) removes every log, goal and campaign and starts fresh.
 
-## 13. Themes and units
+## 14. Themes and units
 
 - **Settings → Appearance → Theme:** Clean (light) or Midnight (dark).
 - **Settings → Units → Weight:** kilograms or pounds. Your data is stored in kg whichever you pick.
 
-## 14. Questions
+## 15. Questions
 
 **Is my data safe?** It's stored only on your iPhone. Nothing is uploaded and there's no account. Because of that, a lost or reset phone loses the data, so save a full backup now and then.
 

@@ -35,7 +35,12 @@ struct WeekSummary: Equatable {
     var weighSpanDays: Int                     // first to last weigh-in
     var weightNoiseKg: Double?                 // typical scatter of weigh-ins around the line
     var recentSlopePercent: Double?            // the last 7 days alone, to catch a recent change of direction
-    var estimatedMaintenance: Int?             // average intake adjusted for the weight trend; nil without both
+    var estimatedMaintenance: Int?             // estimated maintenance calories (TDEE), from the logs or the formula; nil without either
+    var maintenanceSource: MaintenanceSource?
+    var maintenanceStatus: MaintenanceStatus?  // updating: recent weigh-ins and calorie logs are enough to move it; waiting: held
+    var maintenanceConfidence: DataConfidence?
+    var formulaMaintenance: Int?               // from height, age, sex and activity, when set
+    var trendWeightKg: Double?                 // used here to size a calorie change; never shown or sent
     // Averages over the assessed window, and on how many days each was logged.
     var avgCalories: Int?
     var avgProteinG: Int?
@@ -140,7 +145,8 @@ enum SuggestionRules {
     // MARK: Building the facts
 
     static func summary(campaign c: CampaignInfo, snaps: [DaySnapshot], current: GoalSet?, window: AssessedWeek,
-                        includeCycle: Bool, includeSick: Bool, today: Date, calendar cal: Calendar = .current) -> WeekSummary {
+                        includeCycle: Bool, includeSick: Bool, today: Date, smoothingDays: Int = 16, profile: MaintenanceProfile? = nil,
+                        calendar cal: Calendar = .current) -> WeekSummary {
         let thisWeek = Metrics.weekStart(of: today, calendar: cal)
         let start = window == .thisWeekSoFar ? thisWeek : cal.date(byAdding: .day, value: -7, to: thisWeek)!
         let end = window == .thisWeekSoFar ? cal.startOfDay(for: today) : cal.date(byAdding: .day, value: -1, to: thisWeek)!
@@ -193,14 +199,16 @@ enum SuggestionRules {
         let hv = avgD(days) { $0.hrv }, hvPrev = avgD(before) { $0.hrv }
         let sleep = avgD(days) { $0.sleepMinutes }
         let calorieDays = count(\.calories)
-        var maintenance: Int?
-        if let a = avg(\.calories), let w = perWeek, calorieDays >= 3, span >= 7 { maintenance = Int((Double(a) - w * 1100).rounded()) }
+        let maintenance = Maintenance.estimate(snaps, through: end, smoothingDays: smoothingDays, profile: profile, calendar: cal)
+        let trendKg = Metrics.weightTrend(snaps, through: end, smoothingDays: smoothingDays, calendar: cal).last?.trendKg
 
         let met = days.filter { Metrics.dayGoalStatus(map[$0], goals: current).allMet }.count
         return WeekSummary(kind: c.kind, weekNumber: CampaignRules.weekNumber(c, today: today, calendar: cal), totalWeeks: c.plannedWeeks,
                            daysCovered: days.count, daysLogged: inWindow.filter { !$0.logged.isEmpty }.count,
                            weightChangeKgPerWeek: perWeek, weightChangePercentPerWeek: pct, weighIns: pts.count,
-                           weighSpanDays: Int(span), weightNoiseKg: noise, recentSlopePercent: recent, estimatedMaintenance: maintenance,
+                           weighSpanDays: Int(span), weightNoiseKg: noise, recentSlopePercent: recent, estimatedMaintenance: maintenance?.kcalPerDay,
+                           maintenanceSource: maintenance?.source, maintenanceStatus: maintenance?.status, maintenanceConfidence: maintenance?.confidence,
+                           formulaMaintenance: maintenance?.formulaKcal, trendWeightKg: trendKg,
                            avgCalories: avg(\.calories), avgProteinG: avg(\.proteinG), avgCarbsG: avg(\.carbsG), avgFatG: avg(\.fatG),
                            avgSteps: avg(\.steps), calorieDays: calorieDays, proteinDays: count(\.proteinG), stepsDays: count(\.steps),
                            ratingDays: inWindow.filter { !$0.ratings.isEmpty }.count,
@@ -286,6 +294,26 @@ enum SuggestionRules {
             evidence.append("Protein averaged \(p) g against a goal of \(gp) g (\(s.proteinDays) days logged).")
         }
 
+        // Estimated maintenance (TDEE): from the logs when they have built one, else the formula as a starting point.
+        let maintenance = s.estimatedMaintenance
+        let trendMaintenance = s.maintenanceSource == .trend && (s.maintenanceConfidence ?? .low) >= .medium
+        if let m = maintenance {
+            let compare = goalCal.map { g -> String in
+                let pct = Int((abs(1 - Double(g) / Double(m)) * 100).rounded())
+                return pct < 2 ? ", so your goal of \(fmt(g)) is about at maintenance" : ", so your goal of \(fmt(g)) is about \(pct)% \(g < m ? "below" : "above") it"
+            } ?? ""
+            if s.maintenanceSource == .trend {
+                evidence.append("Your estimated maintenance is about \(fmt(m)) kcal a day, worked out from your weight trend and what you ate"
+                                + (s.maintenanceStatus == .updating ? "" : " (held from earlier, because recent logs are thin)") + compare + ".")
+            } else {
+                evidence.append("A formula estimate from your height, age, sex and activity puts maintenance near \(fmt(m)) kcal a day" + compare
+                                + ". It is a starting point until your own logs build an estimate.")
+            }
+            if s.maintenanceSource == .trend, let f = s.formulaMaintenance, Double(abs(f - m)) > 0.25 * Double(f) {
+                cautions.append("The estimate from your logs (\(fmt(m))) and the formula (\(fmt(f))) are far apart. That can mean logged intake or weigh-ins are incomplete.")
+            }
+        }
+
         // Adherence: is the user following the plan?
         var met: [Bool] = []
         if conf.nutrition >= .medium, intake != .unknown { met.append(intake == .near) }
@@ -359,7 +387,7 @@ enum SuggestionRules {
         var delta = 0
         let need: Int = rate == .aboveBand ? -1 : (rate == .belowBand ? 1 : 0)
         let lowTarget = baseCal < lowCalorieThreshold
-            || (conf.forCalories >= .medium && s.estimatedMaintenance.map { Double(baseCal) < (1 - maxDeficitFromMaintenance) * Double($0) } == true)
+            || (maintenance.map { Double(baseCal) < (1 - maxDeficitFromMaintenance) * Double($0) } == true && (trendMaintenance || s.maintenanceSource == .formula))
         let recentDisagrees: Bool = {
             guard let rp = s.recentSlopePercent, let pct = s.weightChangePercentPerWeek else { return false }
             return (rp > band.upperBound) != (pct > band.upperBound) || (rp < band.lowerBound) != (pct < band.lowerBound)
@@ -372,7 +400,22 @@ enum SuggestionRules {
             } else if recentDisagrees {
                 cautions.append("The last 7 days point a different way from the longer trend, so the target stays while that settles.")
             } else if intake == .near {
-                delta = need * step(s.kind, need: need, pct: s.weightChangePercentPerWeek ?? 0, band: band)
+                var size = step(s.kind, need: need, pct: s.weightChangePercentPerWeek ?? 0, band: band)
+                // With a trustworthy maintenance estimate, size the move by where the target would need to be for the pace
+                // this campaign aims for, and never by more than the weekly limit.
+                if trendMaintenance, let m = maintenance, let tw = s.trendWeightKg {
+                    let aimKgPerWeek = (band.lowerBound + band.upperBound) / 2 / 100 * tw
+                    let wanted = Double(m) + aimKgPerWeek * Maintenance.kcalPerKgPerWeekAsDaily
+                    let gap = wanted - Double(baseCal)
+                    if gap * Double(need) > 0 {
+                        size = min(size, max(50, Int((abs(gap) / 50).rounded()) * 50))
+                        evidence.append("To reach about \(String(format: "%+.1f", (band.lowerBound + band.upperBound) / 2))% a week from that maintenance, a target near \(fmt(Int((wanted / 10).rounded()) * 10)) would do it. Moving \(size) now keeps the change gradual.")
+                    } else {
+                        size = 0
+                        cautions.append("Your estimated maintenance suggests your target already sits where this campaign's pace would put it, so the scale and the estimate disagree. The target stays until more data settles it.")
+                    }
+                }
+                delta = need * size
             } else if (need < 0 && intake == .over) || (need > 0 && intake == .under) {
                 cautions.append("Your intake has been \(intake == .over ? "above" : "below") your target, which by itself could explain the scale. The target may be fine; following it more closely comes first.")
             } else if intake != .unknown {

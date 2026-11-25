@@ -30,38 +30,38 @@ struct PlanPromptBanner: View {
     }
 
     private func box(tint: Color, icon: String, title: String, text: String, keep: String?, change: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Image(systemName: icon).foregroundStyle(tint)
-                VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: icon).foregroundStyle(tint).font(.title3)
+                VStack(alignment: .leading, spacing: 6) {
                     Text(title).font(.headline)
-                    Text(text).font(.caption).foregroundStyle(theme.muted)
+                    Text(text).font(.subheadline).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 if let keep { pill(keep, filled: false, action: onKeep) }
                 pill(change, filled: true, action: onChange)
             }
             if let onSuggest {
                 Button(action: onSuggest) {
                     Label("Suggest next week", systemImage: "sparkles").font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity).padding(.vertical, 9)
-                        .foregroundStyle(theme.accent).background(theme.card, in: RoundedRectangle(cornerRadius: 10))
+                        .frame(maxWidth: .infinity, minHeight: 24).padding(.vertical, 12)
+                        .foregroundStyle(theme.accent).background(theme.card, in: RoundedRectangle(cornerRadius: 12))
                 }.buttonStyle(.plain)
             }
         }
-        .padding(14)
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func pill(_ title: String, filled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity).padding(.vertical, 9)
+            Text(title).font(.subheadline.weight(.semibold)).lineLimit(2).multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: 24).padding(.vertical, 12).padding(.horizontal, 8)
                 .foregroundStyle(filled ? theme.onAccent : theme.accent)
-                .background(filled ? theme.accent : theme.card, in: RoundedRectangle(cornerRadius: 10))
+                .background(filled ? theme.accent : theme.card, in: RoundedRectangle(cornerRadius: 12))
         }.buttonStyle(.plain)
     }
 }
