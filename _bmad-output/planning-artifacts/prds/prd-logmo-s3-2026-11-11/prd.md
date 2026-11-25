@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 20.8
+version: 20.9
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v20.8)
+# logmo: Product Requirements (v20.9)
 
 ## Vision and outcome
 
@@ -301,7 +301,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D46 | A new campaign can start up to a year ahead; an upcoming campaign counts as the one real campaign and can be cancelled | Decided |
 | D47 | Protein intake follows the weigh-ins range selector and is no longer its own card (superseded by D139) | Decided: the user asked for it |
 | D48 | The app icon and in-app logo come from the supplied logo sheet (kept in `design/`), redrawn at 1024 px | Decided |
-| D49 | App version starts at 1.0.0 (build 1) | Assumption: bump `MARKETING_VERSION` in project.yml per release |
+| D49 | App version starts at 1.0.0 (build 1); the build rises with every push (D140) | Assumption: bump `MARKETING_VERSION` in project.yml per release |
 | D50 | A campaign can carry an optional label; the name shown is the label or "Campaign N · Type", always followed by its dates, which are worked out from the campaign and so change if it is ended early | Decided: the user asked for it |
 | D51 | Compliance per campaign is shown on the Campaigns tab (look back), not on the Streaks tab, which keeps only the 7-day and 30-day compliance | Decided: the user chose a Campaigns tab over a Streaks-tab list |
 | D52 | A fifth tab, Campaigns, holds starting, ending, cancelling, renaming and the goals entry for campaigns; Settings no longer has "Goals and campaigns" | Decided |
@@ -392,3 +392,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D137 | The days-left badge sits at the right end of the week line, not in the navigation bar: any navigation-bar item adds an empty row above the large title | Decided: the user disliked the empty space (seen in the simulator); the Dashboard top now matches the other tabs |
 | D138 | Repeat for the weeks after replaces weeks already set or confirmed, instead of skipping them | Decided: the user repeated an edited water goal over four weeks and only the edited week changed, because the others had been confirmed earlier and were silently skipped |
 | D139 | The protein ring is removed from the Dashboard; each week of the weekly plan shows the days its protein goal was reached, next to the weight trend and its change | Decided: the user found it confusing under the weigh-ins range chips and asked for it in the weekly plan |
+| D140 | Every push to main raises the build number by one and adds an entry to docs/changelog.md (by build, with the PRD version it was made to); the version stays 1.0.0 until a release is named | Decided: the user asked, so builds on the phones can be told apart |
