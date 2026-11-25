@@ -7,13 +7,21 @@ final class HealthMergeTests: XCTestCase {
     var today: Date { cal.startOfDay(for: Date()) }
     let all = HealthMerge.enabledFields(Set(HealthTopic.allCases))
 
+    /// A merge with the overridden set passed by value, as most tests want.
+    @discardableResult
+    func merge(_ h: HealthDay, _ v: inout HealthFieldValues, _ imp: inout Set<HealthField>, overridden: Set<HealthField> = [],
+               enabled: Set<HealthField>? = nil, overwriting: Bool = false) -> Bool {
+        var o = overridden
+        return HealthMerge.merge(h, into: &v, imported: &imp, overridden: &o, enabled: enabled ?? all, overwriting: overwriting)
+    }
+
     func health(weight: Double? = nil, steps: Int? = nil, water: Int? = nil, kcal: Int? = nil, protein: Int? = nil, carbs: Int? = nil, fat: Int? = nil) -> HealthDay {
         HealthDay(day: today, weightKg: weight, steps: steps, waterMl: water, calories: kcal, proteinG: protein, carbsG: carbs, fatG: fat)
     }
 
     func testHealthFillsEmptyFieldsAndMarksThemImported() {
         var v = HealthFieldValues(); var imp = Set<HealthField>()
-        XCTAssertTrue(HealthMerge.merge(health(weight: 81.4, steps: 9420, kcal: 2050, protein: 148), into: &v, imported: &imp, overridden: [], enabled: all))
+        XCTAssertTrue(merge(health(weight: 81.4, steps: 9420, kcal: 2050, protein: 148), &v, &imp, overridden: [], enabled: all))
         XCTAssertEqual(v.weightKg, 81.4); XCTAssertEqual(v.steps, 9420); XCTAssertEqual(v.calories, 2050); XCTAssertEqual(v.proteinG, 148)
         XCTAssertEqual(imp, [.weight, .steps, .calories, .protein])
         XCTAssertNil(v.waterMl)                                                    // Health had none: stays empty, never zero
@@ -21,39 +29,63 @@ final class HealthMergeTests: XCTestCase {
 
     func testImportedValuesKeepUpdatingWhileTheDayIsOpen() {
         var v = HealthFieldValues(); var imp = Set<HealthField>()
-        HealthMerge.merge(health(steps: 3000), into: &v, imported: &imp, overridden: [], enabled: all)
-        XCTAssertTrue(HealthMerge.merge(health(steps: 7200), into: &v, imported: &imp, overridden: [], enabled: all))
+        merge(health(steps: 3000), &v, &imp, overridden: [], enabled: all)
+        XCTAssertTrue(merge(health(steps: 7200), &v, &imp, overridden: [], enabled: all))
         XCTAssertEqual(v.steps, 7200)
-        XCTAssertFalse(HealthMerge.merge(health(steps: 7200), into: &v, imported: &imp, overridden: [], enabled: all))   // nothing new
+        XCTAssertFalse(merge(health(steps: 7200), &v, &imp, overridden: [], enabled: all))   // nothing new
     }
 
     func testWhatTheUserTypedIsNeverOverwritten() {
         var v = HealthFieldValues(weightKg: 82.0); var imp = Set<HealthField>()
-        XCTAssertFalse(HealthMerge.merge(health(weight: 81.4), into: &v, imported: &imp, overridden: [], enabled: all))
+        XCTAssertFalse(merge(health(weight: 81.4), &v, &imp, overridden: [], enabled: all))
         XCTAssertEqual(v.weightKg, 82.0); XCTAssertTrue(imp.isEmpty)
     }
 
     func testAHealthValueTheUserTypedOverStaysTheirs() {
         var v = HealthFieldValues(weightKg: 82.0); var imp = Set<HealthField>()
-        XCTAssertFalse(HealthMerge.merge(health(weight: 81.4), into: &v, imported: &imp, overridden: [.weight], enabled: all))
+        XCTAssertFalse(merge(health(weight: 81.4), &v, &imp, overridden: [.weight], enabled: all))
         XCTAssertEqual(v.weightKg, 82.0)
         // and even when the user cleared it
         var empty = HealthFieldValues()
-        XCTAssertFalse(HealthMerge.merge(health(weight: 81.4), into: &empty, imported: &imp, overridden: [.weight], enabled: all))
+        XCTAssertFalse(merge(health(weight: 81.4), &empty, &imp, overridden: [.weight], enabled: all))
         XCTAssertNil(empty.weightKg)
     }
 
     func testZeroAndMissingAreNeverImported() {
         var v = HealthFieldValues(); var imp = Set<HealthField>()
-        XCTAssertFalse(HealthMerge.merge(health(weight: 0, steps: 0, water: 0, kcal: 0), into: &v, imported: &imp, overridden: [], enabled: all))
+        XCTAssertFalse(merge(health(weight: 0, steps: 0, water: 0, kcal: 0), &v, &imp, overridden: [], enabled: all))
         XCTAssertEqual(v, HealthFieldValues())
     }
 
     func testOnlyTheSwitchedOnTopicsAreImported() {
         var v = HealthFieldValues(); var imp = Set<HealthField>()
         let fields = HealthMerge.enabledFields([.steps])
-        HealthMerge.merge(health(weight: 81.4, steps: 9000, kcal: 2000), into: &v, imported: &imp, overridden: [], enabled: fields)
+        merge(health(weight: 81.4, steps: 9000, kcal: 2000), &v, &imp, overridden: [], enabled: fields)
         XCTAssertEqual(v.steps, 9000); XCTAssertNil(v.weightKg); XCTAssertNil(v.calories)
+    }
+
+    func testSyncOverwritesWhatWasTyped_andTheLastActionWins() {
+        var v = HealthFieldValues(weightKg: 82.0, steps: 4000); var imp = Set<HealthField>(); var over: Set<HealthField> = [.weight]
+        // The user pressed Sync: Health replaces the typed weight, even one they had typed over before.
+        XCTAssertTrue(HealthMerge.merge(health(weight: 81.4, steps: 9000), into: &v, imported: &imp, overridden: &over, enabled: all, overwriting: true))
+        XCTAssertEqual(v.weightKg, 81.4); XCTAssertEqual(v.steps, 9000)
+        XCTAssertEqual(imp, [.weight, .steps]); XCTAssertTrue(over.isEmpty)
+        // They then type a new weight: that is the later action, so it stands against a normal refresh.
+        let old = v; v.weightKg = 82.5
+        HealthMerge.markEdits(old: old, new: v, imported: &imp, overridden: &over)
+        XCTAssertFalse(HealthMerge.merge(health(weight: 81.4), into: &v, imported: &imp, overridden: &over, enabled: all))
+        XCTAssertEqual(v.weightKg, 82.5)
+        // Pressing Sync again is later still, so Health wins again.
+        XCTAssertTrue(HealthMerge.merge(health(weight: 81.4), into: &v, imported: &imp, overridden: &over, enabled: all, overwriting: true))
+        XCTAssertEqual(v.weightKg, 81.4)
+    }
+
+    func testOverwriteLeavesFieldsHealthHasNothingFor() {
+        var v = HealthFieldValues(weightKg: 82.0, waterMl: 1800); var imp = Set<HealthField>()
+        merge(health(steps: 9000), &v, &imp, overwriting: true)
+        XCTAssertEqual(v.weightKg, 82.0); XCTAssertEqual(v.waterMl, 1800); XCTAssertEqual(v.steps, 9000)
+        merge(health(weight: 0, water: 0), &v, &imp, overwriting: true)                      // zero is no reading
+        XCTAssertEqual(v.weightKg, 82.0); XCTAssertEqual(v.waterMl, 1800)
     }
 
     func testEditingAnImportedFieldMakesItTheUsers() {
@@ -111,6 +143,20 @@ final class HealthSyncTests: XCTestCase {
         XCTAssertEqual(log.steps, 4000); XCTAssertEqual(log.overridden, [.steps]); XCTAssertTrue(log.imported.isEmpty)
         HealthSync.apply([HealthDay(day: today, steps: 9000)], to: context, topics: topics, today: today)
         XCTAssertEqual(log.steps, 4000)
+    }
+
+    func testPressingSyncOverwritesTheViewedDayOnly() throws {
+        let context = try makeContext()
+        let log = DayLog(day: today); log.weightKg = 82.0; log.steps = 4000; context.insert(log)
+        let yesterday = DayLog(day: day(1)); yesterday.weightKg = 83.0; context.insert(yesterday); try context.save()
+        let h = [HealthDay(day: today, weightKg: 81.4, steps: 9000), HealthDay(day: day(1), weightKg: 80.9)]
+        HealthSync.apply(h, to: context, topics: topics, today: today, overwriteDay: today)
+        XCTAssertEqual(log.weightKg, 81.4); XCTAssertEqual(log.steps, 9000)
+        XCTAssertEqual(yesterday.weightKg, 83.0)                                         // another day keeps what was typed
+        // A normal refresh afterwards does not undo a later manual edit.
+        var d = DayDraft(log, unit: .kg); d.weight = "82.5"; d.apply(to: log, unit: .kg)
+        HealthSync.apply(h, to: context, topics: topics, today: today)
+        XCTAssertEqual(log.weightKg, 82.5)
     }
 
     func testStrengthWorkoutMinutesAreRecordedForTheQuestion() throws {

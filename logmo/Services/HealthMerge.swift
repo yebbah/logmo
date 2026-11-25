@@ -112,13 +112,17 @@ enum HealthMerge {
 
     /// Bring Health's values into a day. What the user typed always wins: a field is taken only if it is empty or is
     /// already a Health value, and never if the user typed over Health's value (`overridden`). Returns whether anything changed.
+    ///
+    /// With `overwriting` (the user pressed Sync for this day) the last action wins: Health's value replaces what was
+    /// typed, and the field goes back to being a Health value. Fields Health has no reading for are left alone.
     @discardableResult
     static func merge(_ h: HealthDay, into v: inout HealthFieldValues, imported: inout Set<HealthField>,
-                      overridden: Set<HealthField>, enabled: Set<HealthField>) -> Bool {
+                      overridden: inout Set<HealthField>, enabled: Set<HealthField>, overwriting: Bool = false) -> Bool {
         var changed = false
-        for f in HealthField.allCases where enabled.contains(f) && !overridden.contains(f) {
+        for f in HealthField.allCases where enabled.contains(f) && (overwriting || !overridden.contains(f)) {
             guard let hv = value(f, in: h) else { continue }
-            guard !v.isSet(f) || imported.contains(f) else { continue }          // typed by the user: theirs stays
+            guard overwriting || !v.isSet(f) || imported.contains(f) else { continue }          // typed by the user: theirs stays
+            if overridden.contains(f) { overridden.remove(f); changed = true }
             let before = v
             switch f {
             case .weight: v.weightKg = hv

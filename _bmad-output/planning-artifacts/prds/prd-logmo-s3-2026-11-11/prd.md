@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 15.0
+version: 15.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v15.0)
+# logmo: Product Requirements (v15.1)
 
 ## Vision and outcome
 
@@ -192,10 +192,10 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 - **Connect.** A **Connect Apple Health** button asks iOS for read access; iOS asks one type at a time. A type the user declines looks the same as no data, so the screen says where to check (Health → Sharing → Apps → logmo) and offers **Open Health settings**. **Disconnect** stops updates and leaves imported values in the logs.
 - **What comes in (first release).** Each can be switched on or off: **Weight** (the day's last body-mass reading), **Steps** (the day's total), **Water**, **Food** (calories, protein, carbs, fat; needs a nutrition app that writes to Health), and **Strength workouts** (traditional or functional strength training). Sleep, cycle, heart rate and HRV, and body composition are listed as planned, not built.
 - **When it updates.** On app start, whenever the app comes to the foreground, when the Log screen opens, with **Update now** in Settings, and with a **Sync** button on the Log screen showing when it last updated. The last seven days are refreshed, so steps and food keep updating while the day is open.
-- **Typed values win.** A field is filled from Health only if it is empty or already holds a Health value. A value the user typed is never overwritten. If the user changes or clears a Health value it becomes theirs and Health stops touching it for that day; **Use Health's** on the field hands it back (clears it and fills it from Health).
+- **The last action wins.** The automatic refreshes (on start, on coming forward, when the Log screen opens) fill a field only if it is empty or already holds a Health value, so they never overwrite what the user typed. If the user changes or clears a Health value it becomes theirs and those refreshes leave it alone for that day. Pressing **Sync** on the Log screen is an explicit action: it **overwrites the typed values of the day on screen** with Health's (for every field Health has a reading for), after saving any edit still being typed. Typing afterwards is later still, so it stands until the next press of Sync. **Update now** in Settings is a general refresh and does not overwrite typed values; **Use Health's** on a field hands back just that field.
 - **Never zero.** A reading of zero or no reading is not imported; a day with no Health data stays empty and no record is created for it. Future days are ignored.
 - **On the Log screen.** An imported field shows a small **Health** mark; an overridden one shows **Edited by you** and **Use Health's**. Imported values count for Still to log, goals, streaks, compliance, the daily reminder and the weekly suggestion exactly like typed ones (so the suggestion's logging coverage and confidence improve when Health fills gaps).
-- **Strength workouts ask, they don't guess.** When Health recorded a strength workout on a day with no training performance rating, the Log screen asks: **Rate it** (scrolls to the check-in) or **Not a lifting day** (marks training performance n/a). Nothing is rated automatically.
+- **Strength workouts ask, they don't guess.** When Health recorded a strength workout on a day with no training performance rating, the Log screen asks: **Rate it** (closes the question, scrolls to the Training performance row and tints it briefly) or **Not a lifting day** (marks training performance n/a). Nothing is rated automatically.
 - **Backup.** Which fields came from Health, and which the user typed over, are in the full backup; the values themselves are already in the logs.
 
 ## Extensibility (provisions, not features)
@@ -328,3 +328,5 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D96 | A zero or missing reading is never imported, and no record is created for a day with nothing from Health | Decided: matches the rule that missing is not zero |
 | D97 | A strength workout in Health prompts a question about training performance; it is never rated automatically | Decided |
 | D98 | Health imports are on a per-type switch; sleep, cycle, heart rate and HRV, and body composition are left for later | Decided |
+| D99 | Pressing Sync on the Log screen overwrites typed values for the day shown; automatic refreshes and Update now never overwrite typed values | Decided: the user asked that the last action, sync or manual entry, counts |
+| D100 | A manual edit made after a sync stands against automatic refreshes until Sync is pressed again | Decided |

@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v15.0 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v15.1 and app version 1.0.0 (build 1).
 
 ---
 
@@ -52,7 +52,7 @@ User preferences live in `UserDefaults` (via `@AppStorage`), keys in `SettingsKe
 ### Apple Health
 
 `AppleHealth` reads from HealthKit (statistics queries for daily sums, a sample query for the day's last weigh-in, a workout query for strength training) and returns plain `HealthDay` values. `HealthSync.apply` merges them into `DayLog` using `HealthMerge`, which is pure and tested:
-- a field is filled only if empty or already a Health value; typed values are never overwritten;
+- a normal refresh fills a field only if empty or already a Health value, so typed values are not overwritten; the Log screen's **Sync** button passes `overwriteDay`, which makes Health's values replace typed ones for that day only (`HealthMerge.merge(... overwriting: true)`), after flushing any half-typed edit;
 - `DayLog.importedFields` and `overriddenFields` record where each value came from, and saving a Log edit (`DayDraft.apply`) moves a changed or cleared Health value to overridden;
 - zero or missing readings are never imported; future days are ignored; no record is created for a day with nothing.
 
@@ -98,7 +98,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (178 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (181 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 

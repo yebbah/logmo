@@ -130,7 +130,7 @@ enum HealthSync {
 
     /// Pull the last week from Health (when connected and at least `minInterval` seconds since the last pull) and merge it.
     @discardableResult
-    static func sync(_ context: ModelContext, force: Bool = false, minInterval: TimeInterval = 20, days: Int = 7, now: Date = Date()) async -> Bool {
+    static func sync(_ context: ModelContext, force: Bool = false, overwriteDay: Date? = nil, minInterval: TimeInterval = 20, days: Int = 7, now: Date = Date()) async -> Bool {
         let d = UserDefaults.standard
         guard d.bool(forKey: HealthSettings.connected), AppleHealth.isAvailable else { return false }
         if !force, let last = lastSync, now.timeIntervalSince(last) < minInterval { return false }
@@ -139,14 +139,15 @@ enum HealthSync {
         let start = cal.date(byAdding: .day, value: -(days - 1), to: today)!
         let topics = HealthSettings.topics(d)
         let fetched = await AppleHealth.days(from: start, to: today, topics: topics)
-        apply(fetched, to: context, topics: topics, today: today)
+        apply(fetched, to: context, topics: topics, today: today, overwriteDay: overwriteDay)
         d.set(now.timeIntervalSince1970, forKey: HealthSettings.lastSync)
         await DailyReminder.refresh(context)
         return true
     }
 
     /// The merge, separate from the fetching so it can be tested without Health.
-    static func apply(_ days: [HealthDay], to context: ModelContext, topics: Set<HealthTopic>, today: Date) {
+    /// `overwriteDay`: the day the user pressed Sync on; Health's values replace what was typed there (last action wins).
+    static func apply(_ days: [HealthDay], to context: ModelContext, topics: Set<HealthTopic>, today: Date, overwriteDay: Date? = nil) {
         let cal = Calendar.current
         let logs = (try? context.fetch(FetchDescriptor<DayLog>())) ?? []
         let enabled = HealthMerge.enabledFields(topics)
@@ -157,12 +158,15 @@ enum HealthSync {
             let log = existing ?? DayLog(day: day)
             var values = log.healthValues
             var imported = log.imported
-            let changed = HealthMerge.merge(h, into: &values, imported: &imported, overridden: log.overridden, enabled: enabled)
+            var overridden = log.overridden
+            let overwrite = overwriteDay.map { cal.isDate($0, inSameDayAs: day) } ?? false
+            let changed = HealthMerge.merge(h, into: &values, imported: &imported, overridden: &overridden, enabled: enabled, overwriting: overwrite)
             var workout = false
             if topics.contains(.workouts), let m = h.strengthMinutes, log.healthWorkoutMinutes != m { log.healthWorkoutMinutes = m; workout = true }
             guard changed || workout else { continue }
             log.healthValues = values
             log.imported = imported
+            log.overridden = overridden
             log.updatedAt = Date()
             if existing == nil { context.insert(log) }
             touched = true

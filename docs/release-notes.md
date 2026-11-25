@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 1)**, built to PRD v15.0, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 1)**, built to PRD v15.1, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -39,7 +39,7 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 ### Apple Health (read only)
 - **Settings → Connections → Apple Health:** connect, and switch on weight, steps, water, food and strength workouts. logmo never writes to Health.
 - **Updates** on app start, when the app comes forward, when the Log screen opens, and with **Sync** and **Update now** buttons; steps and food keep updating while the day is open.
-- **Typed values win.** Imported fields show a **Health** mark; change or clear one and it is yours (**Use Health's** hands it back). Zero or missing readings are never imported.
+- **The last action wins.** Automatic updates never overwrite what you typed; **Sync** on the Log screen replaces what you typed on that day with Health's values. Imported fields show a **Health** mark; **Use Health's** hands one field back. Zero or missing readings are never imported.
 - **Strength workouts ask** whether to rate the day or mark it not a lifting day; nothing is rated automatically.
 - Imported values count for goals, streaks, compliance, reminders and the weekly suggestion like typed ones.
 

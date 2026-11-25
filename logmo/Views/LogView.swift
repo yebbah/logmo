@@ -86,6 +86,7 @@ struct LogView: View {
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
     @AppStorage(HealthSettings.connected) private var healthConnected = false
     @State private var syncing = false
+    @State private var highlightPerformance = false
     @State private var lastSyncShown: Date? = HealthSync.lastSync
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
@@ -270,7 +271,6 @@ struct LogView: View {
                 }
 
                 Section("Check-in (1–5, tap again to clear)") {
-                    Color.clear.frame(height: 0).id("checkin").listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     // Training performance comes last: it is the one that can be "not a lifting day".
                     ForEach(checkInOrder) { r in
                         RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r],
@@ -283,6 +283,7 @@ struct LogView: View {
                                       draft.performanceNA.toggle()
                                       if draft.performanceNA { draft.ratings[.performance] = nil }
                                   })
+                        .listRowBackground(r == .performance && highlightPerformance ? theme.accent.opacity(0.16) : theme.card)
                     }
                 }
                 .listRowBackground(theme.card)
@@ -301,7 +302,15 @@ struct LogView: View {
                 }
             }
             .sheet(isPresented: $showPicker) { datePickerSheet }
-            .onAppear { load(date); syncHealth() }
+            .onAppear {
+                load(date); syncHealth()
+                #if DEBUG
+                // Debug aid for screenshots: -rateIt 1 acts as if "Rate it" had been tapped
+                if UserDefaults.standard.bool(forKey: "rateIt") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) { if let log = existing(date) { startRating(log, proxy) } }
+                }
+                #endif
+            }
             .onChange(of: existing(date)?.updatedAt) { _, _ in if draft == baseline { load(date) } }     // a Health update arrived while viewing
             .onChange(of: date) { old, new in save(day: old); load(new) }
             .onChange(of: scenePhase) { _, phase in if phase != .active { save() } }
@@ -404,14 +413,29 @@ struct LogView: View {
         syncHealth(force: true)
     }
 
-    private func syncHealth(force: Bool = false) {
+    /// `overwrite`: the user pressed Sync, so Health's values replace what was typed on this day (the last action wins).
+    private func syncHealth(force: Bool = false, overwrite: Bool = false) {
         guard healthConnected, !syncing else { return }
+        if overwrite { save() }                                  // a half-typed edit is saved first, so this sync is the later action
         syncing = true
+        let day = date
         Task {
-            await HealthSync.sync(context, force: force)
+            await HealthSync.sync(context, force: force, overwriteDay: overwrite ? day : nil)
             lastSyncShown = HealthSync.lastSync
             syncing = false
             if draft == baseline { load(date) }
+        }
+    }
+
+    /// "Rate it": dismiss the question, scroll to the training performance row once the banner has gone, and tint it briefly.
+    private func startRating(_ log: DayLog, _ proxy: ScrollViewProxy) {
+        log.healthPromptDismissed = true
+        try? context.save()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            // the row's ForEach id: a List knows these even before the row is on screen
+            withAnimation { proxy.scrollTo(Rating.performance.id, anchor: .center) }
+            withAnimation { highlightPerformance = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { withAnimation { highlightPerformance = false } }
         }
     }
 
@@ -426,7 +450,7 @@ struct LogView: View {
                             .font(.caption).foregroundStyle(theme.muted)
                     }
                     Spacer()
-                    Button { syncHealth(force: true) } label: {
+                    Button { syncHealth(force: true, overwrite: true) } label: {
                         if syncing { ProgressView() } else { Label("Sync", systemImage: "arrow.triangle.2.circlepath") }
                     }
                     .buttonStyle(.bordered).disabled(syncing)
@@ -450,9 +474,7 @@ struct LogView: View {
                             draft.performanceNA = true; draft.ratings[.performance] = nil
                             log.healthPromptDismissed = true; try? context.save()
                         }.buttonStyle(.bordered).frame(maxWidth: .infinity)
-                        Button("Rate it") {
-                            log.healthPromptDismissed = true; try? context.save()
-                            withAnimation { proxy.scrollTo("checkin", anchor: .top) }
+                        Button("Rate it") { startRating(log, proxy)
                         }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity)
                     }
                 }
