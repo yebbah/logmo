@@ -27,8 +27,16 @@ struct CampaignInfo: Identifiable, Equatable {
     var plannedWeeks: Int? = nil       // nil for a default campaign (open-ended)
     var end: Date? = nil               // last day, inclusive; nil = still open
     var endedEarly: Bool = false
+    var label: String? = nil           // the user's own name for it, optional
 
+    /// The standard name, used when there is no label.
     var title: String { "Campaign \(number) · \(kind.title)\(isDefault ? " (default)" : "")" }
+
+    /// What to call it: the label if there is one, else the standard name.
+    var name: String {
+        let l = label?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return l.isEmpty ? title : l
+    }
 }
 
 enum CampaignError: Error, Equatable {
@@ -58,6 +66,32 @@ enum CampaignRules {
     /// A campaign that has been planned but hasn't started yet.
     static func isUpcoming(_ c: CampaignInfo, today: Date, calendar cal: Calendar = .current) -> Bool {
         c.start > cal.startOfDay(for: today)
+    }
+
+    /// The dates a campaign covers, worked out from its settings so it follows any change:
+    /// "29 Oct – 23 Dec" (to the planned last day while it runs, to the actual last day once ended,
+    /// so ending early updates it), or "since 11 Nov" for an open-ended default. A year is added
+    /// for dates outside the current year.
+    static func periodText(_ c: CampaignInfo, today: Date = Date(), calendar cal: Calendar = .current) -> String {
+        let thisYear = cal.component(.year, from: today)
+        func f(_ d: Date) -> String {
+            var style = Date.FormatStyle(timeZone: cal.timeZone).day().month(.abbreviated)
+            if cal.component(.year, from: d) != thisYear { style = style.year() }
+            return d.formatted(style)
+        }
+        guard let last = c.end ?? plannedEnd(c, calendar: cal) else { return "since \(f(c.start))" }
+        return "\(f(c.start)) – \(f(last))"
+    }
+
+    /// Label (or standard name) with the period appended, for places that have room.
+    static func titleWithPeriod(_ c: CampaignInfo, today: Date = Date(), calendar cal: Calendar = .current) -> String {
+        "\(c.name) · \(periodText(c, today: today, calendar: cal))"
+    }
+
+    /// For menus: "#2 Summer cut · 29 Oct – 23 Dec" (number, then the label or the type, then the period).
+    static func pickerName(_ c: CampaignInfo, today: Date = Date(), calendar cal: Calendar = .current) -> String {
+        let l = cleanLabel(c.label) ?? "\(c.kind.title)\(c.isDefault ? " (default)" : "")"
+        return "#\(c.number) \(l) · \(periodText(c, today: today, calendar: cal))"
     }
 
     /// Whole days until an upcoming campaign starts (0 once it has).
@@ -122,7 +156,8 @@ enum CampaignRules {
     /// Plan for starting a real campaign. A running real campaign must be ended first;
     /// a running default is closed the day before the new one starts.
     static func plan(start: Date, kind: CampaignKind, targetKg: Double?, weeks: Int,
-                     existing: [CampaignInfo], calendar cal: Calendar = .current) -> Result<StartPlan, CampaignError> {
+                     existing: [CampaignInfo], label: String? = nil,
+                     calendar cal: Calendar = .current) -> Result<StartPlan, CampaignError> {
         guard weeks >= 1 else { return .failure(.invalidWeeks) }
         let s = cal.startOfDay(for: start)
         let open = existing.filter(isOpen)
@@ -138,8 +173,14 @@ enum CampaignRules {
         }
         let number = nextNumber(existing.filter { $0.id != deleteDefault })
         let new = CampaignInfo(number: number, kind: kind, isDefault: false, targetWeightKg: targetKg,
-                               start: s, plannedWeeks: weeks)
+                               start: s, plannedWeeks: weeks, label: cleanLabel(label))
         return .success(StartPlan(new: new, endDefault: endDefault, deleteDefault: deleteDefault))
+    }
+
+    /// A label trimmed and capped at 40 characters; nil when empty.
+    static func cleanLabel(_ raw: String?) -> String? {
+        let t = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : String(t.prefix(40))
     }
 
     /// Ending a campaign on `day`. It is "early" when that is before the planned last day.

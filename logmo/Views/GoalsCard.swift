@@ -17,7 +17,7 @@ struct GoalsCard: View {
 
     var body: some View {
         Card(title: live ? "Goals" : (upcoming ? "Goals for this campaign" : "Goals in this campaign")) {
-            Text(campaign.title).font(.caption).foregroundStyle(theme.muted)
+            Text(CampaignRules.titleWithPeriod(campaign, today: today)).font(.caption).foregroundStyle(theme.muted)
             if live { liveBody } else if upcoming { upcomingBody } else { summaryBody }
         }
     }

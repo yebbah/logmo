@@ -58,10 +58,10 @@ enum CampaignStore {
 
     @discardableResult
     static func start(_ context: ModelContext, kind: CampaignKind, targetKg: Double?, start: Date,
-                      weeks: Int) -> Result<Void, CampaignError> {
+                      weeks: Int, label: String? = nil) -> Result<Void, CampaignError> {
         let campaigns = all(context)
         switch CampaignRules.plan(start: start, kind: kind, targetKg: targetKg, weeks: weeks,
-                                  existing: campaigns.map(\.info)) {
+                                  existing: campaigns.map(\.info), label: label) {
         case .failure(let e):
             return .failure(e)
         case .success(let plan):
@@ -78,6 +78,13 @@ enum CampaignStore {
             try? context.save()
             return .success(())
         }
+    }
+
+    /// Rename a campaign. An empty label goes back to the standard name.
+    static func rename(_ context: ModelContext, _ campaign: Campaign, to label: String) {
+        campaign.label = CampaignRules.cleanLabel(label)
+        campaign.updatedAt = Date()
+        try? context.save()
     }
 
     /// Cancel a campaign that hasn't started: it and its goals are removed, and the default

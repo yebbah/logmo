@@ -126,7 +126,7 @@ struct DashboardView: View {
 
     private func filterLabel(_ infos: [CampaignInfo]) -> String {
         let current = CampaignRules.campaign(for: today, in: infos)
-        func name(_ c: CampaignInfo) -> String { "#\(c.number) \(c.kind.title)\(c.isDefault ? " (default)" : "")" }
+        func name(_ c: CampaignInfo) -> String { CampaignRules.pickerName(c, today: today) }
         switch filterRaw {
         case "overall": return "Overall (all time)"
         case "current": return "Current" + (current.map { " · " + name($0) } ?? "")
@@ -141,10 +141,10 @@ struct DashboardView: View {
             Text("Showing").font(.caption.weight(.semibold)).foregroundStyle(theme.muted)
             Menu {
                 Picker("Campaign", selection: $filterRaw) {
-                    Text("Current\(current.map { " · #\($0.number) \($0.kind.title)" } ?? "")").tag("current")
+                    Text("Current\(current.map { " · " + CampaignRules.pickerName($0, today: today) } ?? "")").tag("current")
                     Text("Overall (all time)").tag("overall")
                     ForEach(infos.sorted { $0.number > $1.number }) { c in
-                        Text("#\(c.number) \(c.kind.title)\(c.isDefault ? " (default)" : "")").tag(c.id.uuidString)
+                        Text(CampaignRules.pickerName(c, today: today)).tag(c.id.uuidString)
                     }
                 }
             } label: {
@@ -169,12 +169,12 @@ struct DashboardView: View {
 
     private func campaignCard(_ c: CampaignInfo?, _ scope: DateScope, _ trend: [TrendPoint], _ infos: [CampaignInfo]) -> some View {
         let df = Date.FormatStyle().day().month(.abbreviated)
-        return Card(title: c?.title ?? "Overall") {
+        return Card(title: c?.name ?? "Overall") {
             if let c {
                 let upcoming = CampaignRules.isUpcoming(c, today: today)
-                let range = upcoming ? "starts \(c.start.formatted(df))"
-                    : (c.end.map { "\(c.start.formatted(df)) – \($0.formatted(df))" } ?? "since \(c.start.formatted(df))")
-                Text(range + (c.endedEarly ? " · ended early" : "")).font(.caption).foregroundStyle(theme.muted)
+                let number = "#\(c.number) \(c.kind.title)\(c.isDefault ? " (default)" : "")"
+                Text("\(number) · \(CampaignRules.periodText(c, today: today))" + (c.endedEarly ? " · ended early" : ""))
+                    .font(.caption).foregroundStyle(theme.muted)
 
                 if upcoming {
                     let n = CampaignRules.daysUntilStart(c, today: today)

@@ -28,7 +28,7 @@ struct CampaignsView: View {
             Section("Current") {
                 if let c = current {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(c.title).font(.headline)
+                        Text(c.name).font(.headline)
                         Text(statusLine(c)).font(.caption).foregroundStyle(theme.muted)
                     }
                 } else {
@@ -36,7 +36,7 @@ struct CampaignsView: View {
                 }
                 if let r = running, CampaignRules.isUpcoming(r.info, today: today) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Upcoming: \(r.info.title)").font(.headline)
+                        Text("Upcoming: \(r.info.name)").font(.headline)
                         Text(statusLine(r.info)).font(.caption).foregroundStyle(theme.muted)
                     }
                     Button("Cancel the upcoming campaign", role: .destructive) { confirmCancel = true }
@@ -90,23 +90,22 @@ struct CampaignsView: View {
         let df = Date.FormatStyle().day().month(.abbreviated)
         if CampaignRules.isUpcoming(c, today: today) {
             let n = CampaignRules.daysUntilStart(c, today: today)
-            return "Starts \(c.start.formatted(df)) (in \(n) day\(n == 1 ? "" : "s")) · \(c.plannedWeeks ?? 0) weeks"
+            return "\(CampaignRules.periodText(c, today: today)) · starts in \(n) day\(n == 1 ? "" : "s") · \(c.plannedWeeks ?? 0) weeks"
         }
         if c.isDefault { return "Maintenance since \(c.start.formatted(df)). Start a campaign any time." }
-        var parts = ["\(c.plannedWeeks ?? 0) weeks from \(c.start.formatted(df))"]
+        var parts = ["\(CampaignRules.periodText(c, today: today))", "\(c.plannedWeeks ?? 0) weeks"]
         if let left = CampaignRules.daysLeft(c, today: today), c.end == nil { parts.append("\(left) \(left == 1 ? "day" : "days") left") }
         if let t = c.targetWeightKg { parts.append("target \(String(format: "%.1f", unit.fromKg(t))) \(unit.rawValue)") }
         return parts.joined(separator: " · ")
     }
 
     private func row(_ c: CampaignInfo, _ s: CampaignSummary) -> some View {
-        let df = Date.FormatStyle().day().month(.abbreviated)
-        let range = c.end.map { "\(c.start.formatted(df)) – \($0.formatted(df))" } ?? "since \(c.start.formatted(df))"
+        let range = "#\(c.number) \(c.kind.title) · \(CampaignRules.periodText(c, today: today))"
         let status = c.end == nil ? (CampaignRules.isUpcoming(c, today: today) ? "upcoming" : "running")
                                   : (c.endedEarly ? "ended early" : (c.isDefault ? "closed" : "completed"))
         return VStack(alignment: .leading, spacing: 3) {
             HStack {
-                Text(c.title).font(.subheadline.weight(.semibold))
+                Text(c.name).font(.subheadline.weight(.semibold))
                 Spacer()
                 Text(status).font(.caption).foregroundStyle(theme.muted)
             }
@@ -123,6 +122,10 @@ struct CampaignsView: View {
 
 struct CampaignDetail: View {
     @Environment(\.theme) private var theme
+    @Environment(\.modelContext) private var context
+    @Query private var allCampaigns: [Campaign]
+    @State private var labelText = ""
+    @State private var loadedLabel = false
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage("campaignFilter") private var filterRaw = "current"
     let info: CampaignInfo
@@ -137,6 +140,13 @@ struct CampaignDetail: View {
         let df = Date.FormatStyle().day().month(.abbreviated).year()
         Form {
             Section("Campaign") {
+                LabeledContent("Label") {
+                    TextField(info.title, text: $labelText)
+                        .multilineTextAlignment(.trailing)
+                        .submitLabel(.done)
+                        .onSubmit { saveLabel() }
+                }
+                line("Dates", CampaignRules.periodText(info, today: today))
                 line("Type", info.kind.title + (info.isDefault ? " (default)" : ""))
                 line("Started", info.start.formatted(df))
                 if let e = info.end { line("Ended", e.formatted(df) + (info.endedEarly ? " (early)" : "")) }
@@ -177,6 +187,14 @@ struct CampaignDetail: View {
         .background(theme.bg)
         .navigationTitle("Campaign \(info.number)")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { if !loadedLabel { labelText = info.label ?? ""; loadedLabel = true } }
+        .onDisappear { saveLabel() }
+    }
+
+    private func saveLabel() {
+        guard let m = allCampaigns.first(where: { $0.id == info.id }),
+              CampaignRules.cleanLabel(labelText) != CampaignRules.cleanLabel(m.label) else { return }
+        CampaignStore.rename(context, m, to: labelText)
     }
 
     private func line(_ k: String, _ v: String) -> some View {
@@ -193,6 +211,7 @@ struct NewCampaignForm: View {
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     let minStart: Date
 
+    @State private var label = ""
     @State private var kind: CampaignKind = .cut
     @State private var target = ""
     @State private var start = Calendar.current.startOfDay(for: Date())
@@ -206,6 +225,8 @@ struct NewCampaignForm: View {
         NavigationStack {
             Form {
                 Section {
+                    TextField("Label (optional), e.g. Summer cut", text: $label)
+                        .textInputAutocapitalization(.sentences)
                     Picker("Type", selection: $kind) {
                         ForEach(CampaignKind.allCases) { Text($0.title).tag($0) }
                     }.pickerStyle(.segmented)
@@ -221,6 +242,7 @@ struct NewCampaignForm: View {
                     Stepper("Length: \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...104)
                 } footer: {
                     Text((start > today ? "Starts in the future: until then the current campaign carries on. " : "")
+                         + "The label is shown with the dates, which follow the start and length (\(CampaignRules.cleanLabel(label) ?? "Campaign") · \(periodPreview)). "
                          + "Ends \(plannedEnd.formatted(date: .abbreviated, time: .omitted)). You can end it early at any time; it stays in your history.")
                 }
                 .listRowBackground(theme.card)
@@ -238,6 +260,11 @@ struct NewCampaignForm: View {
         }
     }
 
+    /// What the dates will read like, for the footer.
+    private var periodPreview: String {
+        CampaignRules.periodText(CampaignInfo(number: 0, kind: kind, start: Calendar.current.startOfDay(for: start), plannedWeeks: weeks))
+    }
+
     /// Campaigns can be planned up to a year ahead.
     private var farthest: Date { Calendar.current.date(byAdding: .day, value: 365, to: today)! }
 
@@ -249,7 +276,7 @@ struct NewCampaignForm: View {
         let raw = target.replacingOccurrences(of: ",", with: ".")
         let kg = Double(raw).map(unit.toKg)
         if !target.isEmpty && kg == nil { error = "Enter the target weight as a number."; return }
-        switch CampaignStore.start(context, kind: kind, targetKg: kg, start: start, weeks: weeks) {
+        switch CampaignStore.start(context, kind: kind, targetKg: kg, start: start, weeks: weeks, label: label) {
         case .success: dismiss()
         case .failure(.campaignRunning): error = "A campaign is already running. End it first."
         case .failure(.startsBeforeCurrent): error = "The start date can't be before the current campaign began."

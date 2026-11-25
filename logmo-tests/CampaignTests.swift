@@ -126,4 +126,54 @@ final class CampaignTests: XCTestCase {
         XCTAssertEqual(CampaignRules.plan(start: day(25), kind: .cut, targetKg: nil, weeks: 4, existing: [dflt(1, start: 2, end: 19), up], calendar: cal),
                        .failure(.campaignRunning))
     }
+
+    // MARK: labels and the dynamic period
+    private func short(_ d: Date, year: Bool = false) -> String {
+        var f = Date.FormatStyle(timeZone: cal.timeZone).day().month(.abbreviated)
+        if year { f = f.year() }
+        return d.formatted(f)
+    }
+    func testLabelFallsBackToTheStandardName() {
+        var c = real(2, start: 2, weeks: 4)
+        XCTAssertEqual(c.name, "Campaign 2 · Cut")
+        c.label = "  Summer cut "
+        XCTAssertEqual(c.name, "Summer cut")                      // trimmed
+        c.label = "   "
+        XCTAssertEqual(c.name, "Campaign 2 · Cut")                // blank = no label
+        XCTAssertEqual(dflt(3, start: 2).name, "Campaign 3 · Maintenance (default)")
+    }
+    func testCleanLabel() {
+        XCTAssertNil(CampaignRules.cleanLabel(nil)); XCTAssertNil(CampaignRules.cleanLabel("  \n "))
+        XCTAssertEqual(CampaignRules.cleanLabel(" Lean bulk "), "Lean bulk")
+        XCTAssertEqual(CampaignRules.cleanLabel(String(repeating: "x", count: 80))?.count, 40)
+    }
+    func testPlanKeepsTheLabel() {
+        let plan = try! CampaignRules.plan(start: day(10), kind: .bulk, targetKg: nil, weeks: 4, existing: [dflt(1, start: 1)],
+                                           label: " Lean bulk ", calendar: cal).get()
+        XCTAssertEqual(plan.new.label, "Lean bulk")
+        XCTAssertNil(try! CampaignRules.plan(start: day(10), kind: .bulk, targetKg: nil, weeks: 4, existing: [dflt(1, start: 1)], calendar: cal).get().new.label)
+    }
+    func testPeriodFollowsTheDates() {
+        let running = real(1, start: 2, weeks: 4)                           // 2 Nov – 29 Nov
+        XCTAssertEqual(CampaignRules.periodText(running, today: day(10), calendar: cal), "\(short(day(2))) – \(short(day(29)))")
+        // Ending it early changes the period shown.
+        var ended = running; ended.end = day(15); ended.endedEarly = true
+        XCTAssertEqual(CampaignRules.periodText(ended, today: day(20), calendar: cal), "\(short(day(2))) – \(short(day(15)))")
+        // An open-ended default has no end.
+        XCTAssertEqual(CampaignRules.periodText(dflt(2, start: 5), today: day(10), calendar: cal), "since \(short(day(5)))")
+    }
+    func testPeriodAddsAYearOutsideTheCurrentYear() {
+        let dec = cal.date(from: DateComponents(year: 2026, month: 12, day: 14))!
+        let c = CampaignInfo(number: 1, kind: .cut, start: dec, plannedWeeks: 4)           // runs into January 2027
+        let jan = cal.date(from: DateComponents(year: 2027, month: 1, day: 10))!
+        XCTAssertEqual(CampaignRules.periodText(c, today: day(10), calendar: cal), "\(short(dec)) – \(short(jan, year: true))")
+    }
+    func testPickerNameAndTitleWithPeriod() {
+        var c = real(2, start: 2, weeks: 4); c.label = "Summer cut"
+        let period = CampaignRules.periodText(c, today: day(10), calendar: cal)
+        XCTAssertEqual(CampaignRules.pickerName(c, today: day(10), calendar: cal), "#2 Summer cut · \(period)")
+        XCTAssertEqual(CampaignRules.titleWithPeriod(c, today: day(10), calendar: cal), "Summer cut · \(period)")
+        c.label = nil
+        XCTAssertEqual(CampaignRules.pickerName(c, today: day(10), calendar: cal), "#2 Cut · \(period)")
+    }
 }

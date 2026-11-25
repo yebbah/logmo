@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 7.0
+version: 7.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v7.0)
+# logmo: Product Requirements (v7.1)
 
 ## Vision and outcome
 
@@ -101,7 +101,9 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 **FR-11. Fitness campaigns.** From Settings the user defines a campaign:
 - **Type:** cut, bulk or maintenance.
 - **Target weight** (optional for maintenance), **start date** (today, an earlier date, or a date up to a year ahead) and **length in weeks** (any number; nothing assumes four weeks to a month).
+- An optional **label** of the user's own (for example "Summer cut", up to 40 characters), set when starting the campaign and editable later from the campaign's detail screen. Without a label the standard name is used ("Campaign 2 · Cut"; "(default)" for an automatic one).
 - Campaigns are numbered 1, 2, 3 … in order of creation.
+- **Dates are appended automatically** wherever a campaign is named, worked out from its settings so they follow any change: "29 Oct – 23 Dec" (to the planned last day while it runs; to the actual last day once ended, so ending early updates it), or "since 11 Nov" for an open-ended default. A year is added for dates outside the current year. The Showing menu reads "#2 Summer cut · 29 Oct – 23 Dec", the campaign card and goals card show the label with the number, type and dates, and the history and detail screens show the same.
 
 Rules:
 - Every day belongs to exactly one campaign.
@@ -112,7 +114,7 @@ Rules:
 - **History:** Settings lists every campaign (running, completed, ended early, default) with dates and trend-weight change. A detail view shows type, dates, planned and actual length, target, trend weight start to end, change, versus target, days logged out of its actual length in days, and average calories, protein and steps.
 
 **FR-12. Dashboard tab (follows the campaign filter).** The app has four tabs: **Dashboard, Streaks, Log, Settings**. The Dashboard tab shows what can be filtered by campaign, including the goals. Its **Showing** control sits under a small "Showing" label and uses the full row, so a long campaign name wraps instead of running over the card. Choices are *Current campaign* (default), *Overall (all time)*, or any past campaign. Sections, top to bottom:
-1. **Campaign card:** title, dates, **days left** (a countdown from today to the last planned day, counting today: 28 on the first day of a 4-week campaign, 1 on the last planned day, 0 once it has passed), week x of y, target weight and distance from it (using the trend). For an upcoming campaign it shows the number of days until it starts and its planned length. Overall shows all data since the first weigh-in.
+1. **Campaign card:** the label (or standard name), then "#number type · dates", **days left** (a countdown from today to the last planned day, counting today: 28 on the first day of a 4-week campaign, 1 on the last planned day, 0 once it has passed), week x of y, target weight and distance from it (using the trend). For an upcoming campaign it shows the number of days until it starts and its planned length. Overall shows all data since the first weigh-in.
 2. **Set your weekly goals banner** (FR-3), shown when the campaign running today has no goals yet and on Sundays when next week has none.
 3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), and an **Edit goals** button. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
 4. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
@@ -199,19 +201,21 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D31 | Weekly goals are stored per campaign, not globally | Decided: the user asked for it |
 | D32 | A new campaign (including the automatic default) starts with a copy of the most recent goals | Decided: the user chose copy |
 | D33 | A day uses its own campaign's goals; a week's weekly goals belong to the campaign containing the week's Monday | Decided: accepted by the user, to be tuned after use |
-| D34 | Goals are shown and set on the Dashboard tab; Overall shows the current campaign's goals; past campaigns' goals are read-only summaries | Assumption: confirm |
+| D34 | Goals are shown and set on the Dashboard tab; Overall shows the current campaign's goals; past campaigns' goals are read-only summaries | Decided: accepted by the user |
 | D35 | The goals editor is also reachable from Settings and edits the campaign running today | Assumption |
 | D36 | Saving on the Log screen is automatic; there is no Save button | Decided |
 | D37 | A steps goal is either a daily total or a weekly average, chosen per goal set | Decided: the user asked for both |
 | D38 | A workout day is a day with a training performance rating (1–5); n/a means not a lifting day and is not a workout | Decided |
-| D39 | The workout target is assessed per week and feeds compliance and the weekly streak. Compliance stays red for every day of a week once its target is out of reach | Assumption: confirm, since it colours the whole week |
+| D39 | The workout target is assessed per week and feeds compliance and the weekly streak. Compliance stays red for every day of a week once its target is out of reach | Decided: accepted by the user |
 | D40 | A finished week with the steps goal as a weekly average needs steps on all seven days to be met, like calories | Assumption |
 | D41 | Workout days need no 7-day logging: a finished week is met if the count reached the target | Assumption |
 | D42 | The calorie goal is entered per day and stored as a weekly total (× 7). Older goals entered as weekly totals keep their value and show as the per-day equivalent (14,500 a week shows as 2,071 a day) | Decided: the user asked for per-day entry |
-| D43 | Calorie cycling is allowed. Calories and weekly-average steps affect compliance only when the week is finished, apart from a calorie total already past an at-or-under allowance | Assumption: the user's request was cut off after "like this;", so confirm this is what was meant |
-| D44 | Cycle tracking is an opt-in toggle in Settings ("Track my menstrual cycle"), not a sex field in a profile. The daily question is optional and not part of compliance | Assumption: the user said "applicable only for female users"; confirm a toggle is enough |
-| D45 | Period days are shown as red dots whenever cycle tracking is on, independent of the "Show biofeedback" switch | Assumption: confirm |
+| D43 | Calorie cycling is allowed. Calories and weekly-average steps affect compliance only when the week is finished, apart from a calorie total already past an at-or-under allowance | Decided: accepted by the user |
+| D44 | Cycle tracking is an opt-in toggle in Settings ("Track my menstrual cycle"), not a sex field in a profile. The daily question is optional and not part of compliance | Decided: accepted by the user |
+| D45 | Period days are shown as red dots whenever cycle tracking is on, independent of the "Show biofeedback" switch | Decided: accepted by the user |
 | D46 | A new campaign can start up to a year ahead; an upcoming campaign counts as the one real campaign and can be cancelled | Decided |
 | D47 | Protein intake follows the weigh-ins range selector and is no longer its own card | Decided: the user asked for it |
 | D48 | The app icon and in-app logo come from the supplied logo sheet (kept in `design/`), redrawn at 1024 px | Decided |
 | D49 | App version starts at 1.0.0 (build 1) | Assumption: bump `MARKETING_VERSION` in project.yml per release |
+| D50 | A campaign can carry an optional label; the name shown is the label or "Campaign N · Type", always followed by its dates, which are worked out from the campaign and so change if it is ended early | Decided: the user asked for it |
+| D51 | **Open:** compliance per campaign on the Streaks tab. Proposed (mockup 4): a third "By campaign" option on the Compliance card listing each campaign with its label and dates, complied days over days so far, a one-square-per-day strip, the change in points against the previous campaign, and a breakdown by tracker. Not built until approved | Open: awaiting the user's decision |

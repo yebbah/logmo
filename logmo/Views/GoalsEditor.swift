@@ -57,7 +57,7 @@ struct GoalsEditor: View {
     var body: some View {
         Form {
             Section {
-                Text("Goals for \(campaign.title). Each campaign keeps its own.")
+                Text("Goals for \(CampaignRules.titleWithPeriod(campaign)). Each campaign keeps its own.")
                     .font(.footnote).foregroundStyle(theme.muted)
                 HStack {
                     Button { move(-7) } label: { Image(systemName: "chevron.left") }

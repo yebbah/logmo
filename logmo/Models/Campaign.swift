@@ -15,6 +15,7 @@ final class Campaign {
     var plannedWeeks: Int?
     var end: Date?
     var endedEarly: Bool = false
+    var label: String?                    // optional name chosen by the user
     var updatedAt: Date = Date()
 
     init(_ info: CampaignInfo) {
@@ -27,11 +28,12 @@ final class Campaign {
         plannedWeeks = info.plannedWeeks
         end = info.end
         endedEarly = info.endedEarly
+        label = info.label
     }
 
     var info: CampaignInfo {
         CampaignInfo(id: id, number: number, kind: CampaignKind(rawValue: kindRaw) ?? .maintenance,
                      isDefault: isDefault, targetWeightKg: targetWeightKg, start: start,
-                     plannedWeeks: plannedWeeks, end: end, endedEarly: endedEarly)
+                     plannedWeeks: plannedWeeks, end: end, endedEarly: endedEarly, label: label)
     }
 }
