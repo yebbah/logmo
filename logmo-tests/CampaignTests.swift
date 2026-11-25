@@ -74,10 +74,14 @@ final class CampaignTests: XCTestCase {
         XCTAssertEqual(plan.deleteDefault, existing[0].id)
         XCTAssertEqual(plan.new.number, 1)                  // the discarded default's number is reused
     }
-    func testCannotStartWhileARealCampaignRuns() {
+    func testCannotStartInsideARunningCampaignsPlannedDays() {
+        // 8 weeks from day 2 runs to day 57; a new one has to start after that (it is queued behind it).
         let r = CampaignRules.plan(start: day(20), kind: .cut, targetKg: nil, weeks: 4,
-                                   existing: [real(1, start: 2, weeks: 8)], calendar: cal)
-        XCTAssertEqual(r, .failure(.campaignRunning))
+                                   existing: [real(1, start: 2, weeks: 8)], today: day(10), calendar: cal)
+        XCTAssertEqual(r, .failure(.startsBeforeCurrent))
+        let queued = try! CampaignRules.plan(start: day(58), kind: .cut, targetKg: nil, weeks: 4,
+                                             existing: [real(1, start: 2, weeks: 8)], today: day(10), calendar: cal).get()
+        XCTAssertNil(queued.filler); XCTAssertEqual(queued.new.number, 2)
     }
     func testCannotStartBeforeCurrentOrOverlapPrevious() {
         XCTAssertEqual(CampaignRules.plan(start: day(3), kind: .cut, targetKg: nil, weeks: 4,
@@ -123,7 +127,7 @@ final class CampaignTests: XCTestCase {
     }
     func testOnlyOneRealCampaignEvenIfItIsUpcoming() {
         let up = real(2, start: 20, weeks: 8)
-        XCTAssertEqual(CampaignRules.plan(start: day(25), kind: .cut, targetKg: nil, weeks: 4, existing: [dflt(1, start: 2, end: 19), up], calendar: cal),
+        XCTAssertEqual(CampaignRules.plan(start: day(25), kind: .cut, targetKg: nil, weeks: 4, existing: [dflt(1, start: 2, end: 19), up], today: day(10), calendar: cal),
                        .failure(.campaignRunning))
     }
 

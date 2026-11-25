@@ -18,6 +18,8 @@ struct DashboardView: View {
 
     @State private var goalsTarget: GoalsTarget?
     @State private var planCampaign: CampaignInfo?
+    @State private var editUpcoming: Campaign?
+    @AppStorage("closingDismissed") private var closingDismissed = ""      // "<campaign id>|<yyyy-MM-dd>" the closing-soon card was put off
 
     struct GoalsTarget: Identifiable { var campaign: CampaignInfo; var week: Date?; var id: UUID { campaign.id } }
 
@@ -39,6 +41,7 @@ struct DashboardView: View {
                     VStack(spacing: 16) {
                         setupCard(infos)
                         finishedCard(infos)
+                        closingCard(infos)
                         campaignPicker(infos)
                         campaignCard(selected, scope, trend, infos)
                         if let gc = goalCampaign(selected, infos) {
@@ -74,7 +77,10 @@ struct DashboardView: View {
             .background(theme.bg)
             .navigationTitle("Dashboard")
             .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week) }
-            .navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
+.navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
+            .sheet(item: $editUpcoming) { m in
+                EditUpcomingForm(campaign: m, earliest: CampaignRules.earliestUpcomingStart(existing: infos, excluding: m.id, today: today))
+            }
         }
     }
 
@@ -120,8 +126,36 @@ struct DashboardView: View {
            let model = campaigns.first(where: { $0.id == c.id }) {
             PromptCard(tint: theme.warn, icon: "flag.checkered.2.crossed", title: "\(c.name) has finished",
                        text: "Its \(c.plannedWeeks ?? 0) weeks are over. Close it to see how it went, or keep going.",
-                       actions: [.init(title: "Extend 2 weeks", run: { CampaignStore.extend(context, model, byWeeks: 2) }),
+                       actions: [.init(title: "Extend 2 weeks", run: { if !CampaignStore.extend(context, model, byWeeks: 2) { editUpcoming = upcomingCampaign } }),
                                  .init(title: "End & see results", filled: true, run: { CampaignStore.finish(context, model); nav.tab = 3 })])
+        }
+    }
+
+    private var upcomingCampaign: Campaign? {
+        campaigns.first { !$0.isDefault && $0.end == nil && CampaignRules.isUpcoming($0.info, today: today) }
+    }
+
+    /// A week or less before a running campaign's planned end: offer to extend it, or if another campaign is
+    /// already planned, say so and offer to move that one's start date.
+    @ViewBuilder private func closingCard(_ infos: [CampaignInfo]) -> some View {
+        if let c = infos.first(where: { CampaignRules.closingIn($0, today: today) != nil }),
+           let days = CampaignRules.closingIn(c, today: today), let model = campaigns.first(where: { $0.id == c.id }),
+           closingDismissed != "\(c.id)|\(todayKey)" {
+            let end = CampaignRules.plannedEnd(c)?.formatted(.dateTime.day().month(.abbreviated)) ?? ""
+            let notNow = PromptCard.Action(title: "Not now", run: { closingDismissed = "\(c.id)|\(todayKey)" })
+            if let next = upcomingCampaign {
+                PromptCard(tint: theme.accent, icon: "calendar.badge.clock",
+                           title: "\(c.name) closes in \(days) day\(days == 1 ? "" : "s")",
+                           text: "It ends on \(end). Your next campaign, \(next.info.name), starts \(next.start.formatted(.dateTime.day().month(.abbreviated))). Do you want to move its start date?",
+                           actions: [notNow, .init(title: "Move start date", filled: true, run: { editUpcoming = next })])
+            } else {
+                PromptCard(tint: theme.accent, icon: "calendar.badge.clock",
+                           title: "\(c.name) closes in \(days) day\(days == 1 ? "" : "s")",
+                           text: "It ends on \(end). Want to keep going? Extend it, or let it close and see how it went.",
+                           actions: [notNow,
+                                     .init(title: "Extend 2 weeks", run: { CampaignStore.extend(context, model, byWeeks: 2) }),
+                                     .init(title: "Extend 4 weeks", filled: true, run: { CampaignStore.extend(context, model, byWeeks: 4) })])
+            }
         }
     }
 

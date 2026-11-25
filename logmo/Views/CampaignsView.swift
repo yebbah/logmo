@@ -19,6 +19,8 @@ struct CampaignsView: View {
     @Query private var weekGoals: [WeekGoal]
 
     @State private var showNew = false
+    @State private var editUpcoming: Campaign?
+    @State private var extendBlocked = false
     @State private var confirmEnd = false
     @State private var confirmCancel = false
     @State private var planCampaign: CampaignInfo?
@@ -43,7 +45,7 @@ struct CampaignsView: View {
         let required = RequiredTrackers.parse(requiredRaw)
         let current = campaigns.first { CampaignRules.contains($0.info, day: today) }
         let upcoming = campaigns.first { !$0.isDefault && $0.end == nil && CampaignRules.isUpcoming($0.info, today: today) }
-        let busy = campaigns.contains { !$0.isDefault && $0.end == nil }          // running or upcoming
+        let busy = upcoming != nil                                                // one planned campaign at a time; a running one can be followed
         let required0 = required
         let weekRows: (CampaignInfo) -> [WeekPlanRow] = { c in
             let mine = weekGoals.filter { $0.campaignID == c.id }
@@ -90,7 +92,14 @@ struct CampaignsView: View {
             }
             .onAppear { CampaignStore.ensureDefault(context); openNewIfAsked() }
             .onChange(of: nav.openNewCampaign) { _, _ in openNewIfAsked() }
-            .sheet(isPresented: $showNew) { NewCampaignForm(minStart: openDefaultStart) }
+            .sheet(isPresented: $showNew) { NewCampaignForm(minStart: newMinStart) }
+            .sheet(item: $editUpcoming) { m in
+                EditUpcomingForm(campaign: m, earliest: CampaignRules.earliestUpcomingStart(existing: infos, excluding: m.id, today: today))
+            }
+            .alert("The next campaign starts too soon", isPresented: $extendBlocked) {
+                Button("Move its start date") { editUpcoming = upcoming }
+                Button("Cancel", role: .cancel) {}
+            } message: { Text("Extending would run into it. Move its start date first, then extend.") }
             .navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
             .alert("Rename campaign", isPresented: Binding(get: { renameTarget != nil }, set: { if !$0 { renameTarget = nil } })) {
                 TextField("Label", text: $renameText)
@@ -100,8 +109,13 @@ struct CampaignsView: View {
         }
     }
 
-    private var openDefaultStart: Date {
-        campaigns.first { $0.isDefault && $0.end == nil }?.start ?? today
+    /// The earliest start for a new campaign: the running default's start, or the day after a running campaign's planned end.
+    private var newMinStart: Date {
+        if let r = campaigns.first(where: { !$0.isDefault && $0.end == nil && !CampaignRules.isUpcoming($0.info, today: today) }),
+           let pe = CampaignRules.plannedEnd(r.info) {
+            return Calendar.current.date(byAdding: .day, value: 1, to: pe)!
+        }
+        return campaigns.first { $0.isDefault && $0.end == nil }?.start ?? today
     }
 
     // MARK: Running now
@@ -130,11 +144,23 @@ struct CampaignsView: View {
                 if real {
                     actionButton("Weekly plan") { planCampaign = c }
                     actionButton("Rename") { renameText = c.label ?? ""; renameTarget = m }
+                }
+            }
+            if real {
+                HStack(spacing: 10) {
+                    Menu {
+                        ForEach([1, 2, 4, 8], id: \.self) { w in
+                            Button("\(w) week\(w == 1 ? "" : "s")") { if !CampaignStore.extend(context, m, byWeeks: w) { extendBlocked = true } }
+                        }
+                    } label: { menuLabel("Extend") }
                     actionButton("End campaign", destructive: true) { confirmEnd = true }
                         .confirmationDialog("End \(c.name) today?", isPresented: $confirmEnd, titleVisibility: .visible) {
                             Button("End campaign", role: .destructive) { CampaignStore.end(context, m) }
                         } message: { Text("It stays in your history. A default maintenance campaign starts tomorrow.") }
-                } else {
+                }
+            }
+            if !real {
+                HStack(spacing: 10) {
                     actionButton("Start a campaign", prominent: true) { showNew = true }.disabled(busy)
                     actionButton("Weekly plan") { planCampaign = c }
                     actionButton("Rename") { renameText = c.label ?? ""; renameTarget = m }
@@ -156,7 +182,10 @@ struct CampaignsView: View {
                 Text(n == 1 ? "day until it starts" : "days until it starts").foregroundStyle(theme.muted)
             }
             HStack(spacing: 10) {
+                actionButton("Edit dates & length", prominent: true) { editUpcoming = m }
                 actionButton("Weekly plan") { planCampaign = c }
+            }
+            HStack(spacing: 10) {
                 actionButton("Rename") { renameText = c.label ?? ""; renameTarget = m }
                 actionButton("Cancel it", destructive: true) { confirmCancel = true }
                     .confirmationDialog("Cancel \(c.name)?", isPresented: $confirmCancel, titleVisibility: .visible) {
@@ -164,6 +193,14 @@ struct CampaignsView: View {
                     } message: { Text("It is removed, and the current campaign carries on.") }
             }
         }
+    }
+
+    private func menuLabel(_ title: String) -> some View {
+        HStack(spacing: 4) { Text(title); Image(systemName: "chevron.down").font(.caption2) }
+            .font(.subheadline.weight(.semibold)).lineLimit(1)
+            .frame(maxWidth: .infinity).padding(.vertical, 10)
+            .foregroundStyle(theme.accent)
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.track, lineWidth: 1))
     }
 
     private func actionButton(_ title: String, destructive: Bool = false, prominent: Bool = false, action: @escaping () -> Void) -> some View {
@@ -434,9 +471,17 @@ struct CampaignDetail: View {
     private var actionsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             LabeledContent("Label") {
-                TextField(info.title, text: $labelText)
-                    .multilineTextAlignment(.trailing).submitLabel(.done)
-                    .onSubmit { saveLabel() }
+                if info.end == nil {
+                    TextField(info.title, text: $labelText)
+                        .multilineTextAlignment(.trailing).submitLabel(.done)
+                        .onSubmit { saveLabel() }
+                } else {
+                    Text(info.label ?? info.title).foregroundStyle(theme.muted)      // past campaigns are read-only
+                }
+            }
+            if info.end != nil {
+                Text("A finished campaign can't be edited. Its results and weekly goals are kept as they were.")
+                    .font(.caption).foregroundStyle(theme.muted)
             }
             if info.end == nil {
                 Divider()
@@ -526,7 +571,7 @@ struct NewCampaignForm: View {
                         TextField(kind == .maintenance ? "optional" : "e.g. 70", text: $target)
                             .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                     }
-                    DatePicker("Start date", selection: $start, in: minStart...farthest, displayedComponents: .date)
+                    DatePicker("Start date", selection: $start, in: minStart...max(farthest, minStart), displayedComponents: .date)
                     Stepper("Length: \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...104)
                 } footer: {
                     Text((start > today ? "Starts in the future: until then the current campaign carries on. " : "")
@@ -541,6 +586,7 @@ struct NewCampaignForm: View {
             .background(theme.bg)
             .navigationTitle("New campaign")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear { if start < minStart { start = minStart } }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Start") { save() } }
@@ -566,9 +612,68 @@ struct NewCampaignForm: View {
         if !target.isEmpty && kg == nil { error = "Enter the target weight as a number."; return }
         switch CampaignStore.start(context, kind: kind, targetKg: kg, start: start, weeks: weeks, label: label) {
         case .success: dismiss()
-        case .failure(.campaignRunning): error = "A campaign is already running. End it first."
-        case .failure(.startsBeforeCurrent): error = "The start date can't be before the current campaign began."
+        case .failure(.campaignRunning): error = "A campaign is already planned. Change or cancel it first."
+        case .failure(.startsBeforeCurrent): error = "The start date must be after the running campaign's planned end, or after the current campaign began."
+        case .failure(.notEditable): error = "This campaign can't be changed."
         case .failure(.invalidWeeks): error = "Length must be at least 1 week."
+        }
+    }
+}
+
+// MARK: - Edit an upcoming campaign
+
+/// Change when a campaign that hasn't started begins, and how long it runs. Past and running campaigns can't use this.
+struct EditUpcomingForm: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    let campaign: Campaign
+    let earliest: Date
+
+    @State private var start = Date()
+    @State private var weeks = 8
+    @State private var error: String?
+    @State private var loaded = false
+
+    private var today: Date { Calendar.current.startOfDay(for: Date()) }
+    private var farthest: Date { Calendar.current.date(byAdding: .day, value: 365, to: today)! }
+    private var plannedEnd: Date { Calendar.current.date(byAdding: .day, value: weeks * 7 - 1, to: Calendar.current.startOfDay(for: start))! }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker("Start date", selection: $start, in: earliest...max(farthest, earliest), displayedComponents: .date)
+                    Stepper("Length: \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...104)
+                } footer: {
+                    Text("Ends \(plannedEnd.formatted(date: .abbreviated, time: .omitted)). The earliest start is \(earliest.formatted(date: .abbreviated, time: .omitted)), after the campaign running now. Days in between stay maintenance. Its weekly goals are copied again from the latest ones for the new weeks.")
+                }
+                .listRowBackground(theme.card)
+                if let error { Text(error).foregroundStyle(theme.bad).listRowBackground(theme.card) }
+            }
+            .scrollContentBackground(.hidden)
+            .background(theme.bg)
+            .navigationTitle("Edit \(campaign.info.name)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
+            }
+            .onAppear {
+                guard !loaded else { return }
+                loaded = true
+                start = max(campaign.start, earliest); weeks = campaign.plannedWeeks ?? 8
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func save() {
+        switch CampaignStore.reschedule(context, campaign, start: start, weeks: weeks) {
+        case .success: dismiss()
+        case .failure(.startsBeforeCurrent): error = "It can't start before \(earliest.formatted(date: .abbreviated, time: .omitted))."
+        case .failure(.invalidWeeks): error = "Length must be at least 1 week."
+        case .failure: error = "This campaign has already started and can't be changed."
         }
     }
 }

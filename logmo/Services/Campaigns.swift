@@ -43,6 +43,7 @@ enum CampaignError: Error, Equatable {
     case invalidWeeks
     case campaignRunning          // end the running campaign first
     case startsBeforeCurrent      // would overlap the previous campaign
+    case notEditable              // only a campaign that hasn't started can have its dates changed
 }
 
 /// What a store must do to start a campaign.
@@ -50,9 +51,11 @@ struct StartPlan: Equatable {
     var new: CampaignInfo
     var endDefault: (id: UUID, on: Date)?
     var deleteDefault: UUID?          // a default that would have lasted zero days
+    var filler: (start: Date, end: Date)?   // maintenance between a running campaign's planned end and a queued one's start
     static func == (a: StartPlan, b: StartPlan) -> Bool {
         a.new == b.new && a.deleteDefault == b.deleteDefault
             && a.endDefault?.id == b.endDefault?.id && a.endDefault?.on == b.endDefault?.on
+            && a.filler?.start == b.filler?.start && a.filler?.end == b.filler?.end
     }
 }
 
@@ -156,12 +159,24 @@ enum CampaignRules {
     /// Plan for starting a real campaign. A running real campaign must be ended first;
     /// a running default is closed the day before the new one starts.
     static func plan(start: Date, kind: CampaignKind, targetKg: Double?, weeks: Int,
-                     existing: [CampaignInfo], label: String? = nil,
+                     existing: [CampaignInfo], label: String? = nil, today: Date = Date(),
                      calendar cal: Calendar = .current) -> Result<StartPlan, CampaignError> {
         guard weeks >= 1 else { return .failure(.invalidWeeks) }
         let s = cal.startOfDay(for: start)
         let open = existing.filter(isOpen)
-        if open.contains(where: { !$0.isDefault }) { return .failure(.campaignRunning) }
+        if let r = open.first(where: { !$0.isDefault }) {
+            // A campaign is running: the next one can be queued to start after its planned end.
+            // A campaign that is itself only planned blocks this: one upcoming campaign at a time.
+            guard !isUpcoming(r, today: today, calendar: cal), let pe = plannedEnd(r, calendar: cal) else {
+                return .failure(.campaignRunning)
+            }
+            if s <= pe { return .failure(.startsBeforeCurrent) }
+            let gapStart = addDays(1, to: pe, cal)
+            let filler: (start: Date, end: Date)? = s > gapStart ? (gapStart, addDays(-1, to: s, cal)) : nil
+            let new = CampaignInfo(number: nextNumber(existing) + (filler == nil ? 0 : 1), kind: kind, isDefault: false,
+                                   targetWeightKg: targetKg, start: s, plannedWeeks: weeks, label: cleanLabel(label))
+            return .success(StartPlan(new: new, endDefault: nil, deleteDefault: nil, filler: filler))
+        }
 
         var endDefault: (id: UUID, on: Date)?
         var deleteDefault: UUID?
@@ -175,6 +190,25 @@ enum CampaignRules {
         let new = CampaignInfo(number: number, kind: kind, isDefault: false, targetWeightKg: targetKg,
                                start: s, plannedWeeks: weeks, label: cleanLabel(label))
         return .success(StartPlan(new: new, endDefault: endDefault, deleteDefault: deleteDefault))
+    }
+
+    /// The earliest day a not-yet-started campaign (other than `excluding`) may begin: tomorrow at the soonest, and
+    /// after the planned end of a campaign that is running.
+    static func earliestUpcomingStart(existing: [CampaignInfo], excluding: UUID? = nil, today: Date,
+                                      calendar cal: Calendar = .current) -> Date {
+        var earliest = addDays(1, to: cal.startOfDay(for: today), cal)
+        if let r = existing.first(where: { $0.id != excluding && !$0.isDefault && $0.end == nil && !isUpcoming($0, today: today, calendar: cal) }),
+           let pe = plannedEnd(r, calendar: cal) {
+            earliest = max(earliest, addDays(1, to: pe, cal))
+        }
+        return earliest
+    }
+
+    /// Days left (1 to 7) of a running real campaign that is about to close, nil otherwise.
+    static func closingIn(_ c: CampaignInfo, today: Date, calendar cal: Calendar = .current) -> Int? {
+        guard !c.isDefault, c.end == nil, !isUpcoming(c, today: today, calendar: cal),
+              let left = daysLeft(c, today: today, calendar: cal), (1...7).contains(left) else { return nil }
+        return left
     }
 
     /// A label trimmed and capped at 40 characters; nil when empty.

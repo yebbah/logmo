@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 11.1
+version: 12.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v11.1)
+# logmo: Product Requirements (v12.0)
 
 ## Vision and outcome
 
@@ -34,6 +34,7 @@ Success means the user can log a full day in under a minute and see at a glance 
 - Water: total in ml, with quick-add buttons (+250, +500, +750, +1,000).
 - Steps.
 - **Cycle** (only when "Track my menstrual cycle" is on in Settings): "Are you on your period today?" with Yes and No. Tapping the chosen answer clears it. It is optional: it is not required for a complete day and never counts against compliance.
+- **Health** (only when "Track when I'm sick" is on in Settings → Health): "Are you sick today?" with Yes and No. Tapping the chosen answer clears it. It works like the cycle question: optional, never part of compliance or streaks, stored only on the phone. Days marked yes show as yellow dots on the weigh-in and on the trend (the weigh-ins chart legend says "Sick"); if a day is both sick and on period, the weigh-in dot is yellow and the trend carries both dots. The question and the dots follow the switch, so turning it off hides them without deleting any answers.
 - Biofeedback: seven ratings, each 1–5 (scale below). Tap a selected rating again to clear it. The app shows the meaning of 1 and 5 under every rating. **Training performance** is the last check-in item. Under its 1–5 buttons is a switch row, "Not a lifting day (n/a)": n/a is not a workout, but it counts as answered, so a rest day can still be a complete check-in. Switching n/a on dims and clears the rating, and choosing a rating switches n/a off.
 
 | Rating | 1 | 5 |
@@ -98,7 +99,7 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 
 **FR-9. Local-first and control.** All data is stored on the device and works offline. The user can delete all data (logs, goals and campaign history) from Settings. Nothing is sent to any service.
 
-**FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps`, the seven ratings `performance_na` (true when training performance was answered n/a) and `on_period` (true or false when answered, blank when not). Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Each day's row also says which campaign it belongs to (`campaign_number, campaign, campaign_kind`) and carries that day's goals (`goal_calories_per_day, goal_calories_basis, goal_protein_g, goal_steps, goal_steps_basis, goal_water_ml, goal_workout_days`), so the file stands on its own. Two more CSV files complete the export: **campaigns** (number, name, kind, whether automatic, target weight, start, planned weeks, end, ended early) and **weekly goals** (one row per campaign-week with its goals and whether the user set it). Export is user-initiated and is the only way data leaves the phone. The CSVs are for spreadsheets, not an import path; the full backup (FR-20) is the way back in.
+**FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps`, the seven ratings `performance_na` (true when training performance was answered n/a), `on_period` and `sick` (true or false when answered, blank when not). Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Each day's row also says which campaign it belongs to (`campaign_number, campaign, campaign_kind`) and carries that day's goals (`goal_calories_per_day, goal_calories_basis, goal_protein_g, goal_steps, goal_steps_basis, goal_water_ml, goal_workout_days`), so the file stands on its own. Two more CSV files complete the export: **campaigns** (number, name, kind, whether automatic, target weight, start, planned weeks, end, ended early) and **weekly goals** (one row per campaign-week with its goals and whether the user set it). Export is user-initiated and is the only way data leaves the phone. The CSVs are for spreadsheets, not an import path; the full backup (FR-20) is the way back in.
 
 **FR-11. Fitness campaigns.** On the Campaigns tab (FR-16) the user starts a campaign with the **+ New** button, and defines it:
 - **Type:** cut, bulk or maintenance.
@@ -112,7 +113,10 @@ Rules:
 - When no real campaign is running, an automatic **default maintenance campaign** is open. It takes the next number, so the stretches between campaigns keep their own history. The first default starts on the first logged day (or today).
 - Starting a campaign closes the running default the day before the new start date. With a **future start date** the campaign is *upcoming*: the current campaign carries on until the day before, the Dashboard shows a countdown to the start, and the upcoming campaign counts as the one real campaign allowed, so another can't be started until it is cancelled. **Cancelling** an upcoming campaign removes it (and its goals) and the current campaign carries on. An upcoming campaign gets the usual copy of the latest goals and can be edited before it starts.
 - Starting a campaign closes the running default the day before the new start date. The start date can't be before the running default began.
-- Only one real campaign runs at a time. It can be **ended early** (or run to its planned end); it stays in history either way. Ending it opens a new default campaign the next day.
+- **Queueing:** while a real campaign runs, the next one can be planned to start after its planned last day (+ New offers that date as the earliest). If it starts later than the day after, a maintenance campaign fills the days in between. A running campaign whose planned days are over, with another queued, closes itself on its planned last day. Only one campaign can be *planned* (not yet started) at a time.
+- **Changing campaigns.** A **running** campaign can be **extended** by 1, 2, 4 or 8 weeks (Campaigns tab → Extend). If a queued campaign starts before the new end, the extension is refused and the app offers to move that campaign's start date first. An **upcoming** campaign can have its **start date and length** edited (Campaigns tab → Edit dates & length); the earliest start is the day after the running campaign's planned end, or tomorrow; the maintenance days around it adjust, and its weekly goals are copied again from the latest ones for the new weeks. A **past** campaign (ended, completed or a closed default) can't be changed at all: not its label, dates, length or weekly goals.
+- **Closing soon:** with 7 days or fewer left in a running campaign, the Dashboard shows a card: with nothing queued it offers **Extend 2 weeks** or **Extend 4 weeks** (or **Not now**, which hides it for the day); with a campaign already planned it says so, names its start date and asks whether to **move its start date**.
+- Only one real campaign runs at a time. It can be **ended early** (or run to its planned end); it stays in history either way. Ending it opens a new default campaign the next day (or, with a campaign queued, maintenance until it starts).
 - **History:** every campaign (running, upcoming, completed, ended early, default) is kept and looked back on from the Campaigns tab (FR-16).
 
 **FR-12. Dashboard tab (follows the campaign filter).** The app has five tabs: **Dashboard, Streaks, Log, Campaigns, Settings**. The Dashboard tab shows what can be filtered by campaign, including the goals. Its **Showing** control sits under a small "Showing" label and uses the full row, so a long campaign name wraps instead of running over the card. Choices are *Current campaign* (default), *Overall (all time)*, or any past campaign. Sections, top to bottom:
@@ -139,8 +143,8 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 **FR-15. About, version and contact.** Settings has an About section with the logmo logo, the tagline "Track progress with clarity", the **version** and build ("1.0.0 (1)", set in `project.yml`), and **Contact the developer**: it opens a prepared email to connectwithsvetlanamae@gmail.com with a subject and a footer that carry only the app and iOS versions, never anything from the user's logs. The address is also shown with a Copy button for people without a mail app set up. The app icon is the supplied logo: a blue square with a white check above four rising bars.
 
 **FR-16. Campaigns tab.** The home for campaigns: managing the one running, and looking back at all of them. Goals and campaigns are no longer in Settings.
-- **Running now** card, for the campaign that today belongs to: its name, "#number type · dates", week x of y and days left with a progress bar for a real campaign. A real campaign has **Weekly plan**, **Rename** and **End campaign** (with a confirmation; it stays in history and a default campaign starts the next day). The automatic default campaign shows "No campaign running" with **Start a campaign**, **Weekly plan** and **Rename**. **+ New** (top right) opens the new-campaign form (FR-11); it and Start are disabled while a real campaign is running or upcoming.
-- **Upcoming** card (FR-11) with its countdown, **Weekly plan**, **Rename** and **Cancel it**.
+- **Running now** card, for the campaign that today belongs to: its name, "#number type · dates", week x of y and days left with a progress bar for a real campaign. A real campaign has **Weekly plan**, **Rename**, **Extend** (1, 2, 4 or 8 weeks) and **End campaign** (with a confirmation; it stays in history and a default campaign starts the next day). The automatic default campaign shows "No campaign running" with **Start a campaign**, **Weekly plan** and **Rename**. **+ New** (top right) opens the new-campaign form (FR-11); it and Start are disabled while a real campaign is running or upcoming.
+- **Upcoming** card (FR-11) with its countdown, **Edit dates & length**, **Weekly plan**, **Rename** and **Cancel it**.
 - **Look back**: one card per campaign, newest first, each with its name, status (running, upcoming, closed, completed, ended early), "#number type · dates · length" (for one ended early, days run out of days planned), the **trend weight change** with start and end weights and the target, and three figures: **compliance** (complied days of days so far, as a percent), **average steps** and **average calories**, then a line with weekly goals met of finished weeks and workout days a week against the target. A campaign with no weigh-ins says so; an upcoming one shows only its start.
 - **A campaign's look back** (tap a card):
   - Header: name, status, "#number type · dates", and planned versus actual length.
@@ -148,7 +152,7 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
   - **Compliance:** percent and complied days of days so far, one square per day (complied, not complied, or still open for today) and bars per tracker (days fully logged).
   - **Weekly plan** (read-only): the weeks that have begun, newest first, each with the goals set for it (changes from the week before highlighted), whether it was set by the user or carried over, how many of its days complied under its goals, a one-square-per-day strip, and whether its weekly goals were met or missed with the reason (for example "calories averaged 2,050 against 1,800", "1 of 3 workouts"). It shows four weeks and expands to all. A campaign that is running or upcoming also links to its editable plan.
   - **Averages:** calories, protein, carbs, fat, steps, water, and the biofeedback averages with which direction is better. A rating that was never logged has no average.
-  - **Label** (editable) and **Open on Dashboard**: switches to the Dashboard tab with this campaign chosen in the Showing control. It is hidden for a campaign that hasn't started.
+  - **Label** (editable only while the campaign hasn't ended; a past campaign shows it read-only with a note) and **Open on Dashboard**: switches to the Dashboard tab with this campaign chosen in the Showing control. It is hidden for a campaign that hasn't started.
 - Compliance for a campaign counts every day from its start to its end (or today), the same rules as FR-6; a running campaign counts today.
 
 **FR-17. Weekly plan.** A campaign's weekly goals, week by week, opened from the **Weekly plan** button on the Campaigns tab or the link on the Dashboard Goals card.
@@ -162,7 +166,7 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 
 **FR-19. Launch.** The launch screen shows the logo on a plain background from the first moment, with no white flash. The landing screen then shows the logo, "logmo" and the tagline as one block centred slightly above the middle, and the version at the bottom, for three seconds in all, and fades into the Dashboard. The Dashboard is built behind it, so the landing is on screen immediately. Tapping the landing skips the wait.
 
-**FR-20. Full backup and restore.** Settings → Backup has **Save a full backup** (one JSON file with every log, every weekly goal (including whether it was set or carried over), every campaign and the user's settings (units, trend smoothing, required trackers, theme, cycle tracking, weekly reminder, biofeedback overlay, campaign filter), through the share sheet, for Files or iCloud Drive) and **Restore from a backup**, which asks first and then replaces everything on the phone. A file that isn't a logmo backup is refused with a message. Nothing is sent anywhere by the app. Cloud sync stays a later phase.
+**FR-20. Full backup and restore.** Settings → Backup has **Save a full backup** (one JSON file with every log, every weekly goal (including whether it was set or carried over), every campaign and the user's settings (units, trend smoothing, required trackers, theme, cycle tracking, weekly reminder, biofeedback overlay, campaign filter, the cycle and sick switches), through the share sheet, for Files or iCloud Drive) and **Restore from a backup**, which asks first and then replaces everything on the phone. A file that isn't a logmo backup is refused with a message. Nothing is sent anywhere by the app. Cloud sync stays a later phase.
 
 **FR-21. Delete all data.** Settings → Delete all data removes every log, goal and campaign, one by one, and checks the save; if it fails an alert says so. Afterwards the app is as new: one automatic maintenance campaign, the Dashboard back on *Current campaign*, the setup card (FR-22) showing again. Nothing from the old data remains on any screen.
 
@@ -270,3 +274,9 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D68 | The Streaks "Daily goals, last 7 days" row uses the goals of the campaign each day belongs to, and a day before the first logged day shows the neutral hollow circle, not a red cross | Fixed after a campaign started midweek showed red crosses for the days before it |
 | D69 | Restoring a backup also restores settings; a version-1 backup (no settings) restores the data and leaves settings alone | Decided |
 | D70 | The Log completeness strip uses icons only, with accessibility labels carrying the names | Decided: words didn't fit on one line |
+| D73 | A running campaign can be followed by a queued one, which is how "move its start date" can arise while another is closing | Decided: needed for the closing-soon prompt to make sense |
+| D74 | Extending a running campaign never overlaps a queued one: it is refused and the user is sent to move the queued start first | Decided |
+| D75 | Editing an upcoming campaign re-copies its weekly goals from the latest ones, replacing the copies it had | Assumption: it has none set by the user yet |
+| D76 | Past campaigns are fully read-only, including the label | Decided |
+| D71 | Sick tracking is its own opt-in switch (Settings → Health), separate from cycle tracking | Decided |
+| D72 | Sick days are yellow dots; sick takes the weigh-in dot's colour over period red when both apply | Assumption |
