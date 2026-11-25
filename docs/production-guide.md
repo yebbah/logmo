@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v19.0 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v19.1 and app version 1.0.0 (build 1).
 
 ---
 
@@ -89,7 +89,7 @@ The suggestion is calculated first and explained second:
 3. `AIAdvisor` (Foundation Models, iOS 26+ with Apple Intelligence) gets the facts and ranges as structured context, picks calories, steps and lifting days **inside the ranges**, and writes a one- or two-sentence note.
 4. `SuggestionRules.compose` clamps the model's choices to the ranges, rebuilds macros so they add up, and writes the headline. `NoteValidator` drops the note if it uses a number not in the facts or targets, makes a safety or medical claim, or is too long.
 
-If the model is unavailable or fails, steps 1, 2 and 4 stand alone. No network is involved. Thresholds (confidence cut-offs, rate bands, the 1,500 kcal and 25% deficit low-target rules, step sizes) are constants in `WeekSuggestion.swift`; changing one means updating `WeekSuggestionTests`.
+If the model is unavailable, fails, or takes longer than 25 seconds (`SuggestSheet.withTimeout`), steps 1, 2 and 4 stand alone. "Edit first" hands the goals to the parent, which opens the editor from the suggestion sheet's `onDismiss` (a fixed delay is not reliable on a slower device). No network is involved. Thresholds (confidence cut-offs, rate bands, the 1,500 kcal and 25% deficit low-target rules, step sizes) are constants in `WeekSuggestion.swift`; changing one means updating `WeekSuggestionTests`.
 
 ## 3. Build, sign and install
 
@@ -114,7 +114,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (240 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (243 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 

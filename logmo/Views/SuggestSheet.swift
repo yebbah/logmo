@@ -15,7 +15,8 @@ struct SuggestSheet: View {
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
 
     let campaign: CampaignInfo
-    /// "Edit first": the caller opens the normal week editor filled with these goals.
+    /// "Edit first": called with the goals before this sheet closes. The caller keeps them and opens the week editor once the sheet has
+    /// finished dismissing (its `onDismiss`), because SwiftUI won't present a second sheet while the first is still on its way out.
     var onEdit: (GoalSet, Date) -> Void
 
     enum Phase: Equatable { case preview, working, result(PlanSuggestion) }
@@ -24,6 +25,7 @@ struct SuggestSheet: View {
     @State private var includeCycle = true
     @State private var includeSick = true
     @State private var chosenDefault = false
+    @State private var aiTimedOut = false
 
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: Date()) }
@@ -156,10 +158,30 @@ struct SuggestSheet: View {
 
     private func run(_ s: WeekSummary) {
         phase = .working
+        aiTimedOut = false
         Task {
             let basic = SuggestionRules.baseline(s)
-            let result = await AIAdvisor.suggest(s, baseline: basic) ?? basic
-            phase = .result(result)
+            // Apple Intelligence gets a limited time. If it doesn't answer, the calculated suggestion is shown rather than a spinner forever.
+            let answer = await Self.withTimeout(seconds: 25) { await AIAdvisor.suggest(s, baseline: basic) }
+            if answer.timedOut { aiTimedOut = true }
+            phase = .result(answer.value ?? basic)
+            #if DEBUG
+            // Debug aid for screenshots: -suggestEdit 1 taps "Edit first" as soon as the suggestion is ready
+            if UserDefaults.standard.bool(forKey: "suggestEdit"), case .result(let p) = phase {
+                try? await Task.sleep(for: .seconds(1))
+                onEdit(p.goalSet(keeping: thisWeeksGoals ?? GoalSet()), nextWeek); dismiss()
+            }
+            #endif
+        }
+    }
+
+    /// Runs `work`, giving up after `seconds`. A late answer from `work` is ignored.
+    @MainActor
+    static func withTimeout<T>(seconds: Double, _ work: @escaping () async -> T?) async -> (value: T?, timedOut: Bool) {
+        await withCheckedContinuation { cont in
+            let race = Race<T>(cont)
+            Task { race.finish(await work(), timedOut: false) }
+            Task { try? await Task.sleep(for: .seconds(seconds)); race.finish(nil, timedOut: true) }
         }
     }
 
@@ -197,7 +219,8 @@ struct SuggestSheet: View {
             } header: { Text("In short") } footer: {
                 Text(p.source == .appleIntelligence
                      ? "The numbers and evidence are calculated by logmo. Apple Intelligence on your iPhone chose within the limits and wrote the note."
-                     : "A rule-based suggestion calculated by logmo on your iPhone.")
+                     : (aiTimedOut ? "Apple Intelligence didn't answer in time, so this is the suggestion logmo calculated on your iPhone."
+                                   : "A rule-based suggestion calculated by logmo on your iPhone."))
             }
             .listRowBackground(theme.card)
 
@@ -235,8 +258,8 @@ struct SuggestSheet: View {
                 Button("Edit first") {
                     let goals = p.goalSet(keeping: thisWeeksGoals ?? GoalSet())
                     let week = nextWeek
+                    onEdit(goals, week)
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { onEdit(goals, week) }
                 }
                 Button("Not now", role: .cancel) { dismiss() }
             }
@@ -260,4 +283,12 @@ struct SuggestSheet: View {
         PlanStore.save(context, campaignID: campaign.id, week: nextWeek, goals: p.goalSet(keeping: thisWeeksGoals ?? GoalSet()))
         dismiss()
     }
+}
+
+/// Resumes a continuation exactly once, from whichever of two tasks finishes first.
+@MainActor
+final class Race<T> {
+    private var cont: CheckedContinuation<(value: T?, timedOut: Bool), Never>?
+    init(_ c: CheckedContinuation<(value: T?, timedOut: Bool), Never>) { cont = c }
+    func finish(_ value: T?, timedOut: Bool) { cont?.resume(returning: (value, timedOut)); cont = nil }
 }

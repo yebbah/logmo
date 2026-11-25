@@ -434,3 +434,23 @@ final class GuidanceGoalsTests: XCTestCase {
         XCTAssertEqual(g?.carbsDaily, 210); XCTAssertEqual(g?.fatDaily, 58)
     }
 }
+
+@MainActor
+final class SuggestionTimeoutTests: XCTestCase {
+    func testAnAnswerInTimeIsUsed() async {
+        let r = await SuggestSheet.withTimeout(seconds: 2) { () -> Int? in try? await Task.sleep(for: .milliseconds(50)); return 7 }
+        XCTAssertEqual(r.value, 7); XCTAssertFalse(r.timedOut)
+    }
+
+    func testASilentModelIsGivenUpOnAndTheCalculatedSuggestionStandsIn() async {
+        let start = Date()
+        let r = await SuggestSheet.withTimeout(seconds: 0.3) { () -> Int? in try? await Task.sleep(for: .seconds(5)); return 7 }
+        XCTAssertNil(r.value); XCTAssertTrue(r.timedOut)
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2)                          // did not wait for the model
+    }
+
+    func testAFailedModelFallsBackWithoutBeingCalledATimeout() async {
+        let r = await SuggestSheet.withTimeout(seconds: 2) { () -> Int? in nil }
+        XCTAssertNil(r.value); XCTAssertFalse(r.timedOut)
+    }
+}

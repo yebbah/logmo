@@ -19,6 +19,7 @@ struct DashboardView: View {
     @State private var goalsTarget: GoalsTarget?
     @State private var planCampaign: CampaignInfo?
     @State private var suggestCampaign: CampaignInfo?
+    @State private var pendingGoals: GoalsTarget?      // "Edit first": opened once the suggestion sheet has dismissed
     @State private var startWeightFor: Campaign?
     @AppStorage("startWeightDismissedOn") private var startWeightDismissedOn = ""
     @State private var editUpcoming: Campaign?
@@ -99,8 +100,10 @@ struct DashboardView: View {
             }
             .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week, prefill: t.prefill) }
             .sheet(item: $startWeightFor) { StartWeightSheet(campaign: $0) }
-            .sheet(item: $suggestCampaign) { c in
-                SuggestSheet(campaign: c) { goals, week in goalsTarget = GoalsTarget(campaign: c, week: week, prefill: goals) }
+            .sheet(item: $suggestCampaign, onDismiss: {
+                if let p = pendingGoals { pendingGoals = nil; goalsTarget = p }
+            }) { c in
+                SuggestSheet(campaign: c) { goals, week in pendingGoals = GoalsTarget(campaign: c, week: week, prefill: goals) }
             }
 .navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
             .sheet(item: $editUpcoming) { m in

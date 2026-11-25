@@ -215,6 +215,7 @@ struct WeeklyPlanView: View {
     let campaign: CampaignInfo
     @State private var editing: EditTarget?
     @State private var suggesting = false
+    @State private var pendingEdit: EditTarget?        // "Edit first": opened once the suggestion sheet has dismissed
 
     struct EditTarget: Identifiable { var week: Date; var prefill: GoalSet? = nil; var id: Date { week } }
 
@@ -271,9 +272,17 @@ struct WeeklyPlanView: View {
         .background(theme.bg)
         .navigationTitle("Weekly plan")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            #if DEBUG
+            // Debug aid for screenshots: -suggestOnAppear 1 opens the suggestion as the toolbar button would
+            if UserDefaults.standard.bool(forKey: "suggestOnAppear") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { suggesting = true } }
+            #endif
+        }
         .sheet(item: $editing) { t in GoalsSheet(campaign: campaign, week: t.week, prefill: t.prefill) }
-        .sheet(isPresented: $suggesting) {
-            SuggestSheet(campaign: campaign) { goals, week in editing = EditTarget(week: week, prefill: goals) }
+        .sheet(isPresented: $suggesting, onDismiss: {
+            if let p = pendingEdit { pendingEdit = nil; editing = p }
+        }) {
+            SuggestSheet(campaign: campaign) { goals, week in pendingEdit = EditTarget(week: week, prefill: goals) }
         }
         .toolbar {
             if editable {

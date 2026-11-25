@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 19.0
+version: 19.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v19.0)
+# logmo: Product Requirements (v19.1)
 
 ## Vision and outcome
 
@@ -184,7 +184,8 @@ The three streaks (logging, daily goals, weekly goals) are **not campaign-specif
 - **What the decision looks at.** The campaign's intended rate (cut about -0.3 to -1.0% of body weight a week, bulk +0.1 to +0.5%, maintenance within ±0.25%); adherence (calories near target, protein, steps and workouts); recovery (fatigue, soreness, sleep, training performance, hunger and appetite, sickness); contradictions among them. Calories change only when the weight is outside its range, the evidence is at least medium, the last 7 days don't contradict the longer trend, **and intake has been near the target**: if the user has been eating well above (cut or maintenance) or below (bulk) the target, that is treated as an adherence matter and the target is kept; if logged intake and weight point in opposite directions, the logs are treated as possibly incomplete and the target is kept. Steps are lowered only when a full week of data shows them far below the goal; lifting days are lowered (by one) when recovery looks strained or two or more days were sick; **neither is ever raised automatically**, and a missed target alone never lowers a goal.
 - **Safety.** Calories move by at most 100 (150 when the weight is going clearly the wrong way) and never below 1,200. A **low target** is never lowered further and is flagged: below 1,500 a day, or more than 25% below estimated maintenance when that can be estimated. A cut never gets harder when the user was sick, recovery looks strained, hunger is high, or period days may be hiding progress. Hunger and fatigue both high on a cut prompts a review (a raise) even if the weight is on track. The model can't exceed these limits: its choices are clamped, and macros are rebuilt so protein, carbs and fat add up to the calories.
 - **Explanation.** The headline says whether calories are kept, raised or lowered, and by how much; then the confidence; then the evidence (every figure calculated from the logs); then anything worth knowing (contradictions, blocked changes) and what more data would help. Wording is plain and non-judgemental, and it never says training is safe or unsafe. The model's note is shown only if it is short, uses only numbers present in the facts or the targets, and makes no safety or medical claim; otherwise it is dropped and the calculated explanation stands alone.
-- **Approval.** Nothing is saved until the user taps **Use for next week** (saved as "Set by you", keeping the week's judging modes), or **Edit first** (opens the week editor filled with the suggestion), or **Not now**. It is a suggestion, not medical advice, and the sheet says so.
+- **If the model doesn't answer.** Apple Intelligence is given 25 seconds. After that, or if it fails, the suggestion logmo calculated is shown instead (the sheet says Apple Intelligence didn't answer in time), so the sheet never waits on a spinner.
+- **Approval.** Nothing is saved until the user taps **Use for next week** (saved as "Set by you", keeping the week's judging modes), or **Edit first** (opens the week editor filled with the suggestion, once the suggestion sheet has finished closing), or **Not now**. It is a suggestion, not medical advice, and the sheet says so.
 - **Carbs and fat guidance.** Weekly goals gain a **carbs** and a **fat** figure (g a day), set in the week editor or by a suggestion. They are guidance: shown in the plan line, as hints in the Log screen's carbs and fat fields, in the exports and the backup, and carried over like other goals. They are never judged as met or missed and never affect compliance or streaks.
 
 **FR-24. Daily log reminder.** In Settings → Reminders, a **Daily log reminder** switch with a time the user chooses (20:00 by default), separate from the weekly plan reminder (FR-18). Turning it on asks iOS for notification permission; if refused it goes back off and Settings points to iOS Settings.
@@ -375,3 +376,5 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D122 | The maintenance estimate needs four weeks of logging counted from the first log across all campaigns, and a new campaign continuing an earlier one keeps using that history | Decided: the user asked; supersedes the ten-day start in D111 |
 | D123 | A campaign start that jumps more than 0.3 kg from the trend carries the maintenance estimate for one week rather than reading a false weight change | Decided |
 | D124 | The Dashboard shows the days left in the running campaign as a badge in the top-left corner | Decided: the user asked |
+| D125 | Apple Intelligence gets 25 seconds, then the calculated suggestion stands in, so the suggestion never hangs | Decided |
+| D126 | "Edit first" opens the editor from the suggestion sheet's dismissal, not after a fixed delay, because a second sheet won't present while the first is still closing | Decided: fixes "Edit first" doing nothing on a slower device |
