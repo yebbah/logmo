@@ -225,6 +225,14 @@ final class MetricsTests: XCTestCase {
         XCTAssertEqual(t.map(\.onPeriod), [true, false, true])   // the trend point gets the flag even without a weigh-in
         XCTAssertNil(t[2].weightKg)
     }
+    func testTrendPointsCarryTheSickFlag() {
+        var a = snap(1, w: 60); a.isSick = true
+        let b = snap(2, w: 60.2)
+        var c = snap(3); c.isSick = true; c.onPeriod = true      // both flags can be set; no weigh-in that day
+        let t = Metrics.weightTrend([a, b, c], through: day(3), calendar: cal)
+        XCTAssertEqual(t.map(\.isSick), [true, false, true])
+        XCTAssertEqual(t.map(\.onPeriod), [false, false, true])
+    }
     func testNoWeightsNoTrend() {
         XCTAssertTrue(Metrics.weightTrend([snap(1)], through: day(3), calendar: cal).isEmpty)
     }
@@ -249,9 +257,9 @@ final class MetricsTests: XCTestCase {
         let lines = CSVExport.render(rows, calendar: cal).split(separator: "\n", omittingEmptySubsequences: false)
         func cells(_ l: Substring) -> [String] { l.split(separator: ",", omittingEmptySubsequences: false).map(String.init) }
         XCTAssertEqual(cells(lines[0]), ["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps",
-                                         "sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness", "performance_na", "on_period",
+                                         "sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness", "performance_na", "on_period", "sick",
                                          "campaign_number", "campaign", "campaign_kind", "goal_calories_per_day", "goal_calories_basis", "goal_protein_g", "goal_steps", "goal_steps_basis", "goal_water_ml", "goal_workout_days"])
-        XCTAssertEqual(cells(lines[1]), ["2026-11-01", "80.250", "", "150", "60", "", "", "", "", "", "", "", "", "", "", "", "false"] + Array(repeating: "", count: 10))
-        XCTAssertEqual(cells(lines[2]), ["2026-11-02", "", "2000", "", "", "250", "0", "8000", "", "", "", "", "", "", "4", "true", ""] + Array(repeating: "", count: 10))
+        XCTAssertEqual(cells(lines[1]), ["2026-11-01", "80.250", "", "150", "60", "", "", "", "", "", "", "", "", "", "", "", "false", ""] + Array(repeating: "", count: 10))
+        XCTAssertEqual(cells(lines[2]), ["2026-11-02", "", "2000", "", "", "250", "0", "8000", "", "", "", "", "", "", "4", "true", "", ""] + Array(repeating: "", count: 10))
     }
 }

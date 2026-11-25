@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
+    @AppStorage(SettingsKey.trackSick) private var trackSick = false
     @AppStorage(SettingsKey.reminderOn) private var reminderOn = false
     @AppStorage(SettingsKey.reminderWeekday) private var reminderWeekday = Reminders.defaultWeekday
     @AppStorage(SettingsKey.reminderMinutes) private var reminderMinutes = Reminders.defaultMinutes
@@ -108,6 +109,13 @@ struct SettingsView: View {
                     Toggle("Track my menstrual cycle", isOn: $trackCycle)
                 } header: { Text("Cycle") } footer: {
                     Text("Adds a daily \"on your period?\" question to the Log screen. Days you mark yes show as red dots on the weigh-in and the trend. Optional: it never counts against compliance. Stored only on this iPhone.")
+                }
+                .listRowBackground(theme.card)
+
+                Section {
+                    Toggle("Track when I'm sick", isOn: $trackSick)
+                } header: { Text("Health") } footer: {
+                    Text("Adds a daily \"are you sick today?\" question to the Log screen. Days you mark yes show as yellow dots on the weigh-in and the trend. Optional: it never counts against compliance. Stored only on this iPhone.")
                 }
                 .listRowBackground(theme.card)
 

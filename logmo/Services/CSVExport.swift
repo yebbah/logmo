@@ -15,6 +15,7 @@ struct ExportRow: Equatable {
     var ratings: [String: Int]      // keyed by Rating.rawValue
     var performanceNA: Bool = false
     var onPeriod: Bool?
+    var isSick: Bool?
     // Context for the day, so the file stands on its own: the campaign it belongs to and that week's goals.
     var campaignNumber: Int?
     var campaign: String = ""
@@ -24,7 +25,7 @@ struct ExportRow: Equatable {
 
 enum CSVExport {
     static let ratingColumns = ["sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness"]
-    static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns + ["performance_na", "on_period", "campaign_number", "campaign", "campaign_kind",
+    static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns + ["performance_na", "on_period", "sick", "campaign_number", "campaign", "campaign_kind",
                                                                                        "goal_calories_per_day", "goal_calories_basis", "goal_protein_g", "goal_steps", "goal_steps_basis",
                                                                                        "goal_water_ml", "goal_workout_days"])
         .joined(separator: ",")
@@ -90,6 +91,7 @@ enum CSVExport {
             for key in ratingColumns { fields.append(cell(r.ratings[key])) }
             fields.append(r.performanceNA ? "true" : "")
             fields.append(r.onPeriod.map { $0 ? "true" : "false" } ?? "")
+            fields.append(r.isSick.map { $0 ? "true" : "false" } ?? "")
             fields.append(cell(r.campaignNumber)); fields.append(quote(r.campaign)); fields.append(r.campaignKind)
             fields.append(contentsOf: goalCells(r.goals))
             lines.append(fields.joined(separator: ","))

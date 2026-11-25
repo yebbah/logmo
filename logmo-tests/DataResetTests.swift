@@ -34,7 +34,7 @@ final class BackupTests: XCTestCase {
         let context = container.mainContext
         CampaignStore.ensureDefault(context)
         let campaign = try context.fetch(FetchDescriptor<Campaign>())[0]
-        let log = DayLog(day: Date()); log.weightKg = 81.2; log.sleep = 4; log.performanceNA = true; log.onPeriod = true
+        let log = DayLog(day: Date()); log.weightKg = 81.2; log.sleep = 4; log.performanceNA = true; log.onPeriod = true; log.isSick = true
         context.insert(log)
         let goal = WeekGoal(weekStart: Date(), campaignID: campaign.id); goal.stepsDaily = 9000; goal.confirmed = false
         context.insert(goal)
@@ -49,7 +49,7 @@ final class BackupTests: XCTestCase {
         try Backup.restore(try Backup.decode(data), into: context)
         let logs = try context.fetch(FetchDescriptor<DayLog>())
         XCTAssertEqual(logs.count, 1); XCTAssertEqual(logs[0].weightKg, 81.2); XCTAssertEqual(logs[0].sleep, 4)
-        XCTAssertTrue(logs[0].performanceNA); XCTAssertEqual(logs[0].onPeriod, true)
+        XCTAssertTrue(logs[0].performanceNA); XCTAssertEqual(logs[0].onPeriod, true); XCTAssertEqual(logs[0].isSick, true)
         let goals = try context.fetch(FetchDescriptor<WeekGoal>())
         XCTAssertEqual(goals.count, 1); XCTAssertEqual(goals[0].stepsDaily, 9000); XCTAssertFalse(goals[0].confirmed)
         XCTAssertEqual(goals[0].campaignID, campaign.id)

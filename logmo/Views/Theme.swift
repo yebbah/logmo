@@ -31,6 +31,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var onAccent: Color { self == .clean ? .white : Color(hex: 0x0B1220) }
     var good: Color { self == .clean ? Color(hex: 0x1E8E3E) : Color(hex: 0x4ADE80) }
     var bad: Color { self == .clean ? Color(hex: 0xD93025) : Color(hex: 0xFF7A7A) }
+    /// Yellow dot for days marked sick.
+    var sick: Color { self == .clean ? Color(hex: 0xE0A800) : Color(hex: 0xFFD54A) }
     var track: Color { self == .clean ? Color(hex: 0xE4E4EA) : Color(hex: 0x243049) }
     /// Amber, for things that need a look but aren't wrong (goals only carried over).
     var warn: Color { self == .clean ? Color(hex: 0x9A5B00) : Color(hex: 0xFFB454) }

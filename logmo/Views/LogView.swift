@@ -13,10 +13,11 @@ struct DayDraft: Equatable {
     var ratings: [Rating: Int] = [:]
     var performanceNA = false          // training performance answered "n/a" (not a lifting day)
     var onPeriod: Bool?                // "on your period today?" nil = not answered
+    var isSick: Bool?                  // "are you sick today?" nil = not answered
 
     var isEmpty: Bool {
         weight.isEmpty && calories.isEmpty && protein.isEmpty && fat.isEmpty && carbs.isEmpty
-            && water.isEmpty && steps.isEmpty && ratings.isEmpty && !performanceNA && onPeriod == nil
+            && water.isEmpty && steps.isEmpty && ratings.isEmpty && !performanceNA && onPeriod == nil && isSick == nil
     }
 
     init() {}
@@ -33,6 +34,7 @@ struct DayDraft: Equatable {
         for r in Rating.allCases { if let v = log.rating(r) { ratings[r] = v } }
         performanceNA = log.performanceNA
         onPeriod = log.onPeriod
+        isSick = log.isSick
     }
 
     func apply(to log: DayLog, unit: WeightUnit) {
@@ -52,6 +54,7 @@ struct DayDraft: Equatable {
         for r in Rating.allCases { log.setRating(r, ratings[r]) }
         log.performanceNA = performanceNA
         log.onPeriod = onPeriod
+        log.isSick = isSick
         log.updatedAt = Date()
     }
 }
@@ -62,6 +65,7 @@ struct LogView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
+    @AppStorage(SettingsKey.trackSick) private var trackSick = false
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
@@ -228,6 +232,20 @@ struct LogView: View {
                     .listRowBackground(theme.card)
                 }
 
+                if showCycle && trackSick {
+                    Section("Health") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Are you sick today?")
+                            HStack(spacing: 10) {
+                                yesNoChoice("Yes", value: true, current: draft.isSick, tint: theme.sick, label: "Sick today") { draft.isSick = $0 }
+                                yesNoChoice("No", value: false, current: draft.isSick, tint: theme.accent, label: "Sick today") { draft.isSick = $0 }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .listRowBackground(theme.card)
+                }
+
                 Section("Check-in (1–5, tap again to clear)") {
                     // Training performance comes last: it is the one that can be "not a lifting day".
                     ForEach(checkInOrder) { r in
@@ -293,6 +311,19 @@ struct LogView: View {
         }
         .buttonStyle(.borderless)
         .accessibilityLabel("On your period today: \(title)")
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private func yesNoChoice(_ title: String, value: Bool, current: Bool?, tint: Color, label: String,
+                             set: @escaping (Bool?) -> Void) -> some View {
+        let on = current == value
+        return Button { set(on ? nil : value) } label: {
+            Text(title).font(.body.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 10)
+                .background(on ? (value ? tint : theme.accent) : theme.track, in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(on ? (value && tint == theme.sick ? Color.black : theme.onAccent) : Color.primary)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("\(label): \(title)")
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 

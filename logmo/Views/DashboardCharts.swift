@@ -30,6 +30,7 @@ struct WeightChartBody: View {
     @AppStorage(SettingsKey.bioShown) private var bioShownRaw = Rating.allCases.map(\.rawValue).joined(separator: ",")
     @AppStorage("weightRange") private var range = 30          // days; 0 = the whole scope
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
+    @AppStorage(SettingsKey.trackSick) private var trackSick = false
 
     let trend: [TrendPoint]
     let snaps: [DaySnapshot]
@@ -140,8 +141,8 @@ struct WeightChartBody: View {
                     LineMark(x: .value("Date", p.date), y: .value("Weigh-in", unit.fromKg(w)), series: .value("S", "weighin"))
                         .foregroundStyle(theme.muted.opacity(0.75)).lineStyle(StrokeStyle(lineWidth: 1.5))
                     PointMark(x: .value("Date", p.date), y: .value("Weigh-in", unit.fromKg(w)))
-                        .foregroundStyle(p.onPeriod && trackCycle ? theme.bad : theme.muted)
-                        .symbolSize(p.onPeriod && trackCycle ? 60 : 28)
+                        .foregroundStyle(p.isSick && trackSick ? theme.sick : (p.onPeriod && trackCycle ? theme.bad : theme.muted))
+                        .symbolSize((p.isSick && trackSick) || (p.onPeriod && trackCycle) ? 60 : 28)
                         .annotation(position: .top, spacing: 2) {
                             if labelled { Text(fmt(unit.fromKg(w))).font(.system(size: 9)).foregroundStyle(theme.muted) }
                         }
@@ -164,6 +165,11 @@ struct WeightChartBody: View {
             ForEach(shown.filter { $0.onPeriod && trackCycle }) { p in
                 PointMark(x: .value("Date", p.date), y: .value("Trend", unit.fromKg(p.trendKg)))
                     .foregroundStyle(theme.bad).symbolSize(60)
+            }
+            // Days marked sick: a yellow dot on the trend too.
+            ForEach(shown.filter { $0.isSick && trackSick }) { p in
+                PointMark(x: .value("Date", p.date), y: .value("Trend", unit.fromKg(p.trendKg)))
+                    .foregroundStyle(theme.sick).symbolSize(60)
             }
             ForEach(bio, id: \.0) { r, points in
                 ForEach(points) { p in
@@ -189,6 +195,9 @@ struct WeightChartBody: View {
                 HStack(spacing: 6) { Capsule().fill(theme.accent).frame(width: 16, height: 4); Text("Trend (\(smoothing)-day smoothing)") }
                 if trackCycle && shown.contains(where: \.onPeriod) {
                     HStack(spacing: 6) { Circle().fill(theme.bad).frame(width: 8, height: 8); Text("On period") }
+                }
+                if trackSick && shown.contains(where: \.isSick) {
+                    HStack(spacing: 6) { Circle().fill(theme.sick).frame(width: 8, height: 8); Text("Sick") }
                 }
             }.font(.caption).foregroundStyle(theme.muted)
             if bioOn && !compact {

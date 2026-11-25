@@ -30,6 +30,7 @@ struct DaySnapshot: Equatable {
     var ratings: [String: Int] = [:]
     var performanceNA: Bool = false      // "not a lifting day": training performance answered as n/a
     var onPeriod: Bool = false           // answered "yes" to being on the cycle that day
+    var isSick: Bool = false             // answered "yes" to being sick that day
 }
 
 // MARK: - Goals
@@ -121,6 +122,7 @@ struct TrendPoint: Identifiable, Equatable {
     var weightKg: Double?   // measured, nil when no weigh-in that day
     var trendKg: Double     // smoothed
     var onPeriod: Bool = false   // the day was marked as on the cycle (shown in red on the chart)
+    var isSick: Bool = false     // the day was marked as sick (shown in yellow on the chart)
     var id: Date { date }
 }
 
@@ -455,13 +457,15 @@ enum Metrics {
                             calendar cal: Calendar = .current) -> [TrendPoint] {
         var vals: [Date: Double] = [:]
         var period = Set<Date>()
+        var sick = Set<Date>()
         for s in days {
             let d = cal.startOfDay(for: s.date)
             if let w = s.weightKg { vals[d] = w }
             if s.onPeriod { period.insert(d) }
+            if s.isSick { sick.insert(d) }
         }
         return smoothed(vals, through: through, smoothingDays: smoothingDays, calendar: cal)
-            .map { TrendPoint(date: $0.date, weightKg: $0.value, trendKg: $0.trend, onPeriod: period.contains($0.date)) }
+            .map { TrendPoint(date: $0.date, weightKg: $0.value, trendKg: $0.trend, onPeriod: period.contains($0.date), isSick: sick.contains($0.date)) }
     }
 
     /// Smoothed trend for one biofeedback rating (1–5).

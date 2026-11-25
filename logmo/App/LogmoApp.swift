@@ -122,6 +122,7 @@ enum SettingsKey {
     static let bioShown = "bioShown"
     static let theme = "theme"
     static let trackCycle = "trackCycle"
+    static let trackSick = "trackSick"
     static let reminderOn = "reminderOn"
     static let reminderWeekday = "reminderWeekday"
     static let reminderMinutes = "reminderMinutes"
