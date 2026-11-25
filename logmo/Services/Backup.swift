@@ -6,11 +6,17 @@ import UniformTypeIdentifiers
 /// A full backup: every log, weekly goal and campaign in one JSON file, so a lost or replaced
 /// phone doesn't lose the history. (The CSV export stays for spreadsheets; it holds logs only.)
 struct BackupFile: Codable, Equatable {
-    var version = 1
+    var version = 2
     var exportedAt = Date()
     var logs: [LogRecord] = []
     var goals: [GoalRecord] = []
     var campaigns: [CampaignRecord] = []
+    var settings: [String: String] = [:]      // units, theme, required trackers, reminder, cycle … (absent in version 1)
+
+    /// Preferences stored in UserDefaults that belong in a backup. Strings only, so any value type round-trips.
+    static let settingKeys = [SettingsKey.unit, SettingsKey.smoothing, SettingsKey.required, SettingsKey.bioOverlay,
+                              SettingsKey.bioShown, SettingsKey.theme, SettingsKey.trackCycle, SettingsKey.reminderOn,
+                              SettingsKey.reminderWeekday, SettingsKey.reminderMinutes, "campaignFilter"]
 
     struct LogRecord: Codable, Equatable {
         var id: UUID; var day: Date; var updatedAt: Date
@@ -52,6 +58,9 @@ enum Backup {
             .init(id: $0.id, number: $0.number, kindRaw: $0.kindRaw, isDefault: $0.isDefault, targetWeightKg: $0.targetWeightKg,
                   start: $0.start, plannedWeeks: $0.plannedWeeks, end: $0.end, endedEarly: $0.endedEarly,
                   label: $0.label, updatedAt: $0.updatedAt)
+        }
+        for k in BackupFile.settingKeys {
+            if let v = UserDefaults.standard.object(forKey: k) { f.settings[k] = "\(v)" }
         }
         return f
     }
@@ -96,6 +105,13 @@ enum Backup {
             context.insert(c)
         }
         try context.save()
+        // Preferences. Keep each value's original type: bools and ints are stored as such.
+        let d = UserDefaults.standard
+        for (k, v) in f.settings where BackupFile.settingKeys.contains(k) {
+            if v == "true" || v == "false" { d.set(v == "true", forKey: k) }
+            else if let i = Int(v) { d.set(i, forKey: k) }
+            else { d.set(v, forKey: k) }
+        }
         CampaignStore.ensureDefault(context)
     }
 }

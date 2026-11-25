@@ -67,3 +67,24 @@ final class PromptsTests: XCTestCase {
         XCTAssertTrue(try context.fetch(FetchDescriptor<Campaign>()).contains { $0.isDefault && $0.end == nil })   // default carries on
     }
 }
+
+final class ExportTests: XCTestCase {
+    var cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }()
+    func day(_ n: Int) -> Date { cal.date(from: DateComponents(year: 2026, month: 11, day: n))! }
+
+    func testDayRowCarriesCampaignAndGoals() {
+        var r = ExportRow(day: day(4), weightKg: 80, calories: nil, proteinG: nil, fatG: nil, carbsG: nil, waterMl: nil, steps: nil, ratings: [:])
+        r.campaignNumber = 2; r.campaign = "Lean, bulk"; r.campaignKind = "bulk"
+        r.goals = GoalSet(caloriesWeekly: 14000, proteinDaily: 150, stepsDaily: 9000, stepsIsWeeklyAverage: true, workoutDaysWeekly: 4)
+        let line = CSVExport.render([r], calendar: cal).split(separator: "\n")[1]
+        XCTAssertTrue(line.hasSuffix(",2,\"Lean, bulk\",bulk,2000,at_or_under,150,9000,weekly_average,,4"), String(line))
+    }
+
+    func testCampaignsAndGoalsFiles() {
+        let c = CampaignInfo(number: 3, kind: .cut, targetWeightKg: 75, start: day(2), plannedWeeks: 4, end: day(29), label: "Summer")
+        XCTAssertEqual(CSVExport.campaignsCSV([c], calendar: cal),
+                       "number,name,kind,automatic_default,target_weight_kg,start,planned_weeks,end,ended_early\n3,Summer,cut,false,75.0,2026-11-02,4,2026-11-29,false\n")
+        let g = CSVExport.weeklyGoalsCSV([(campaign: c, week: day(2), goals: GoalSet(proteinDaily: 140), confirmed: false)], calendar: cal)
+        XCTAssertTrue(g.hasSuffix("3,Summer,2026-11-02,,,140,,,,,false\n"), g)
+    }
+}

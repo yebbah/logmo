@@ -40,7 +40,9 @@ final class BackupTests: XCTestCase {
         context.insert(goal)
         try context.save()
 
+        UserDefaults.standard.set("lb", forKey: SettingsKey.unit); UserDefaults.standard.set(true, forKey: SettingsKey.trackCycle)
         let data = try Backup.encode(try Backup.make(context))
+        UserDefaults.standard.set("kg", forKey: SettingsKey.unit); UserDefaults.standard.set(false, forKey: SettingsKey.trackCycle)
         try DataReset.deleteAll(context)
         XCTAssertEqual(try context.fetch(FetchDescriptor<DayLog>()).count, 0)
 
@@ -52,5 +54,8 @@ final class BackupTests: XCTestCase {
         XCTAssertEqual(goals.count, 1); XCTAssertEqual(goals[0].stepsDaily, 9000); XCTAssertFalse(goals[0].confirmed)
         XCTAssertEqual(goals[0].campaignID, campaign.id)
         XCTAssertEqual(try context.fetch(FetchDescriptor<Campaign>()).map(\.id), [campaign.id])
+        XCTAssertEqual(UserDefaults.standard.string(forKey: SettingsKey.unit), "lb")        // settings come back too
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: SettingsKey.trackCycle))
+        UserDefaults.standard.set("kg", forKey: SettingsKey.unit); UserDefaults.standard.set(false, forKey: SettingsKey.trackCycle)
     }
 }

@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 10.0
+version: 11.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v10.0)
+# logmo: Product Requirements (v11.0)
 
 ## Vision and outcome
 
@@ -98,7 +98,7 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 
 **FR-9. Local-first and control.** All data is stored on the device and works offline. The user can delete all data (logs, goals and campaign history) from Settings. Nothing is sent to any service.
 
-**FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps`, the seven ratings `performance_na` (true when training performance was answered n/a) and `on_period` (true or false when answered, blank when not). Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Goals and campaigns are not in the CSV; the full backup (FR-20) has them. Export is user-initiated and is the only way data leaves the phone. The CSV is for spreadsheets, not an import path.
+**FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps`, the seven ratings `performance_na` (true when training performance was answered n/a) and `on_period` (true or false when answered, blank when not). Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Each day's row also says which campaign it belongs to (`campaign_number, campaign, campaign_kind`) and carries that day's goals (`goal_calories_per_day, goal_calories_basis, goal_protein_g, goal_steps, goal_steps_basis, goal_water_ml, goal_workout_days`), so the file stands on its own. Two more CSV files complete the export: **campaigns** (number, name, kind, whether automatic, target weight, start, planned weeks, end, ended early) and **weekly goals** (one row per campaign-week with its goals and whether the user set it). Export is user-initiated and is the only way data leaves the phone. The CSVs are for spreadsheets, not an import path; the full backup (FR-20) is the way back in.
 
 **FR-11. Fitness campaigns.** On the Campaigns tab (FR-16) the user starts a campaign with the **+ New** button, and defines it:
 - **Type:** cut, bulk or maintenance.
@@ -160,13 +160,13 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 
 **FR-18. Reminders.** In Settings, a **Weekly plan reminder** switch with a day of the week and a time the user chooses (Sunday 18:00 by default). When on, a local notification repeats weekly at that time: "Plan your week. Set next week's goals in logmo." It carries nothing from the user's logs. Turning it on asks iOS for permission; if that is refused the switch goes back off and Settings points to iOS Settings. Turning it off cancels the notification, and changing the day or time reschedules it.
 
-**FR-19. Launch.** The launch screen shows the logo on a plain background from the first moment, with no white flash. The landing screen then shows the logo, "logmo", the tagline and the version for three seconds in all, and fades into the Dashboard. The Dashboard is built behind it, so the landing is on screen immediately. Tapping the landing skips the wait.
+**FR-19. Launch.** The launch screen shows the logo on a plain background from the first moment, with no white flash. The landing screen then shows the logo, "logmo" and the tagline as one block centred slightly above the middle, and the version at the bottom, for three seconds in all, and fades into the Dashboard. The Dashboard is built behind it, so the landing is on screen immediately. Tapping the landing skips the wait.
 
-**FR-20. Full backup and restore.** Settings → Backup has **Save a full backup** (one JSON file with every log, weekly goal and campaign, through the share sheet, for Files or iCloud Drive) and **Restore from a backup**, which asks first and then replaces everything on the phone. A file that isn't a logmo backup is refused with a message. Nothing is sent anywhere by the app. Cloud sync stays a later phase.
+**FR-20. Full backup and restore.** Settings → Backup has **Save a full backup** (one JSON file with every log, every weekly goal (including whether it was set or carried over), every campaign and the user's settings (units, trend smoothing, required trackers, theme, cycle tracking, weekly reminder, biofeedback overlay, campaign filter), through the share sheet, for Files or iCloud Drive) and **Restore from a backup**, which asks first and then replaces everything on the phone. A file that isn't a logmo backup is refused with a message. Nothing is sent anywhere by the app. Cloud sync stays a later phase.
 
 **FR-21. Delete all data.** Settings → Delete all data removes every log, goal and campaign, one by one, and checks the save; if it fails an alert says so. Afterwards the app is as new: one automatic maintenance campaign, the Dashboard back on *Current campaign*, the setup card (FR-22) showing again. Nothing from the old data remains on any screen.
 
-**FR-22. Setup and nudges.** (a) **No campaign:** when no real campaign is running or upcoming, the Dashboard shows a *Set up a campaign* card with a three-step checklist (start a campaign, set weekly goals, log a first day). Its main button does the next step; for the campaign step it opens the Campaigns tab with the new-campaign form already open. **Not now** hides the card for the rest of the day. While it shows, the separate "Set your weekly goals" banner is hidden. (b) **Finished campaign:** a real campaign whose planned weeks are over but which is still open shows a card on the Dashboard: **End & see results** (closes it on its last planned day, not as ended early, and opens the Campaigns tab) or **Extend 2 weeks** (refused if it would run into a later campaign). (c) **Log completeness:** under the date, the Log tab shows a chip for each required tracker (ticked when complete: food needs all four macros, check-in all seven ratings, with n/a counting for training performance) and "n of m".
+**FR-22. Setup and nudges.** (a) **No campaign:** when no real campaign is running or upcoming, the Dashboard shows a *Set up a campaign* card with a three-step checklist (start a campaign, set weekly goals, log a first day). Its main button does the next step; for the campaign step it opens the Campaigns tab with the new-campaign form already open. **Not now** hides the card for the rest of the day. While it shows, the separate "Set your weekly goals" banner is hidden. (b) **Finished campaign:** a real campaign whose planned weeks are over but which is still open shows a card on the Dashboard: **End & see results** (closes it on its last planned day, not as ended early, and opens the Campaigns tab) or **Extend 2 weeks** (refused if it would run into a later campaign). (c) **Log completeness:** under the date, the Log tab shows a chip for each required tracker, wrapping onto more lines rather than cutting any name short (ticked when complete: food needs all four macros, check-in all seven ratings, with n/a counting for training performance) and "n of m".
 
 ## Extensibility (provisions, not features)
 
@@ -267,3 +267,5 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D65 | Restoring a backup replaces everything on the phone, after confirmation; it does not merge | Assumption: simplest and safest |
 | D66 | The setup card is put off per day, not forever | Assumption: a nudge, not a nag |
 | D67 | A finished campaign stays open (and keeps collecting days) until the user closes or extends it | Assumption: nothing changes without the user |
+| D68 | The Streaks "Daily goals, last 7 days" row uses the goals of the campaign each day belongs to, and a day before the first logged day shows the neutral hollow circle, not a red cross | Fixed after a campaign started midweek showed red crosses for the days before it |
+| D69 | Restoring a backup also restores settings; a version-1 backup (no settings) restores the data and leaves settings alone | Decided |

@@ -131,14 +131,17 @@ struct LogView: View {
                         Spacer()
                         Text("\(required.filter(done.contains).count) of \(required.count)").font(.footnote).foregroundStyle(theme.muted)
                     }
-                    HStack(spacing: 8) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
                         ForEach(required) { t in
                             let ok = done.contains(t)
-                            Label(t.title, systemImage: ok ? "checkmark.circle.fill" : "circle")
-                                .font(.caption.weight(.semibold)).labelStyle(.titleAndIcon).lineLimit(1).minimumScaleFactor(0.7)
-                                .padding(.horizontal, 8).padding(.vertical, 5)
-                                .foregroundStyle(ok ? theme.good : theme.muted)
-                                .background((ok ? theme.good : theme.muted).opacity(0.14), in: Capsule())
+                            HStack(spacing: 5) {
+                                Image(systemName: ok ? "checkmark.circle.fill" : "circle")
+                                Text(t.title)
+                            }
+                            .font(.caption.weight(.semibold)).lineLimit(1).fixedSize()
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .foregroundStyle(ok ? theme.good : theme.muted)
+                            .background((ok ? theme.good : theme.muted).opacity(0.14), in: Capsule())
                         }
                     }
                 }

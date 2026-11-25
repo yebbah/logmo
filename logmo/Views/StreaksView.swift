@@ -113,12 +113,14 @@ struct StreaksView: View {
     private func dailyHistoryCard(_ snaps: [DaySnapshot], _ t: GoalTimeline) -> some View {
         let map = Dictionary(snaps.map { (cal.startOfDay(for: $0.date), $0) }, uniquingKeysWith: { a, _ in a })
         let days = (0..<7).reversed().map { cal.date(byAdding: .day, value: -$0, to: today)! }
+        let firstLogged = snaps.map { cal.startOfDay(for: $0.date) }.min()
         return Card(title: "Daily goals, last 7 days") {
             HStack {
                 ForEach(days, id: \.self) { d in
-                    let goals = t.goals(forWeekStarting: Metrics.weekStart(of: d))
+                    let goals = t.goals(forDay: d)                 // the goals of the campaign this day belongs to
                     let st = Metrics.dayGoalStatus(map[d], goals: goals)
-                    let ok: Bool? = (goals?.hasDailyGoals ?? false)
+                    let beforeStart = firstLogged.map { d < $0 } ?? true   // before the first logged day: nothing was tracked
+                    let ok: Bool? = (goals?.hasDailyGoals ?? false) && !beforeStart
                         ? (st.allMet ? true : (d == today && map[d] == nil ? nil : false)) : nil
                     VStack(spacing: 4) {
                         StatusIcon(ok: ok)
@@ -126,7 +128,7 @@ struct StreaksView: View {
                     }.frame(maxWidth: .infinity)
                 }
             }
-            Text("Protein, steps and water all met. A hollow circle is today, still open.")
+            Text("Protein, steps and water all met. A hollow circle is today (still open) or a day before you started logging.")
                 .font(.caption2).foregroundStyle(theme.muted)
         }
     }

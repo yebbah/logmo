@@ -17,6 +17,8 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @State private var confirmDelete = false
     @State private var deleteError: String?
+    @Query private var campaigns: [Campaign]
+    @Query private var weekGoals: [WeekGoal]
     @State private var pickBackup = false
     @State private var pendingRestore: BackupFile?
 
@@ -115,11 +117,17 @@ struct SettingsView: View {
                 }
                 .listRowBackground(theme.card)
                 Section {
-                    ShareLink(item: CSVDocument(text: CSVExport.render(logs.map(\.exportRow))),
-                              preview: SharePreview("logmo-export.csv")) {
-                        Label("Export data as CSV", systemImage: "square.and.arrow.up")
+                    let rows = ExportBuilder.dayRows(logs: logs, campaigns: campaigns, goals: weekGoals)
+                    ShareLink(item: ExportBuilder.file("logmo-daily-logs.csv", CSVExport.render(rows))) {
+                        Label("Export daily logs (CSV)", systemImage: "tablecells")
                     }
                     .disabled(logs.isEmpty)
+                    ShareLink(item: ExportBuilder.file("logmo-campaigns.csv", CSVExport.campaignsCSV(campaigns.map(\.info)))) {
+                        Label("Export campaigns (CSV)", systemImage: "flag.checkered")
+                    }
+                    ShareLink(item: ExportBuilder.file("logmo-weekly-goals.csv", CSVExport.weeklyGoalsCSV(ExportBuilder.goalRows(campaigns: campaigns, goals: weekGoals)))) {
+                        Label("Export weekly goals (CSV)", systemImage: "target")
+                    }
                     if let data = try? Backup.encode(Backup.make(context)) {
                         ShareLink(item: BackupDocument(data: data), preview: SharePreview("logmo-backup.json")) {
                             Label("Save a full backup", systemImage: "externaldrive.badge.icloud")
@@ -127,7 +135,7 @@ struct SettingsView: View {
                     }
                     Button { pickBackup = true } label: { Label("Restore from a backup", systemImage: "arrow.counterclockwise") }
                 } header: { Text("Backup") } footer: {
-                    Text("Data lives only on this iPhone. A full backup saves logs, weekly goals and campaigns in one file you can keep in Files or iCloud Drive; restoring replaces what is on the phone. The CSV holds daily logs only, for spreadsheets.")
+                    Text("Data lives only on this iPhone. The full backup is everything in one file: every log, weekly goals, campaigns and your settings (units, theme, required trackers, reminder, cycle). Keep it in Files or iCloud Drive; restoring replaces what is on the phone. The three CSV exports are for spreadsheets: daily logs (with each day's campaign and goals), campaigns, and weekly goals.")
                 }
                 .listRowBackground(theme.card)
                 AboutSection()
