@@ -1,4 +1,4 @@
-# Generate the Xcode project with:  brew install xcodegen && xcodegen
+# Generate the Xcode project with:  brew install xcodegen && DEVELOPMENT_TEAM=<your team id> xcodegen
 name: logmo
 options:
   bundleIdPrefix: com.yebbah
@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    DEVELOPMENT_TEAM: ""      # set your Apple team in Xcode > Signing
+    DEVELOPMENT_TEAM: "${DEVELOPMENT_TEAM}"   # from the environment, so the Team ID is never committed
 targets:
   logmo:
     type: application

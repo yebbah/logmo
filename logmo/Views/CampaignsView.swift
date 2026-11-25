@@ -132,6 +132,7 @@ struct CampaignDetail: View {
             .listRowBackground(theme.card)
 
             Section("Results") {
+                line("Length so far", "\(s.days) day\(s.days == 1 ? "" : "s")")
                 line("Days logged", "\(s.daysLogged) of \(s.days)")
                 if let a = s.startTrendKg, let b = s.endTrendKg {
                     line("Trend weight", "\(String(format: "%.1f", unit.fromKg(a))) → \(String(format: "%.1f", unit.fromKg(b))) \(unit.rawValue)")

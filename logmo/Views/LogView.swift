@@ -168,7 +168,7 @@ struct LogView: View {
         let d = Calendar.current.startOfDay(for: day ?? date)
         guard loadedDay.map({ Calendar.current.isDate($0, inSameDayAs: d) }) ?? false else { return }
         if let log = existing(d) {
-            draft.apply(to: log, unit: unit)
+            if draft.isEmpty { context.delete(log) } else { draft.apply(to: log, unit: unit) }   // nothing entered = no record
         } else if !draft.isEmpty {
             let log = DayLog(day: d)
             draft.apply(to: log, unit: unit)

@@ -6,7 +6,7 @@ Log weight, food (calories, protein, carbs, fat), water, steps and the workbook'
 
 ### Run it
 1. Install Xcode, then `brew install xcodegen`
-2. `xcodegen` in this folder creates `logmo.xcodeproj`
+2. `DEVELOPMENT_TEAM=<your Apple team id> xcodegen` in this folder creates `logmo.xcodeproj` (find the id in Xcode → Settings → Accounts; leave it out for simulator-only builds)
 3. Open it, set your Team under Signing, pick your iPhone, Run
 
 ### Layout

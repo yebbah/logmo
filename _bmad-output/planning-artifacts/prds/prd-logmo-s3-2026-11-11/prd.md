@@ -1,20 +1,20 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 3.1
+version: 3.2
 created: 2026-11-11
-updated: 2026-11-24
+updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v3.1)
+# logmo: Product Requirements (v3.2)
 
 ## Vision and outcome
 
-A personal iPhone app for logging weight, food (calories and macros), water, steps and daily biofeedback (the 1–5 check-in ratings from the S3 Athletic Foundation workbook), with weekly goals and a dashboard showing goal status, three streaks, compliance, and the weight trend with optional biofeedback trend lines. Data stays on the phone. The design leaves room for Apple Health and cloud sync later.
+A personal iPhone app for logging weight, food (calories and macros), water, steps and daily biofeedback (the 1–5 check-in ratings from the S3 Athletic Foundation workbook), with weekly goals, fitness campaigns (cut, bulk, maintenance), and a dashboard showing goal status, three streaks, compliance, and the weight trend with optional biofeedback trend lines. Data stays on the phone. The design leaves room for Apple Health and cloud sync later.
 
 Success means the user can log a full day in under a minute and see at a glance whether they are keeping up and where their weight is heading.
 
-**Source:** [Workbook analysis](./workbook-analysis.md) maps the S3 workbook (fields, formulas, defects). Only the daily-tracking fields are used in v1.
+**Source:** [Workbook analysis](./workbook-analysis.md) maps the S3 workbook (fields, formulas, defects). Only the daily-tracking fields are used so far.
 
 ## Core concepts
 
@@ -47,7 +47,7 @@ Success means the user can log a full day in under a minute and see at a glance 
 
 Direction differs by category: higher is better for sleep and training performance, and higher means "more" for the rest. Values 2–4 are the steps between. All seven anchors are confirmed by the user (D6).
 
-Empty fields stay empty. A day with nothing entered is not saved. Where a goal exists, the empty field shows it as a hint (for example "goal 140").
+Empty fields stay empty. A day with nothing entered is not saved: clearing every field of a day removes its record. Where a goal exists, the empty field shows it as a hint (for example "goal 140").
 
 **FR-2. Units.** The user chooses kg or lb. Weight is stored in kg, so switching units never alters data.
 
@@ -57,14 +57,14 @@ Empty fields stay empty. A day with nothing entered is not saved. Where a goal e
 - **Steps:** per day.
 - **Water:** ml per day.
 
-Every goal is optional; an empty field means no goal. A week with no goals of its own inherits the most recent earlier week's, and the editor says so. The dashboard prompts for goals on Sundays, and when none exist yet. The editor can open the current or next week, not later.
+Every goal is optional; an empty field means no goal. A week with no goals of its own inherits the most recent earlier week's, and the editor says so. The dashboard prompts for goals on Sundays, and when none exist yet. The editor can open any past week, the current week or the next week, not later.
 
 **FR-4. Goal status.**
 - **Daily:** protein, steps and water are each met at or above the goal. A goal with no value logged is not met. A day's goals are met when every goal that was set is met; with no daily goals set, nothing counts as met.
 - **Weekly calories:** judged on the week's **average** daily calories (over the days that have calories logged) against the weekly goal ÷ 7, in the chosen direction (*at or under* by default, or *at or over*). An average exactly at the target counts as met.
   - A *finished* week is met only if calories were logged on all seven days *and* the average is on target.
   - A week in progress shows its running average and whether it is currently on or off target. It is marked missed early once the week's total already exceeds an at-or-under goal, since the final average can no longer come back under it.
-- The dashboard shows today's daily goals with progress, this week's average calories against the daily-equivalent target, how far over or under it is, and how many days are logged. It also shows the last 7 days of daily goals and the last 4 weeks of the weekly calorie goal.
+- The dashboard shows today's daily goals with progress, this week's average calories against the daily-equivalent target, how far over or under it is, and how many days are logged. It also shows the last 7 days of daily goals and the weekly calorie goal for the last 4, 8 or 12 weeks (selectable).
 
 **FR-5. Streaks.** Three, each with current and best:
 - **Logging:** consecutive days with anything logged.
@@ -95,7 +95,7 @@ Rules:
 - When no real campaign is running, an automatic **default maintenance campaign** is open. It takes the next number, so the stretches between campaigns keep their own history. The first default starts on the first logged day (or today).
 - Starting a campaign closes the running default the day before the new start date. The start date can't be before the running default began.
 - Only one real campaign runs at a time. It can be **ended early** (or run to its planned end); it stays in history either way. Ending it opens a new default campaign the next day.
-- **History:** Settings lists every campaign (running, completed, ended early, default) with dates and trend-weight change. A detail view shows type, dates, planned and actual length, target, trend weight start to end, change, versus target, days logged, and average calories, protein and steps.
+- **History:** Settings lists every campaign (running, completed, ended early, default) with dates and trend-weight change. A detail view shows type, dates, planned and actual length, target, trend weight start to end, change, versus target, days logged out of its actual length in days, and average calories, protein and steps.
 
 **FR-12. Dashboard sections and campaign filter.** The dashboard has a **Showing** menu: *Current campaign* (default), *Overall (all time)*, or any past campaign. It limits the campaign card, recent performance, the weigh-in chart, rate of change, steps and calories, biofeedback and protein intake. Streaks, compliance, goals and the overall journey are not filtered: they are about now or about all time. Sections, top to bottom:
 1. **Campaign card:** title, dates, **days left** (a countdown from today to the last planned day, counting today: 28 on the first day of a 4-week campaign, 1 on the last planned day, 0 once it has passed), week x of y, target weight and distance from it (using the trend). Overall shows all data since the first weigh-in.
@@ -114,11 +114,11 @@ Rules:
 
 - **Apple Health:** a `HealthSource` interface exists; each weight records its source (`manual` now). When Health is added, imports must not overwrite a manual value for the same day.
 - **Cloud sync:** the data model is compatible with CloudKit (defaulted fields, no unique constraints, per-record id and `updatedAt`). A `SyncBackend` interface exists for another backend.
-- Neither is user-visible in v1; Settings shows "Not yet available".
+- Neither is user-visible yet; Settings shows "Not yet available".
 
 ## Out of scope
 
-Social features, Android, accounts, notifications, and everything listed under Later phases. A new visual theme is planned but not yet specified: mockups are pending the user's choice.
+Social features, Android, accounts, notifications, and everything listed under Later phases.
 
 ## Later phases (carried over from the draft PRD)
 
@@ -128,13 +128,13 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 2. **Cloud sync:** CloudKit or another backend, last-write-wins on `updatedAt`.
 3. **Workbook import:** historical entries, previewed before commit, matched by date (not by row position), with the workbook's broken references reported rather than reproduced.
 4. **Nutrition integration:** MyFitnessPal API access is currently closed to new requests; Apple Health nutrition and manual entry are the fallback. No scraping.
-5. **Estimates:** setup-based maintenance and calorie ranges, and estimated maintenance (TDEE) from trend-weight change. Requires a safety review of the workbook's formulas before any recommendation is shown. (Goals themselves are in v2.0; the user sets them, they are not calculated.)
+5. **Estimates:** setup-based maintenance and calorie ranges, and estimated maintenance (TDEE) from trend-weight change. Requires a safety review of the workbook's formulas before any recommendation is shown. (Goals are already built; the user sets them, they are not calculated.)
 6. **Run log, weekly summaries and weekly assessment**, and the workbook's hidden sheets (Measurements, Weight Record, Weekly Check-Ins, Training Plan), whose intended role is unconfirmed.
 7. **Overrides and conflict resolution** between synced sources and manual values.
 
 ## Quality and privacy
 
-- Weight, nutrition and menstrual-related data is sensitive; do not log it, and request no permissions in v1.
+- Weight, nutrition and menstrual-related data is sensitive; do not log it, and request no permissions (the app currently asks for none).
 - Streak, goal, compliance and trend calculations are unit-tested, including missing days, a day not yet logged, goals exactly at the limit, finished weeks with an unlogged day, week boundaries, and no-data cases.
 - Calculations never substitute a plausible value for missing data: no trend without a weigh-in, no 7-day change without 7 days of history, and a week with an unlogged day is never "met".
 
