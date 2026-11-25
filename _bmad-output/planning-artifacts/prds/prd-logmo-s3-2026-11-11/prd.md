@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 5.0
+version: 6.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v5.0)
+# logmo: Product Requirements (v6.0)
 
 ## Vision and outcome
 
@@ -21,19 +21,19 @@ Success means the user can log a full day in under a minute and see at a glance 
 - **Day log:** one record per calendar day holding any of the values below. A value never entered is *missing*, never zero.
 - **Logged day:** a day on which at least one tracker has a value.
 - **Trackers:** weight, food, water, steps, check-in.
-- **Fully logged:** every field of a tracker is entered. Food needs calories, protein, carbs and fat; check-in needs all seven ratings; weight, water and steps need their one value.
+- **Fully logged:** every field of a tracker is entered. Food needs calories, protein, carbs and fat; check-in needs all seven ratings (training performance may be n/a); weight, water and steps need their one value.
 - **Week:** Monday to Sunday.
 - **Weekly goals:** one set of goals per week (see FR-3).
 - **Trend weight:** exponentially smoothed weight, distinct from a measured weight.
 
 ## Requirements
 
-**FR-1. Log a day.** Choose any date up to today and view or edit that day's values:
+**FR-1. Log a day.** Choose any date up to today and view or edit that day's values. The date shows the day of the week ("Wednesday, 25 Nov 2026"); tapping it opens a calendar, and arrows step a day at a time.
 - Weight (kg or lb).
 - Food: calories (kcal), protein (g), carbs (g), fat (g).
-- Water: total in ml, with quick-add buttons (+250, +500, +750).
+- Water: total in ml, with quick-add buttons (+250, +500, +750, +1,000).
 - Steps.
-- Biofeedback: seven ratings, each 1–5 (scale below). Tap a selected rating again to clear it. The app shows the meaning of 1 and 5 under every rating.
+- Biofeedback: seven ratings, each 1–5 (scale below). Tap a selected rating again to clear it. The app shows the meaning of 1 and 5 under every rating. **Training performance** can instead be answered **n/a** (not a lifting day): n/a is not a workout, but it counts as answered, so a rest day can still be a complete check-in. Choosing a rating clears n/a and the reverse.
 
 | Rating | 1 | 5 |
 |---|---|---|
@@ -47,14 +47,15 @@ Success means the user can log a full day in under a minute and see at a glance 
 
 Direction differs by category: higher is better for sleep and training performance, and higher means "more" for the rest. Values 2–4 are the steps between. All seven anchors are confirmed by the user (D6).
 
-Empty fields stay empty. A day with nothing entered is not saved: clearing every field of a day removes its record. Where a goal exists, the empty field shows it as a hint (for example "goal 140").
+**Saving is automatic**: changes are saved shortly after you stop typing, when you change the date or leave the screen, and when the app goes to the background. A "Saved" indicator shows the state; there is no Save button. Empty fields stay empty. A day with nothing entered is not saved: clearing every field of a day removes its record. Where a goal exists, the empty field shows it as a hint (for example "goal 140").
 
 **FR-2. Units.** The user chooses kg or lb. Weight is stored in kg, so switching units never alters data.
 
 **FR-3. Weekly goals, per campaign.** Goals belong to a campaign, not to the app as a whole. Within a campaign they are set per week, expected each Sunday for the coming Monday–Sunday week. A goal set has:
 - **Calories:** a weekly total (kcal), with a direction: *at or under* (default) or *at or over*.
 - **Protein:** grams per day.
-- **Steps:** per day.
+- **Steps:** a per-day figure, judged either as a **daily total** (every day must reach it) or as a **weekly average** (the week's average daily steps must reach it). The user chooses which.
+- **Workout days:** a target number of workout days per week (0 to 7).
 - **Water:** ml per day.
 
 Every goal is optional; an empty field means no goal. Within a campaign, a week with no goals of its own inherits that campaign's most recent earlier week, and the editor says so. The editor opens on the campaign shown on the Dashboard (or the one running today when Settings opens it), and can move between that campaign's weeks: any past week of the campaign, the current week, or next week, never later or outside the campaign.
@@ -66,20 +67,23 @@ Which goals apply:
 - **A week's calorie goal** belongs to the campaign that contains the week's Monday. If a campaign starts mid-week, the new campaign's goals apply to its own days, and the week's calorie goal still comes from the campaign that held the Monday.
 
 **FR-4. Goal status.**
-- **Daily:** protein, steps and water are each met at or above the goal. A goal with no value logged is not met. A day's goals are met when every goal that was set is met; with no daily goals set, nothing counts as met.
+- **Daily:** protein and water, and steps when the steps goal is a daily total, are each met at or above the goal. A goal with no value logged is not met. A day's goals are met when every goal that was set is met; with no daily goals set, nothing counts as met.
 - **Weekly calories:** judged on the week's **average** daily calories (over the days that have calories logged) against the weekly goal ÷ 7, in the chosen direction (*at or under* by default, or *at or over*). An average exactly at the target counts as met.
   - A *finished* week is met only if calories were logged on all seven days *and* the average is on target.
   - A week in progress shows its running average and whether it is currently on or off target. It is marked missed early once the week's total already exceeds an at-or-under goal, since the final average can no longer come back under it.
-- The Goals card on the Dashboard tab (FR-12) shows today's daily goals with progress, this week's average calories against the daily-equivalent target, how far over or under it is, and how many days are logged. It also shows the last 7 days of daily goals and the weekly calorie goal for the last 4, 8 or 12 weeks (selectable).
+- **Weekly steps average:** when the steps goal is a weekly average it is judged exactly like calories, at or over: the average over the days with steps logged against the daily goal, and a finished week is met only if steps were logged on all seven days.
+- **Workout days:** the week's workout days are the days with a Training performance rating of 1 to 5; n/a days and unrated days don't count. The goal is met once the count reaches the target. It is marked missed as soon as it can't be reached any more (days done plus days still open, counting today if it is unanswered, fall short of the target) and at the end of a week that fell short.
+- **All weekly goals:** a week's overall result is met only when every weekly goal that was set (calories, weekly-average steps, workout days) is met, missed if any is missed, and in progress otherwise.
+- The Goals card on the Dashboard tab (FR-12) shows today's daily goals with progress, and for this week the average calories against the daily-equivalent target, the weekly steps average and the workout days, each with its status. The Streaks tab shows the last 7 days of daily goals and the weekly results for the last 4, 8 or 12 weeks (selectable).
 
 **FR-5. Streaks.** Three, each with current and best:
 - **Logging:** consecutive days with anything logged.
 - **Daily goals:** consecutive days whose daily goals were all met.
-- **Weekly goal:** consecutive *finished* weeks whose calorie goal was met (each week against its own campaign's goal). The week in progress neither extends nor breaks it.
+- **Weekly goal:** consecutive *finished* weeks in which every weekly goal was met (calories, weekly-average steps, workout days; each week against its own campaign's goals). The week in progress neither extends nor breaks it.
 
 For logging and daily goals, a day not yet logged *today* does not break the current streak. Each streak's definition is behind a small "i" next to its name (FR-13).
 
-**FR-6. Compliance.** A day is **complied** when every *required* tracker is fully logged, every daily goal that was set is met, *and* (when a calorie goal exists) the average calories of that day's week are on target. The calorie test uses the whole week's average (the week so far, while it is in progress), not the single day, so a day can change from complied to not complied as the week's average moves. Required trackers are chosen in Settings, all five by default. Over a 7- or 30-day window (today inclusive) the Streaks tab shows the share of days complied and, per tracker, the days it was fully logged. The count is always out of the full window (7 or 30 days). Today counts in the total and becomes a complied day once everything for it is done, so the ratio can rise during the day.
+**FR-6. Compliance.** A day is **complied** when every *required* tracker is fully logged, every daily goal that was set is met, *and* the week-level goals of that day's week are on track: the average calories (when a calorie goal exists), the average steps (when the steps goal is a weekly average), and the workout days (when a target exists, they must be reached or still reachable). These tests look at the whole week (the week so far, while it is in progress), not the single day, so a day can change from complied to not complied as the week unfolds. A missing training performance answer (a rating or n/a) keeps the check-in incomplete. Required trackers are chosen in Settings, all five by default. Over a 7- or 30-day window (today inclusive) the Streaks tab shows the share of days complied and, per tracker, the days it was fully logged. The count is always out of the full window (7 or 30 days). Today counts in the total and becomes a complied day once everything for it is done, so the ratio can rise during the day.
 
 **FR-7. Weight trend and biofeedback.** Show weigh-ins and the smoothed trend as two separate lines: weigh-ins connected with markers, the trend as a thick line, with a legend. Ranges are 14 days, 30 days, 90 days or All (of the period selected with the Showing control, FR-12). The latest trend value and last weigh-in are shown, and value labels appear when 15 or fewer points are on screen. The trend is computed over all data and only displayed per period, so it never restarts at a campaign boundary.
 - Smoothing: `trend = α × weight + (1 − α) × previous trend`, α = 2 / (N + 1). Default N = 16, matching the workbook's value for male input; the user can choose 7, 10, 14, 16 or 20. The first weigh-in seeds the trend, and days without a weigh-in carry the previous trend forward.
@@ -89,7 +93,7 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 
 **FR-9. Local-first and control.** All data is stored on the device and works offline. The user can delete all data (logs, goals and campaign history) from Settings. Nothing is sent to any service.
 
-**FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps` and the seven ratings. Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Goals are not included. Export is user-initiated and is the only way data leaves the phone. It is a backup, not an import path.
+**FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps`, the seven ratings and `performance_na` (true when training performance was answered n/a). Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Goals are not included. Export is user-initiated and is the only way data leaves the phone. It is a backup, not an import path.
 
 **FR-11. Fitness campaigns.** From Settings the user defines a campaign:
 - **Type:** cut, bulk or maintenance.
@@ -118,7 +122,7 @@ Rules:
 1. **Streaks** (FR-5), each name followed by a small "i" that opens a short explanation in a popover. There is no paragraph under the numbers.
 2. **Compliance** (FR-6), with an "i" for the definition.
 3. **Daily goals, last 7 days:** its own card.
-4. **Weekly calorie goal:** its own card, with the 4, 8 or 12 weeks selector inside it, so the selector can't be mistaken for a control of the daily row.
+4. **Weekly goals:** its own card, a mark for each week (all weekly goals met, missed, or open), with the 4, 8 or 12 weeks selector inside it, so the selector can't be mistaken for a control of the daily row.
 5. **Overall weight journey:** weigh-ins and trend across all campaigns, with the total change since the first weigh-in.
 
 Streaks, compliance and the history cards use each day's own campaign goals (FR-3), so they run across campaign changes. Goals themselves are shown and set on the Dashboard tab.
@@ -189,6 +193,12 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D30 | All four charts (weigh-ins and trend, rate of change, steps and calories, overall journey) can go full screen. Biofeedback bars and the protein donut cannot | Assumption: the user said "the graph" |
 | D31 | Weekly goals are stored per campaign, not globally | Decided: the user asked for it |
 | D32 | A new campaign (including the automatic default) starts with a copy of the most recent goals | Decided: the user chose copy |
-| D33 | A day uses its own campaign's goals; a week's calorie goal belongs to the campaign containing the week's Monday | Assumption: only matters when a campaign starts mid-week |
+| D33 | A day uses its own campaign's goals; a week's weekly goals belong to the campaign containing the week's Monday | Decided: accepted by the user, to be tuned after use |
 | D34 | Goals are shown and set on the Dashboard tab; Overall shows the current campaign's goals; past campaigns' goals are read-only summaries | Assumption: confirm |
 | D35 | The goals editor is also reachable from Settings and edits the campaign running today | Assumption |
+| D36 | Saving on the Log screen is automatic; there is no Save button | Decided |
+| D37 | A steps goal is either a daily total or a weekly average, chosen per goal set | Decided: the user asked for both |
+| D38 | A workout day is a day with a training performance rating (1–5); n/a means not a lifting day and is not a workout | Decided |
+| D39 | The workout target is assessed per week and feeds compliance and the weekly streak. Compliance stays red for every day of a week once its target is out of reach | Assumption: confirm, since it colours the whole week |
+| D40 | A finished week with the steps goal as a weekly average needs steps on all seven days to be met, like calories | Assumption |
+| D41 | Workout days need no 7-day logging: a finished week is met if the count reached the target | Assumption |

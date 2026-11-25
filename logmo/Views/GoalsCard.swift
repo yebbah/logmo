@@ -28,20 +28,27 @@ struct GoalsCard: View {
         let goals = timeline.goals(forDay: today)
         let todays = snaps.first { cal.isDate($0.date, inSameDayAs: today) }
         let status = Metrics.dayGoalStatus(todays, goals: goals)
-        let week = Metrics.weekStatus(snaps, weekStart: ws, goals: timeline.goals(forWeekStarting: ws), today: today)
+        let wkGoals = timeline.goals(forWeekStarting: ws)
+        let week = Metrics.weekStatus(snaps, weekStart: ws, goals: wkGoals, today: today)
+        let stepsWeek = Metrics.stepsWeekStatus(snaps, weekStart: ws, goals: wkGoals, today: today)
+        let workouts = Metrics.workoutWeek(snaps, weekStart: ws, goals: wkGoals, today: today)
 
         if goals == nil {
             Text("No goals set for this campaign yet.").foregroundStyle(theme.muted)
         } else {
             Text("Today").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
             goalRow("Protein", value: todays?.proteinG, goal: goals?.proteinDaily, unit: "g", met: status.protein)
-            goalRow("Steps", value: todays?.steps, goal: goals?.stepsDaily, unit: "", met: status.steps)
+            goalRow("Steps", value: todays?.steps, goal: goals?.dailyStepsGoal, unit: "", met: status.steps)
             goalRow("Water", value: todays?.waterMl, goal: goals?.waterDailyMl, unit: "ml", met: status.water)
             if !(goals?.hasDailyGoals ?? false) { Text("No daily goals set.").font(.caption).foregroundStyle(theme.muted) }
 
-            Divider()
-            Text("This week").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-            weekRow(week)
+            if goals?.hasWeeklyGoals == true {
+                Divider()
+                Text("This week").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
+                if week.goal != nil { weekRow(week) }
+                if stepsWeek.goal != nil { stepsRow(stepsWeek) }
+                if workouts.target != nil { workoutRow(workouts) }
+            }
         }
         Button("Edit goals", action: onEdit).font(.subheadline)
     }
@@ -83,6 +90,40 @@ struct GoalsCard: View {
         }
     }
 
+    private func stepsRow(_ w: WeekStatus) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Steps, weekly average")
+                Spacer()
+                Text("avg \(Int((w.average ?? 0).rounded()).formatted()) / \(Int((w.dailyTarget ?? 0).rounded()).formatted())")
+                    .font(.subheadline).monospacedDigit().foregroundStyle(theme.muted)
+                StatusIcon(ok: w.outcome == .met ? true : w.outcome == .missed ? false : nil)
+            }
+            ProgressView(value: min((w.average ?? 0) / max(w.dailyTarget ?? 1, 1), 1))
+                .tint(w.outcome == .met ? theme.good : theme.accent)
+            Text("\(w.daysWithCalories) of 7 days logged").font(.caption).foregroundStyle(theme.muted)
+        }
+    }
+
+    private func workoutRow(_ w: WorkoutWeek) -> some View {
+        let target = w.target ?? 0
+        let open = w.possible - w.done
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Workout days")
+                Spacer()
+                Text("\(w.done) / \(target)").font(.subheadline).monospacedDigit().foregroundStyle(theme.muted)
+                StatusIcon(ok: w.outcome == .met ? true : w.outcome == .missed ? false : nil)
+            }
+            ProgressView(value: min(Double(w.done) / Double(max(target, 1)), 1))
+                .tint(w.outcome == .met ? theme.good : (w.outcome == .missed ? theme.bad : theme.accent))
+            Text(w.outcome == .met ? "Target reached"
+                 : w.outcome == .missed ? "Out of reach this week"
+                 : "\(max(target - w.done, 0)) more needed · \(open) day\(open == 1 ? "" : "s") left to log one")
+                .font(.caption).foregroundStyle(theme.muted)
+        }
+    }
+
     /// Average currently on the wrong side of the daily-equivalent target.
     private func offTarget(_ w: WeekStatus) -> Bool {
         guard let avg = w.average, let target = w.dailyTarget else { return false }
@@ -118,9 +159,9 @@ struct GoalsCard: View {
         var ws = Metrics.weekStart(of: campaign.start)
         while cal.date(byAdding: .day, value: 6, to: ws)! <= end {
             if timeline.book?.owner(ofWeek: ws)?.id == campaign.id,
-               let goals = timeline.goals(forWeekStarting: ws), goals.caloriesWeekly != nil {
+               let goals = timeline.goals(forWeekStarting: ws), goals.hasWeeklyGoals {
                 r.weeksTotal += 1
-                if Metrics.weekStatus(snaps, weekStart: ws, goals: goals, today: today).outcome == .met { r.weeksMet += 1 }
+                if Metrics.weeklyOutcome(snaps, weekStart: ws, goals: goals, today: today) == .met { r.weeksMet += 1 }
             }
             ws = cal.date(byAdding: .day, value: 7, to: ws)!
         }
@@ -134,13 +175,14 @@ struct GoalsCard: View {
             Text("No goals were set in this campaign.").foregroundStyle(theme.muted)
         } else {
             summaryLine("Daily goals met", r.daysWithGoals == 0 ? "—" : "\(r.daysMet) of \(r.daysWithGoals) days")
-            summaryLine("Weekly calorie goal met", r.weeksTotal == 0 ? "—" : "\(r.weeksMet) of \(r.weeksTotal) finished weeks")
+            summaryLine("Weekly goals met", r.weeksTotal == 0 ? "—" : "\(r.weeksMet) of \(r.weeksTotal) finished weeks")
             if let last = r.last {
                 Divider()
                 Text("Goals at the end").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
                 if let c = last.caloriesWeekly { summaryLine("Calories per week", "\(c.formatted()) kcal, \(last.caloriesAtOrUnder ? "at or under" : "at or over")") }
                 if let p = last.proteinDaily { summaryLine("Protein per day", "\(p) g") }
-                if let s = last.stepsDaily { summaryLine("Steps per day", s.formatted()) }
+                if let s = last.stepsDaily { summaryLine(last.stepsIsWeeklyAverage ? "Steps, weekly average" : "Steps per day", s.formatted()) }
+                if let n = last.workoutDaysWeekly { summaryLine("Workout days per week", "\(n)") }
                 if let w = last.waterDailyMl { summaryLine("Water per day", "\(w.formatted()) ml") }
             }
         }

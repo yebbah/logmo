@@ -14,7 +14,9 @@ final class WeekGoal {
     var caloriesWeekly: Int?              // total kcal for the week
     var caloriesAtOrUnder: Bool = true    // false = the total should reach the goal
     var proteinDaily: Int?                // g per day
-    var stepsDaily: Int?                  // steps per day
+    var stepsDaily: Int?                  // steps per day (the daily total, or the weekly average, see below)
+    var stepsIsWeeklyAverage: Bool = false
+    var workoutDaysWeekly: Int?           // target workout days per week
     var waterDailyMl: Int?                // ml per day
 
     init(weekStart: Date, campaignID: UUID? = nil) {
@@ -24,7 +26,8 @@ final class WeekGoal {
 
     var goalSet: GoalSet {
         GoalSet(caloriesWeekly: caloriesWeekly, caloriesAtOrUnder: caloriesAtOrUnder,
-                proteinDaily: proteinDaily, stepsDaily: stepsDaily, waterDailyMl: waterDailyMl)
+                proteinDaily: proteinDaily, stepsDaily: stepsDaily, stepsIsWeeklyAverage: stepsIsWeeklyAverage,
+                waterDailyMl: waterDailyMl, workoutDaysWeekly: workoutDaysWeekly)
     }
 }
 

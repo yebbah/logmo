@@ -33,6 +33,7 @@ enum DemoData {
             log.hunger = rating(3); log.performance = rating(3.6)
             log.appetite = rating(3.2); log.soreness = rating(2.4)
             if i % 7 == 3 { log.soreness = nil }    // some incomplete check-ins
+            if i % 3 == 0 { log.performance = nil; log.performanceNA = true }   // rest days
             context.insert(log)
         }
         if CommandLine.arguments.contains("-demo-long") {
@@ -57,6 +58,7 @@ enum DemoData {
             let ws = cal.date(byAdding: .day, value: 7 * w, to: thisWeek)!
             let g = WeekGoal(weekStart: ws, campaignID: GoalRules.assignedCampaign(for: ws, in: infos)?.id)
             g.caloriesWeekly = 14500; g.proteinDaily = 140; g.stepsDaily = 8000; g.waterDailyMl = 2200
+            g.workoutDaysWeekly = 4
             context.insert(g)
         }
         try? context.save()

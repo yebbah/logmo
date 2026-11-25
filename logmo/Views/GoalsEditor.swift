@@ -13,6 +13,8 @@ struct GoalsEditor: View {
     @State private var calories = ""
     @State private var protein = ""
     @State private var steps = ""
+    @State private var stepsAverage = false
+    @State private var workouts = ""
     @State private var water = ""
     @State private var atOrUnder = true
     @State private var savedFlash = false
@@ -87,11 +89,30 @@ struct GoalsEditor: View {
             .listRowBackground(theme.card)
 
             Section {
+                row("Workout days per week", $workouts)
+            } header: { Text("Training") } footer: {
+                Text("A workout day is a day with a Training performance rating (1–5). Mark a rest day \"n/a\" on the Log screen and it isn't counted. Judged per week; 0 to 7.")
+            }
+            .listRowBackground(theme.card)
+
+            Section {
                 row("Protein (g)", $protein)
-                row("Steps", $steps)
                 row("Water (ml)", $water)
             } header: { Text("Every day") } footer: {
                 Text("Each is met at or above the goal. A day with no value logged is not met.")
+            }
+            .listRowBackground(theme.card)
+
+            Section {
+                row("Steps per day", $steps)
+                Picker("Judged as", selection: $stepsAverage) {
+                    Text("Daily total").tag(false)
+                    Text("Weekly average").tag(true)
+                }
+            } header: { Text("Steps") } footer: {
+                Text(stepsAverage
+                     ? "The week's average daily steps must reach the goal. One low day is fine if the others make up for it. A finished week needs steps logged on all seven days."
+                     : "Every day's total must reach the goal. A day with no steps logged is not met.")
             }
             .listRowBackground(theme.card)
 
@@ -124,6 +145,8 @@ struct GoalsEditor: View {
         calories = g?.caloriesWeekly.map(String.init) ?? ""
         protein = g?.proteinDaily.map(String.init) ?? ""
         steps = g?.stepsDaily.map(String.init) ?? ""
+        stepsAverage = g?.stepsIsWeeklyAverage ?? false
+        workouts = g?.workoutDaysWeekly.map(String.init) ?? ""
         water = g?.waterDailyMl.map(String.init) ?? ""
         atOrUnder = g?.caloriesAtOrUnder ?? true
         savedFlash = false
@@ -137,6 +160,8 @@ struct GoalsEditor: View {
         goal.caloriesAtOrUnder = atOrUnder
         goal.proteinDaily = Int(protein)
         goal.stepsDaily = Int(steps)
+        goal.stepsIsWeeklyAverage = stepsAverage
+        goal.workoutDaysWeekly = Int(workouts).map { min(max($0, 0), 7) }
         goal.waterDailyMl = Int(water)
         goal.updatedAt = Date()
         try? context.save()

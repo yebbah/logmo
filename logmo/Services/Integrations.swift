@@ -37,6 +37,7 @@ struct DayRecord: Codable, Equatable {
     var carbsG: Int?
     var waterMl: Int?
     var steps: Int?
+    var performanceNA: Bool = false
     var ratings: [String: Int]
 }
 

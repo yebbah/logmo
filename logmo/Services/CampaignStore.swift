@@ -42,7 +42,9 @@ enum CampaignStore {
         g.caloriesAtOrUnder = seed.goals.caloriesAtOrUnder
         g.proteinDaily = seed.goals.proteinDaily
         g.stepsDaily = seed.goals.stepsDaily
+        g.stepsIsWeeklyAverage = seed.goals.stepsIsWeeklyAverage
         g.waterDailyMl = seed.goals.waterDailyMl
+        g.workoutDaysWeekly = seed.goals.workoutDaysWeekly
         context.insert(g)
     }
 

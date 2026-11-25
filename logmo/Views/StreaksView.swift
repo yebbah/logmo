@@ -62,7 +62,7 @@ struct StreaksView: View {
                 streakTile("Daily goals", daily.current, daily.longest, "days",
                            "Consecutive days on which your protein, steps and water goals were all met. Today doesn't break it until the day is over.")
                 streakTile("Weekly goal", weekly.current, weekly.longest, "weeks",
-                           "Consecutive finished weeks (Monday to Sunday) whose average daily calories were on target. The week in progress neither extends nor breaks it.")
+                           "Consecutive finished weeks (Monday to Sunday) in which every weekly goal was met: average calories, steps when set as a weekly average, and workout days. The week in progress neither extends nor breaks it.")
             }
         }
     }
@@ -85,7 +85,7 @@ struct StreaksView: View {
     private func complianceCard(_ c: Compliance) -> some View {
         Card(title: "Compliance", trailing: {
             InfoButton(title: "Compliance",
-                       text: "A day is complied when everything required is fully logged, the daily goals are met, and the week's average calories are on target. Required trackers are chosen in Settings. Today counts in the total and turns green once everything for it is done.")
+                       text: "A day is complied when everything required is fully logged, the daily goals are met, and the week's goals are on track: average calories, steps when set as a weekly average, and workout days still reachable. Required trackers are chosen in Settings. Today counts in the total and turns green once everything for it is done.")
         }) {
             Picker("Window", selection: $window) {
                 Text("7 days").tag(7); Text("30 days").tag(30)
@@ -134,21 +134,21 @@ struct StreaksView: View {
     private func weeklyHistoryCard(_ snaps: [DaySnapshot], _ t: GoalTimeline) -> some View {
         let thisWeek = Metrics.weekStart(of: today)
         let weeks = (0..<historyWeeks).reversed().map { cal.date(byAdding: .day, value: -7 * $0, to: thisWeek)! }
-        return Card(title: "Weekly calorie goal", trailing: {
+        return Card(title: "Weekly goals", trailing: {
             Picker("Weeks", selection: $historyWeeks) {
                 Text("4w").tag(4); Text("8w").tag(8); Text("12w").tag(12)
             }.pickerStyle(.segmented).frame(width: 150)
         }) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 44), spacing: 6)], spacing: 12) {
                 ForEach(weeks, id: \.self) { ws in
-                    let st = Metrics.weekStatus(snaps, weekStart: ws, goals: t.goals(forWeekStarting: ws), today: today)
+                    let outcome = Metrics.weeklyOutcome(snaps, weekStart: ws, goals: t.goals(forWeekStarting: ws), today: today)
                     VStack(spacing: 4) {
-                        StatusIcon(ok: st.outcome == .met ? true : st.outcome == .missed ? false : nil)
+                        StatusIcon(ok: outcome == .met ? true : outcome == .missed ? false : nil)
                         Text(ws.formatted(.dateTime.day().month(.abbreviated))).font(.system(size: 10)).foregroundStyle(theme.muted)
                     }
                 }
             }
-            Text("Weeks start on Monday. A hollow circle is a week still open or without a calorie goal.")
+            Text("A week counts when all its weekly goals are met: calories, weekly-average steps, workout days. Weeks start on Monday. A hollow circle is a week still open or without weekly goals.")
                 .font(.caption2).foregroundStyle(theme.muted)
         }
     }

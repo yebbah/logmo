@@ -68,6 +68,7 @@ final class DayLog {
     var performance: Int?
     var appetite: Int?
     var soreness: Int?
+    var performanceNA: Bool = false       // training performance answered "n/a": not a lifting day
 
     init(day: Date) {
         self.day = Calendar.current.startOfDay(for: day)
@@ -104,7 +105,7 @@ final class DayLog {
         if calories != nil || proteinG != nil || fatG != nil || carbsG != nil { s.insert(.food) }
         if waterMl != nil { s.insert(.water) }
         if steps != nil { s.insert(.steps) }
-        if Rating.allCases.contains(where: { rating($0) != nil }) { s.insert(.checkIn) }
+        if performanceNA || Rating.allCases.contains(where: { rating($0) != nil }) { s.insert(.checkIn) }
         return s
     }
 
@@ -115,7 +116,8 @@ final class DayLog {
         if calories != nil && proteinG != nil && fatG != nil && carbsG != nil { s.insert(.food) }
         if waterMl != nil { s.insert(.water) }
         if steps != nil { s.insert(.steps) }
-        if Rating.allCases.allSatisfy({ rating($0) != nil }) { s.insert(.checkIn) }
+        // n/a counts as an answer for training performance (a rest day is still a complete check-in).
+        if Rating.allCases.allSatisfy({ rating($0) != nil || ($0 == .performance && performanceNA) }) { s.insert(.checkIn) }
         return s
     }
 
@@ -124,13 +126,14 @@ final class DayLog {
         for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
         return DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers,
                            complete: completeTrackers, calories: calories, proteinG: proteinG,
-                           waterMl: waterMl, steps: steps, ratings: r)
+                           waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA)
     }
 
     var exportRow: ExportRow {
         var r: [String: Int] = [:]
         for k in Rating.allCases { if let v = rating(k) { r[k.rawValue] = v } }
         return ExportRow(day: day, weightKg: weightKg, calories: calories, proteinG: proteinG,
-                         fatG: fatG, carbsG: carbsG, waterMl: waterMl, steps: steps, ratings: r)
+                         fatG: fatG, carbsG: carbsG, waterMl: waterMl, steps: steps, ratings: r,
+                         performanceNA: performanceNA)
     }
 }

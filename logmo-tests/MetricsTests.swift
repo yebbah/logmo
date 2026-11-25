@@ -200,15 +200,15 @@ final class MetricsTests: XCTestCase {
     func testCSVExportBlanksAndOrder() {
         let rows = [
             ExportRow(day: day(2), weightKg: nil, calories: 2000, proteinG: nil, fatG: nil, carbsG: 250,
-                      waterMl: 0, steps: 8000, ratings: ["soreness": 4]),
+                      waterMl: 0, steps: 8000, ratings: ["soreness": 4], performanceNA: true),
             ExportRow(day: day(1), weightKg: 80.25, calories: nil, proteinG: 150, fatG: 60, carbsG: nil,
                       waterMl: nil, steps: nil, ratings: [:]),
         ]
         let lines = CSVExport.render(rows, calendar: cal).split(separator: "\n", omittingEmptySubsequences: false)
         func cells(_ l: Substring) -> [String] { l.split(separator: ",", omittingEmptySubsequences: false).map(String.init) }
         XCTAssertEqual(cells(lines[0]), ["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps",
-                                         "sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness"])
-        XCTAssertEqual(cells(lines[1]), ["2026-11-01", "80.250", "", "150", "60", "", "", "", "", "", "", "", "", "", ""])
-        XCTAssertEqual(cells(lines[2]), ["2026-11-02", "", "2000", "", "", "250", "0", "8000", "", "", "", "", "", "", "4"])
+                                         "sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness", "performance_na"])
+        XCTAssertEqual(cells(lines[1]), ["2026-11-01", "80.250", "", "150", "60", "", "", "", "", "", "", "", "", "", "", ""])
+        XCTAssertEqual(cells(lines[2]), ["2026-11-02", "", "2000", "", "", "250", "0", "8000", "", "", "", "", "", "", "4", "true"])
     }
 }

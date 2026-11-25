@@ -11,10 +11,11 @@ struct DayDraft: Equatable {
     var water = ""
     var steps = ""
     var ratings: [Rating: Int] = [:]
+    var performanceNA = false          // training performance answered "n/a" (not a lifting day)
 
     var isEmpty: Bool {
         weight.isEmpty && calories.isEmpty && protein.isEmpty && fat.isEmpty && carbs.isEmpty
-            && water.isEmpty && steps.isEmpty && ratings.isEmpty
+            && water.isEmpty && steps.isEmpty && ratings.isEmpty && !performanceNA
     }
 
     init() {}
@@ -29,6 +30,7 @@ struct DayDraft: Equatable {
         water = log.waterMl.map(String.init) ?? ""
         steps = log.steps.map(String.init) ?? ""
         for r in Rating.allCases { if let v = log.rating(r) { ratings[r] = v } }
+        performanceNA = log.performanceNA
     }
 
     func apply(to log: DayLog, unit: WeightUnit) {
@@ -46,6 +48,7 @@ struct DayDraft: Equatable {
         log.waterMl = Int(water)
         log.steps = Int(steps)
         for r in Rating.allCases { log.setRating(r, ratings[r]) }
+        log.performanceNA = performanceNA
         log.updatedAt = Date()
     }
 }
@@ -53,6 +56,7 @@ struct DayDraft: Equatable {
 struct LogView: View {
     @Environment(\.theme) private var theme
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
@@ -60,7 +64,9 @@ struct LogView: View {
 
     @State private var date = Calendar.current.startOfDay(for: Date())
     @State private var draft = DayDraft()
+    @State private var baseline = DayDraft()      // what is saved; autosave runs when the draft differs
     @State private var loadedDay: Date?
+    @State private var showPicker = false
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
@@ -76,6 +82,10 @@ struct LogView: View {
         logs.first { Calendar.current.isDate($0.day, inSameDayAs: day) }
     }
 
+    private var dateLabel: String {
+        date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated).year())
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -84,8 +94,13 @@ struct LogView: View {
                         Button { shift(-1) } label: { Image(systemName: "chevron.left") }
                             .buttonStyle(.borderless)
                         Spacer()
-                        DatePicker("Date", selection: $date, in: ...today, displayedComponents: .date)
-                            .labelsHidden()
+                        Button { showPicker = true } label: {
+                            Text(dateLabel).font(.headline)
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(theme.track, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Date, \(dateLabel). Tap to change.")
                         Spacer()
                         Button { shift(1) } label: { Image(systemName: "chevron.right") }
                             .buttonStyle(.borderless)
@@ -110,7 +125,7 @@ struct LogView: View {
                 Section("Water") {
                     field("Total (ml)", $draft.water, hint(goals?.waterDailyMl))
                     HStack {
-                        ForEach([250, 500, 750], id: \.self) { ml in
+                        ForEach([250, 500, 750, 1000], id: \.self) { ml in
                             Button("+\(ml)") { addWater(ml) }
                                 .buttonStyle(.bordered).frame(maxWidth: .infinity)
                         }
@@ -119,30 +134,63 @@ struct LogView: View {
                 .listRowBackground(theme.card)
 
                 Section("Activity") {
-                    field("Steps", $draft.steps, hint(goals?.stepsDaily))
+                    // The steps hint only applies when the goal is a daily total, not a weekly average.
+                    field("Steps", $draft.steps, hint(goals?.dailyStepsGoal))
                 }
                 .listRowBackground(theme.card)
 
                 Section("Check-in (1–5, tap again to clear)") {
                     ForEach(Rating.allCases) { r in
-                        RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r]) { draft.ratings[r] = $0 }
+                        RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r],
+                                  set: { v in
+                                      draft.ratings[r] = v
+                                      if r == .performance && v != nil { draft.performanceNA = false }
+                                  },
+                                  naAllowed: r == .performance, naOn: draft.performanceNA,
+                                  onNA: {
+                                      draft.performanceNA.toggle()
+                                      if draft.performanceNA { draft.ratings[.performance] = nil }
+                                  })
                     }
                 }
                 .listRowBackground(theme.card)
             }
             .scrollContentBackground(.hidden)
             .background(theme.bg)
-            .navigationTitle(date == today ? "Today" : date.formatted(date: .abbreviated, time: .omitted))
+            .navigationTitle(date == today ? "Today" : date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    // Saving is automatic; this only shows where things stand.
+                    Label(draft == baseline ? "Saved" : "Saving…", systemImage: draft == baseline ? "checkmark.circle" : "arrow.triangle.2.circlepath")
+                        .font(.footnote).foregroundStyle(theme.muted).labelStyle(.titleAndIcon)
+                }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer(); Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
                 }
             }
+            .sheet(isPresented: $showPicker) { datePickerSheet }
             .onAppear { load(date) }
             .onChange(of: date) { old, new in save(day: old); load(new) }
+            .onChange(of: scenePhase) { _, phase in if phase != .active { save() } }
             .onDisappear { save() }
+            // Autosave: shortly after the last change, so typing isn't interrupted.
+            .task(id: draft) {
+                guard draft != baseline else { return }
+                try? await Task.sleep(for: .milliseconds(600))
+                if !Task.isCancelled { save() }
+            }
         }
+    }
+
+    private var datePickerSheet: some View {
+        NavigationStack {
+            DatePicker("Date", selection: $date, in: ...today, displayedComponents: .date)
+                .datePickerStyle(.graphical).labelsHidden().padding()
+                .tint(theme.accent)
+                .navigationTitle(dateLabel).navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showPicker = false } } }
+        }
+        .presentationDetents([.medium, .large])
     }
 
     private func field(_ title: String, _ text: Binding<String>, _ placeholder: String, decimal: Bool = false) -> some View {
@@ -162,12 +210,14 @@ struct LogView: View {
 
     private func load(_ day: Date) {
         draft = DayDraft(existing(day), unit: unit)
+        baseline = draft
         loadedDay = day
     }
 
     private func save(day: Date? = nil) {
         let d = Calendar.current.startOfDay(for: day ?? date)
         guard loadedDay.map({ Calendar.current.isDate($0, inSameDayAs: d) }) ?? false else { return }
+        guard draft != baseline else { return }                 // nothing changed: leave stored values untouched
         if let log = existing(d) {
             if draft.isEmpty { context.delete(log) } else { draft.apply(to: log, unit: unit) }   // nothing entered = no record
         } else if !draft.isEmpty {
@@ -176,6 +226,7 @@ struct LogView: View {
             context.insert(log)
         }
         try? context.save()
+        baseline = draft
     }
 }
 
@@ -186,6 +237,9 @@ struct RatingRow: View {
     let high: String
     let value: Int?
     let set: (Int?) -> Void
+    var naAllowed = false              // training performance can be answered "n/a" (not a lifting day)
+    var naOn = false
+    var onNA: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -203,6 +257,19 @@ struct RatingRow: View {
                         .buttonStyle(.borderless)
                         .accessibilityLabel("\(title) \(n): \(n == 1 ? low : n == 5 ? high : "")")
                     }
+                }
+            }
+            if naAllowed {
+                HStack {
+                    Spacer()
+                    Button(action: onNA) {
+                        Text("n/a · not a lifting day").font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(naOn ? theme.accent : theme.track, in: Capsule())
+                            .foregroundStyle(naOn ? theme.onAccent : Color.primary)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("\(title) not applicable, not a lifting day")
                 }
             }
             Text("1 = \(low) · 5 = \(high)").font(.caption).foregroundStyle(theme.muted)

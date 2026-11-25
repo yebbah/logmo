@@ -26,6 +26,7 @@ struct DaySnapshot: Equatable {
     var waterMl: Int? = nil
     var steps: Int? = nil
     var ratings: [String: Int] = [:]
+    var performanceNA: Bool = false      // "not a lifting day": training performance answered as n/a
 }
 
 // MARK: - Goals
@@ -36,8 +37,16 @@ struct GoalSet: Equatable {
     var caloriesAtOrUnder: Bool = true   // false = the weekly total should reach the goal
     var proteinDaily: Int?
     var stepsDaily: Int?
+    var stepsIsWeeklyAverage: Bool = false   // false: each day's total must reach it; true: the week's daily average must
     var waterDailyMl: Int?
-    var hasDailyGoals: Bool { proteinDaily != nil || stepsDaily != nil || waterDailyMl != nil }
+    var workoutDaysWeekly: Int?              // target workout days per week (days with a training performance rating)
+
+    /// Steps goal when it is judged day by day.
+    var dailyStepsGoal: Int? { stepsIsWeeklyAverage ? nil : stepsDaily }
+    /// Steps goal when it is judged on the week's average.
+    var weeklyAverageStepsGoal: Int? { stepsIsWeeklyAverage ? stepsDaily : nil }
+    var hasDailyGoals: Bool { proteinDaily != nil || dailyStepsGoal != nil || waterDailyMl != nil }
+    var hasWeeklyGoals: Bool { caloriesWeekly != nil || weeklyAverageStepsGoal != nil || workoutDaysWeekly != nil }
 }
 
 /// Goals keyed by the Monday that starts their week. A week without its own goals
@@ -92,6 +101,14 @@ struct WeekStatus: Equatable {
     var average: Double? { daysWithCalories == 0 ? nil : Double(total) / Double(daysWithCalories) }
     /// The weekly goal expressed per day (goal ÷ 7): what the average is compared against.
     var dailyTarget: Double? { goal.map { Double($0) / 7 } }
+}
+
+struct WorkoutWeek: Equatable {
+    var weekStart: Date
+    var target: Int?
+    var done: Int          // days with a training performance rating
+    var possible: Int      // done + days still open to log a workout
+    var outcome: WeekOutcome
 }
 
 // MARK: - Series
@@ -186,7 +203,8 @@ enum Metrics {
         return streak(of: set, today: today, calendar: cal)
     }
 
-    /// Weekly-goal streak: consecutive *finished* weeks whose calorie goal was met.
+    /// Weekly-goal streak: consecutive *finished* weeks in which every weekly goal was met
+    /// (calories, weekly-average steps, workout days).
     /// The week in progress never breaks or extends the streak.
     static func weeklyStreak(_ days: [DaySnapshot], timeline: GoalTimeline, today: Date,
                              calendar cal: Calendar = .current) -> (current: Int, longest: Int) {
@@ -195,9 +213,9 @@ enum Metrics {
         var results: [Bool] = []
         var ws = first
         while ws < thisWeek {
-            let st = weekStatus(days, weekStart: ws, goals: timeline.goals(forWeekStarting: ws, calendar: cal),
-                                today: today, calendar: cal)
-            results.append(st.outcome == .met)
+            let outcome = weeklyOutcome(days, weekStart: ws, goals: timeline.goals(forWeekStarting: ws, calendar: cal),
+                                        today: today, calendar: cal)
+            results.append(outcome == .met)
             ws = addDays(7, to: ws, cal)
         }
         var current = 0
@@ -218,7 +236,7 @@ enum Metrics {
             return value >= goal
         }
         return DayGoalStatus(protein: check(s?.proteinG, goals.proteinDaily),
-                             steps: check(s?.steps, goals.stepsDaily),
+                             steps: check(s?.steps, goals.dailyStepsGoal),
                              water: check(s?.waterMl, goals.waterDailyMl))
     }
 
@@ -241,42 +259,99 @@ enum Metrics {
         return calorieAverageOK(total: total, days: n, goal: goal, atOrUnder: goals.caloriesAtOrUnder)
     }
 
-    /// Weekly calories, judged on the week's average. A finished week only counts as met
-    /// if calories were logged on all seven days, so a few logged days can't stand in for a week.
-    static func weekStatus(_ days: [DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
-                           calendar cal: Calendar = .current) -> WeekStatus {
+    /// Average-per-day goals (calories, and steps when set as a weekly average), judged on the
+    /// week's average over the days that have a value. A finished week only counts as met if
+    /// every one of the seven days has a value, so a few logged days can't stand in for a week.
+    static func averageStatus(_ days: [DaySnapshot], weekStart ws: Date, goalTotal: Int?, atOrUnder under: Bool,
+                              value: (DaySnapshot) -> Int?, today: Date, calendar cal: Calendar = .current) -> WeekStatus {
         let map = byDay(days, cal)
         var total = 0, n = 0
         for i in 0..<7 {
-            if let c = map[addDays(i, to: ws, cal)]?.calories { total += c; n += 1 }
+            if let s = map[addDays(i, to: ws, cal)], let v = value(s) { total += v; n += 1 }
         }
-        let under = goals?.caloriesAtOrUnder ?? true
-        guard let goal = goals?.caloriesWeekly else {
-            return WeekStatus(weekStart: ws, goal: nil, atOrUnder: under, total: total,
-                              daysWithCalories: n, outcome: .noGoal)
+        guard let goal = goalTotal else {
+            return WeekStatus(weekStart: ws, goal: nil, atOrUnder: under, total: total, daysWithCalories: n, outcome: .noGoal)
         }
         let finished = cal.startOfDay(for: today) > addDays(6, to: ws, cal)
         let outcome: WeekOutcome
         if finished {
             outcome = (n == 7 && calorieAverageOK(total: total, days: n, goal: goal, atOrUnder: under)) ? .met : .missed
         } else if under && total > goal {
-            outcome = .missed
+            outcome = .missed          // the final average can no longer come back under
         } else {
             outcome = .inProgress
         }
-        return WeekStatus(weekStart: ws, goal: goal, atOrUnder: under, total: total,
-                          daysWithCalories: n, outcome: outcome)
+        return WeekStatus(weekStart: ws, goal: goal, atOrUnder: under, total: total, daysWithCalories: n, outcome: outcome)
+    }
+
+    /// Weekly calories, judged on the week's average (see `averageStatus`).
+    static func weekStatus(_ days: [DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
+                           calendar cal: Calendar = .current) -> WeekStatus {
+        averageStatus(days, weekStart: ws, goalTotal: goals?.caloriesWeekly, atOrUnder: goals?.caloriesAtOrUnder ?? true,
+                      value: { $0.calories }, today: today, calendar: cal)
+    }
+
+    /// Steps when the goal is a weekly average: the week's daily average must reach it.
+    /// `goal` and `dailyTarget` on the result are the weekly total (daily goal × 7) and the daily goal.
+    static func stepsWeekStatus(_ days: [DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
+                                calendar cal: Calendar = .current) -> WeekStatus {
+        averageStatus(days, weekStart: ws, goalTotal: goals?.weeklyAverageStepsGoal.map { $0 * 7 }, atOrUnder: false,
+                      value: { $0.steps }, today: today, calendar: cal)
+    }
+
+    /// Is the week's average steps on target? nil unless the steps goal is a weekly average.
+    static func weekStepsOK(_ map: [Date: DaySnapshot], weekStart ws: Date, goals: GoalSet?,
+                            calendar cal: Calendar = .current) -> Bool? {
+        guard let g = goals?.weeklyAverageStepsGoal else { return nil }
+        var total = 0, n = 0
+        for i in 0..<7 { if let c = map[addDays(i, to: ws, cal)]?.steps { total += c; n += 1 } }
+        return calorieAverageOK(total: total, days: n, goal: g * 7, atOrUnder: false)
+    }
+
+    /// Workout days in a week: days with a training performance rating (1–5). A day answered
+    /// "n/a" (not a lifting day) is not a workout and can't become one.
+    static func workoutWeek(_ days: [DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
+                            calendar cal: Calendar = .current) -> WorkoutWeek {
+        let map = byDay(days, cal)
+        let t = cal.startOfDay(for: today)
+        var done = 0, open = 0
+        for i in 0..<7 {
+            let d = addDays(i, to: ws, cal)
+            let s = map[d]
+            if s?.ratings["performance"] != nil { done += 1 }
+            else if d >= t && !(s?.performanceNA ?? false) { open += 1 }      // still can be logged as a workout
+        }
+        guard let target = goals?.workoutDaysWeekly else {
+            return WorkoutWeek(weekStart: ws, target: nil, done: done, possible: done + open, outcome: .noGoal)
+        }
+        let outcome: WeekOutcome = done >= target ? .met : (done + open < target ? .missed : .inProgress)
+        return WorkoutWeek(weekStart: ws, target: target, done: done, possible: done + open, outcome: outcome)
+    }
+
+    /// All of a week's weekly goals together (calories, weekly-average steps, workout days):
+    /// missed if any is missed, met only when every one is met.
+    static func weeklyOutcome(_ days: [DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
+                              calendar cal: Calendar = .current) -> WeekOutcome {
+        guard let goals, goals.hasWeeklyGoals else { return .noGoal }
+        var outs: [WeekOutcome] = []
+        if goals.caloriesWeekly != nil { outs.append(weekStatus(days, weekStart: ws, goals: goals, today: today, calendar: cal).outcome) }
+        if goals.weeklyAverageStepsGoal != nil { outs.append(stepsWeekStatus(days, weekStart: ws, goals: goals, today: today, calendar: cal).outcome) }
+        if goals.workoutDaysWeekly != nil { outs.append(workoutWeek(days, weekStart: ws, goals: goals, today: today, calendar: cal).outcome) }
+        if outs.contains(.missed) { return .missed }
+        return outs.allSatisfy { $0 == .met } ? .met : .inProgress
     }
 
     // MARK: Compliance
 
-    /// Complied = every required tracker fully logged, every daily goal met, and (when a
-    /// calorie goal exists) the week's average calories on target (`calorieOK`).
+    /// Complied = every required tracker fully logged, every daily goal met, and the week-level
+    /// goals on track: the week's average calories (`calorieOK`), its average steps when that goal
+    /// is a weekly average (`stepsOK`), and its workout days still reachable or reached (`workoutOK`).
+    /// nil means that goal doesn't exist.
     static func dayComplied(_ s: DaySnapshot?, required: Set<Tracker>, goals: GoalSet?,
-                            calorieOK: Bool? = nil) -> Bool {
+                            calorieOK: Bool? = nil, stepsOK: Bool? = nil, workoutOK: Bool? = nil) -> Bool {
         guard let s, !s.logged.isEmpty else { return false }
         guard required.isSubset(of: s.complete) else { return false }
-        if calorieOK == false { return false }
+        if calorieOK == false || stepsOK == false || workoutOK == false { return false }
         if goals?.hasDailyGoals == true { return dayGoalStatus(s, goals: goals).allMet }
         return true
     }
@@ -295,8 +370,11 @@ enum Metrics {
             let s = map[d]
             let ws = weekStart(of: d, calendar: cal)
             let goals = timeline.goals(forDay: d, calendar: cal)
+            let workout = workoutWeek(days, weekStart: ws, goals: goals, today: today, calendar: cal)
             let ok = dayComplied(s, required: required, goals: goals,
-                                 calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, calendar: cal))
+                                 calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, calendar: cal),
+                                 stepsOK: weekStepsOK(map, weekStart: ws, goals: goals, calendar: cal),
+                                 workoutOK: workout.target == nil ? nil : workout.outcome != .missed)
             evaluated += 1
             if ok { complied += 1 }
             if dayGoalStatus(s, goals: goals).allMet { goalDays += 1 }
