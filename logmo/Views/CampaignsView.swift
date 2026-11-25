@@ -78,7 +78,7 @@ struct CampaignsView: View {
         let df = Date.FormatStyle().day().month(.abbreviated)
         if c.isDefault { return "Maintenance since \(c.start.formatted(df)). Start a campaign any time." }
         var parts = ["\(c.plannedWeeks ?? 0) weeks from \(c.start.formatted(df))"]
-        if let left = CampaignRules.daysLeft(c, today: today), c.end == nil { parts.append("\(left) days left") }
+        if let left = CampaignRules.daysLeft(c, today: today), c.end == nil { parts.append("\(left) \(left == 1 ? "day" : "days") left") }
         if let t = c.targetWeightKg { parts.append("target \(String(format: "%.1f", unit.fromKg(t))) \(unit.rawValue)") }
         return parts.joined(separator: " · ")
     }

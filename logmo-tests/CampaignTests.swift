@@ -15,9 +15,12 @@ final class CampaignTests: XCTestCase {
     func testPlannedEndAndDaysLeft() {
         let c = real(1, start: 2, weeks: 2)                       // 2 Nov … 15 Nov
         XCTAssertEqual(CampaignRules.plannedEnd(c, calendar: cal), day(15))
-        XCTAssertEqual(CampaignRules.daysLeft(c, today: day(2), calendar: cal), 13)
-        XCTAssertEqual(CampaignRules.daysLeft(c, today: day(15), calendar: cal), 0)
-        XCTAssertEqual(CampaignRules.daysLeft(c, today: day(20), calendar: cal), 0)    // past the end never goes negative
+        XCTAssertEqual(CampaignRules.daysLeft(c, today: day(2), calendar: cal), 14)    // first day of 2 weeks: 14 left
+        XCTAssertEqual(CampaignRules.daysLeft(c, today: day(3), calendar: cal), 13)    // counts down daily
+        XCTAssertEqual(CampaignRules.daysLeft(c, today: day(15), calendar: cal), 1)    // last planned day
+        XCTAssertEqual(CampaignRules.daysLeft(c, today: day(16), calendar: cal), 0)    // over
+        XCTAssertEqual(CampaignRules.daysLeft(c, today: day(20), calendar: cal), 0)    // never negative
+        XCTAssertEqual(CampaignRules.daysLeft(real(2, start: 2, weeks: 4), today: day(2), calendar: cal), 28)
         XCTAssertNil(CampaignRules.daysLeft(dflt(2, start: 2), today: day(5), calendar: cal))  // default has no end
     }
     func testFiveWeekCampaign() {

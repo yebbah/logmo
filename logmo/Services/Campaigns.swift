@@ -70,11 +70,12 @@ enum CampaignRules {
         all.filter { contains($0, day: day, calendar: cal) }.max { $0.start < $1.start }
     }
 
-    /// Whole days left after today until the planned end; 0 once it is reached or passed.
+    /// Countdown to the last planned day, counting today: a 4-week campaign shows 28 on its
+    /// first day, 1 on its last planned day, and 0 once that day has passed.
     static func daysLeft(_ c: CampaignInfo, today: Date, calendar cal: Calendar = .current) -> Int? {
         guard let planned = plannedEnd(c, calendar: cal) else { return nil }
         let days = cal.dateComponents([.day], from: cal.startOfDay(for: today), to: planned).day ?? 0
-        return max(0, days)
+        return max(0, days + 1)
     }
 
     /// 1-based week of the campaign that `today` falls in (clamped to the planned length).

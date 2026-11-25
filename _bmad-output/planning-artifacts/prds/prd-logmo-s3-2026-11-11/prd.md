@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 3.0
+version: 3.1
 created: 2026-11-11
 updated: 2026-11-24
 ---
 
-# logmo: Product Requirements (v3.0)
+# logmo: Product Requirements (v3.1)
 
 ## Vision and outcome
 
@@ -98,7 +98,7 @@ Rules:
 - **History:** Settings lists every campaign (running, completed, ended early, default) with dates and trend-weight change. A detail view shows type, dates, planned and actual length, target, trend weight start to end, change, versus target, days logged, and average calories, protein and steps.
 
 **FR-12. Dashboard sections and campaign filter.** The dashboard has a **Showing** menu: *Current campaign* (default), *Overall (all time)*, or any past campaign. It limits the campaign card, recent performance, the weigh-in chart, rate of change, steps and calories, biofeedback and protein intake. Streaks, compliance, goals and the overall journey are not filtered: they are about now or about all time. Sections, top to bottom:
-1. **Campaign card:** title, dates, **days left** (whole days after today until the planned end, 0 once reached), week x of y, target weight and distance from it (using the trend). Overall shows all data since the first weigh-in.
+1. **Campaign card:** title, dates, **days left** (a countdown from today to the last planned day, counting today: 28 on the first day of a 4-week campaign, 1 on the last planned day, 0 once it has passed), week x of y, target weight and distance from it (using the trend). Overall shows all data since the first weigh-in.
 2. Goals, streaks and compliance (FR-3 to FR-6).
 3. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
 4. **Weigh-ins and trend** chart (FR-7).
@@ -160,11 +160,11 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D16 | Goals are not in the CSV export | Assumption: backing up goals is a gap |
 | D17 | Two themes (Clean, Midnight), chosen in Settings; Clean is the default | Decided |
 | D18 | A finished week needs calories on all seven days to be "met", even though it is judged on the average | Assumption: confirm, or allow partial weeks |
-| D19 | The dashboard opens on the current campaign, with Overall one tap away | Decided |
+| D19 | The dashboard opens on the current campaign, with Overall one tap away; the filter scope is accepted as is | Decided: to be re-checked after use |
 | D20 | Streaks and compliance are not filtered by campaign | Assumption: they describe consistency over time |
 | D21 | The trend line is computed over all data and sliced per campaign | Assumption: smoothing shouldn't restart at a boundary |
 | D22 | Only one real campaign at a time; start date can't precede the running default's start | Assumption |
-| D23 | "Days left" counts whole days after today until the planned end | Assumption |
+| D23 | "Days left" counts down from today to the last planned day (start + weeks × 7 − 1), counting today | Decided: confirmed by the user |
 | D24 | Deleting all data also deletes campaign history | Assumption |
-| D25 | Choosing cut or bulk does not change the calorie-goal direction, which stays at-or-under unless the user switches it in the goals editor | Assumption: confirm |
+| D25 | Choosing cut or bulk does not change the calorie-goal direction. It stays at-or-under for every campaign type (the user's goal is a lean bulk) | Decided: confirmed by the user |
 | D26 | Weekly history length is selectable (4, 8, 12 weeks) | Decided: months can have 5 weeks |
