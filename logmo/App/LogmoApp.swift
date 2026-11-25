@@ -48,6 +48,7 @@ struct RootView: View {
             Group {
                 switch screen {
                 case "newcampaign": NewCampaignForm(minStart: Calendar.current.startOfDay(for: Date()))
+                case "goals": NavigationStack { CurrentGoalsEditor() }
                 default: NavigationStack { CampaignsView() }
                 }
             }

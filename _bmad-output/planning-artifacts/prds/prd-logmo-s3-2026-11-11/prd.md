@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 4.0
+version: 5.0
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v4.0)
+# logmo: Product Requirements (v5.0)
 
 ## Vision and outcome
 
@@ -51,25 +51,31 @@ Empty fields stay empty. A day with nothing entered is not saved: clearing every
 
 **FR-2. Units.** The user chooses kg or lb. Weight is stored in kg, so switching units never alters data.
 
-**FR-3. Weekly goals.** Goals are set per week and are expected to be set each Sunday for the coming Monday–Sunday week. A goal set has:
+**FR-3. Weekly goals, per campaign.** Goals belong to a campaign, not to the app as a whole. Within a campaign they are set per week, expected each Sunday for the coming Monday–Sunday week. A goal set has:
 - **Calories:** a weekly total (kcal), with a direction: *at or under* (default) or *at or over*.
 - **Protein:** grams per day.
 - **Steps:** per day.
 - **Water:** ml per day.
 
-Every goal is optional; an empty field means no goal. A week with no goals of its own inherits the most recent earlier week's, and the editor says so. The Streaks tab prompts for goals on Sundays, and when none exist yet. The editor can open any past week, the current week or the next week, not later.
+Every goal is optional; an empty field means no goal. Within a campaign, a week with no goals of its own inherits that campaign's most recent earlier week, and the editor says so. The editor opens on the campaign shown on the Dashboard (or the one running today when Settings opens it), and can move between that campaign's weeks: any past week of the campaign, the current week, or next week, never later or outside the campaign.
+
+When a campaign starts, including the automatic default one, it begins with a **copy of the most recent weekly goals** of the other campaigns, placed on the Monday of the week it starts, so nothing starts unset. If there are no goals anywhere yet, it starts with none. Goals made before goals were per campaign move to the campaign that contains their week.
+
+Which goals apply:
+- **A day** uses the goals of the campaign it belongs to (the latest set for its week or earlier). Daily goal status, the daily-goals streak, compliance and the protein donut all follow this.
+- **A week's calorie goal** belongs to the campaign that contains the week's Monday. If a campaign starts mid-week, the new campaign's goals apply to its own days, and the week's calorie goal still comes from the campaign that held the Monday.
 
 **FR-4. Goal status.**
 - **Daily:** protein, steps and water are each met at or above the goal. A goal with no value logged is not met. A day's goals are met when every goal that was set is met; with no daily goals set, nothing counts as met.
 - **Weekly calories:** judged on the week's **average** daily calories (over the days that have calories logged) against the weekly goal ÷ 7, in the chosen direction (*at or under* by default, or *at or over*). An average exactly at the target counts as met.
   - A *finished* week is met only if calories were logged on all seven days *and* the average is on target.
   - A week in progress shows its running average and whether it is currently on or off target. It is marked missed early once the week's total already exceeds an at-or-under goal, since the final average can no longer come back under it.
-- The Streaks tab shows today's daily goals with progress, this week's average calories against the daily-equivalent target, how far over or under it is, and how many days are logged. It also shows the last 7 days of daily goals and the weekly calorie goal for the last 4, 8 or 12 weeks (selectable).
+- The Goals card on the Dashboard tab (FR-12) shows today's daily goals with progress, this week's average calories against the daily-equivalent target, how far over or under it is, and how many days are logged. It also shows the last 7 days of daily goals and the weekly calorie goal for the last 4, 8 or 12 weeks (selectable).
 
 **FR-5. Streaks.** Three, each with current and best:
 - **Logging:** consecutive days with anything logged.
 - **Daily goals:** consecutive days whose daily goals were all met.
-- **Weekly goal:** consecutive *finished* weeks whose calorie goal was met. The week in progress neither extends nor breaks it.
+- **Weekly goal:** consecutive *finished* weeks whose calorie goal was met (each week against its own campaign's goal). The week in progress neither extends nor breaks it.
 
 For logging and daily goals, a day not yet logged *today* does not break the current streak. Each streak's definition is behind a small "i" next to its name (FR-13).
 
@@ -97,23 +103,25 @@ Rules:
 - Only one real campaign runs at a time. It can be **ended early** (or run to its planned end); it stays in history either way. Ending it opens a new default campaign the next day.
 - **History:** Settings lists every campaign (running, completed, ended early, default) with dates and trend-weight change. A detail view shows type, dates, planned and actual length, target, trend weight start to end, change, versus target, days logged out of its actual length in days, and average calories, protein and steps.
 
-**FR-12. Dashboard tab (follows the campaign filter).** The app has four tabs: **Dashboard, Streaks, Log, Settings**. The Dashboard tab shows what can be filtered by campaign. Its **Showing** control sits under a small "Showing" label and uses the full row, so a long campaign name wraps instead of running over the card. Choices are *Current campaign* (default), *Overall (all time)*, or any past campaign. Sections, top to bottom:
+**FR-12. Dashboard tab (follows the campaign filter).** The app has four tabs: **Dashboard, Streaks, Log, Settings**. The Dashboard tab shows what can be filtered by campaign, including the goals. Its **Showing** control sits under a small "Showing" label and uses the full row, so a long campaign name wraps instead of running over the card. Choices are *Current campaign* (default), *Overall (all time)*, or any past campaign. Sections, top to bottom:
 1. **Campaign card:** title, dates, **days left** (a countdown from today to the last planned day, counting today: 28 on the first day of a 4-week campaign, 1 on the last planned day, 0 once it has passed), week x of y, target weight and distance from it (using the trend). Overall shows all data since the first weigh-in.
-2. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
-3. **Weigh-ins and trend** chart (FR-7).
-4. **Rate of change per week:** one bar per day, trend weight today minus 7 days earlier, over the last 12 weeks, with the latest value and its percent of body weight.
-5. **Steps and calories:** last 14 days as grouped bars (steps on the left axis, calories on the right) and the past-7-day averages.
-6. **Biofeedback, last 7 days:** one small bar chart per rating with its 7-day average and which direction is better: higher for sleep and training performance, lower for fatigue, stress, hunger and soreness, and none for appetite. Days without a rating have no bar.
-7. **Protein intake:** days the protein goal was hit out of days with a goal, last 14 days. An unlogged day counts as missed.
+2. **Set your weekly goals banner** (FR-3), shown when the campaign running today has no goals yet and on Sundays when next week has none.
+3. **Goals card** for the campaign being shown. For the campaign running today it is live: today's protein, steps and water with progress, this week's average calories against the daily-equivalent target (FR-4), and an **Edit goals** button. For a past campaign it summarises that campaign: days on which the daily goals were met out of days with goals, finished weeks whose calorie goal was met, and the goals it ended with. With *Overall* selected it shows the campaign running today.
+4. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
+5. **Weigh-ins and trend** chart (FR-7).
+6. **Rate of change per week:** one bar per day, trend weight today minus 7 days earlier, over the last 12 weeks, with the latest value and its percent of body weight.
+7. **Steps and calories:** last 14 days as grouped bars (steps on the left axis, calories on the right) and the past-7-day averages.
+8. **Biofeedback, last 7 days:** one small bar chart per rating with its 7-day average and which direction is better: higher for sleep and training performance, lower for fatigue, stress, hunger and soreness, and none for appetite. Days without a rating have no bar.
+9. **Protein intake:** days the protein goal was hit out of days with a goal, last 14 days. An unlogged day counts as missed.
 
 **FR-13. Streaks tab (never filtered by campaign).** Everything here is about now or about all time. Top to bottom:
 1. **Streaks** (FR-5), each name followed by a small "i" that opens a short explanation in a popover. There is no paragraph under the numbers.
-2. **Set your weekly goals** banner (FR-3), shown on Sundays and when no goals exist yet.
-3. **Goals:** today's protein, steps and water with progress, and this week's average calories against the daily-equivalent target (FR-4).
-4. **Compliance** (FR-6), with an "i" for the definition.
-5. **Daily goals, last 7 days:** its own card.
-6. **Weekly calorie goal:** its own card, with the 4, 8 or 12 weeks selector inside it, so the selector can't be mistaken for a control of the daily row.
-7. **Overall weight journey:** weigh-ins and trend across all campaigns, with the total change since the first weigh-in.
+2. **Compliance** (FR-6), with an "i" for the definition.
+3. **Daily goals, last 7 days:** its own card.
+4. **Weekly calorie goal:** its own card, with the 4, 8 or 12 weeks selector inside it, so the selector can't be mistaken for a control of the daily row.
+5. **Overall weight journey:** weigh-ins and trend across all campaigns, with the total change since the first weigh-in.
+
+Streaks, compliance and the history cards use each day's own campaign goals (FR-3), so they run across campaign changes. Goals themselves are shown and set on the Dashboard tab.
 
 **FR-14. Full-screen charts.** The weigh-ins and trend chart, rate of change, steps and calories, and the overall weight journey each have an expand button. It opens the chart full screen and turns the phone to landscape; closing it returns to portrait. The rest of the app stays portrait. In full screen the weigh-ins and trend chart keeps its range selector and biofeedback switch, and shows weigh-in values (up to about a month of points) and the latest trend value.
 
@@ -159,7 +167,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D8 | Weekly calorie goal is judged "at or under" by default, switchable to "at or over" | Decided: default confirmed by the user |
 | D9 | Daily protein, steps and water goals are met at or above the goal | Assumption |
 | D10 | A week with any day lacking calories can't be "met" | Assumption |
-| D11 | A week with no goals inherits the latest earlier goals | Assumption |
+| D11 | Within a campaign, a week with no goals inherits that campaign's latest earlier goals | Assumption |
 | D12 | Complied = every required tracker fully logged and every set daily goal met; required trackers are toggles, all on by default | Decided |
 | D13 | Compliance is always out of the full 7 or 30 days; today counts in the total and turns complied once everything for it is done | Decided: the user asked for the full window |
 | D14 | Biofeedback lines use fixed 7-day smoothing | Assumption |
@@ -179,3 +187,8 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D28 | The Streaks tab opens with the streaks, then the weekly-goals banner; the campaign filter sits at the top of the Dashboard tab | Decided: mockup approved |
 | D29 | Landscape is used only for full-screen charts; everything else is portrait | Decided |
 | D30 | All four charts (weigh-ins and trend, rate of change, steps and calories, overall journey) can go full screen. Biofeedback bars and the protein donut cannot | Assumption: the user said "the graph" |
+| D31 | Weekly goals are stored per campaign, not globally | Decided: the user asked for it |
+| D32 | A new campaign (including the automatic default) starts with a copy of the most recent goals | Decided: the user chose copy |
+| D33 | A day uses its own campaign's goals; a week's calorie goal belongs to the campaign containing the week's Monday | Assumption: only matters when a campaign starts mid-week |
+| D34 | Goals are shown and set on the Dashboard tab; Overall shows the current campaign's goals; past campaigns' goals are read-only summaries | Assumption: confirm |
+| D35 | The goals editor is also reachable from Settings and edits the campaign running today | Assumption |

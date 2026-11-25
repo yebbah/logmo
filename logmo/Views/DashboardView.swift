@@ -14,14 +14,16 @@ struct DashboardView: View {
     @Query private var weekGoals: [WeekGoal]
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
 
+    @State private var showGoals = false
+
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: Date()) }
 
     var body: some View {
         let snaps = logs.map(\.snapshot)
-        let timeline = GoalTimeline(weekGoals)
         let infos = campaigns.map(\.info)
+        let timeline = GoalTimeline(weekGoals, campaigns: infos)
         let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
         let selected = selectedCampaign(infos)
         let scope = scopeFor(selected, snaps)
@@ -32,6 +34,10 @@ struct DashboardView: View {
                     VStack(spacing: 16) {
                         campaignPicker(infos)
                         campaignCard(selected, scope, trend, infos)
+                        if let gc = goalCampaign(selected, infos) {
+                            if CampaignRules.contains(gc, day: today) && needsGoals(gc) { goalsBanner(gc) }
+                            GoalsCard(campaign: gc, snaps: snaps, timeline: timeline, onEdit: { showGoals = true }).id("goals")
+                        }
                         PerformanceCard(snaps: snaps, trend: trend, scope: scope).id("performance")
                         WeightChartCard(title: "Weigh-ins and trend", trend: trend, snaps: snaps, scope: scope,
                                         smoothing: smoothing).id("weight")
@@ -45,7 +51,7 @@ struct DashboardView: View {
                 .onAppear {
                     CampaignStore.ensureDefault(context)
                     #if DEBUG
-                    // Debug aid for screenshots: -scrollTo performance|weight|rate|steps|bio|protein
+                    // Debug aid for screenshots: -scrollTo goals|performance|weight|rate|steps|bio|protein
                     if let id = UserDefaults.standard.string(forKey: "scrollTo") {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo(id, anchor: .top) }
                     }
@@ -54,7 +60,47 @@ struct DashboardView: View {
             }
             .background(theme.bg)
             .navigationTitle("Dashboard")
+            .sheet(isPresented: $showGoals) {
+                if let gc = goalCampaign(selectedCampaign(infos), infos) { GoalsSheet(campaign: gc) }
+            }
         }
+    }
+
+    // MARK: Goals
+
+    /// Goals belong to a campaign. The card follows the filter; with "Overall" it shows the
+    /// campaign running today, since today's and this week's goals only exist there.
+    private func goalCampaign(_ selected: CampaignInfo?, _ infos: [CampaignInfo]) -> CampaignInfo? {
+        selected ?? CampaignRules.campaign(for: today, in: infos)
+    }
+
+    /// Sunday is when goals get set for the coming week; also prompt if the campaign has none yet.
+    private func needsGoals(_ c: CampaignInfo) -> Bool {
+        let mine = Set(weekGoals.filter { $0.campaignID == c.id }.map(\.weekStart))
+        if mine.isEmpty { return true }
+        guard cal.component(.weekday, from: today) == 1 else { return false }
+        let next = cal.date(byAdding: .day, value: 7, to: Metrics.weekStart(of: today))!
+        let inCampaign = c.end.map { next <= Metrics.weekStart(of: $0) } ?? true
+        return inCampaign && !mine.contains(next)
+    }
+
+    private func goalsBanner(_ c: CampaignInfo) -> some View {
+        let none = !weekGoals.contains { $0.campaignID == c.id }
+        return Button { showGoals = true } label: {
+            HStack {
+                Image(systemName: "target")
+                VStack(alignment: .leading) {
+                    Text(none ? "Set your weekly goals" : "Set goals for next week").font(.headline)
+                    Text(none ? "Calories, protein, steps and water, for this campaign." : "It's Sunday: plan the week ahead.")
+                        .font(.caption).foregroundStyle(theme.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(theme.muted)
+            }
+            .padding().frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Campaign filter
@@ -64,6 +110,10 @@ struct DashboardView: View {
         case "overall": return nil
         case "current": return CampaignRules.campaign(for: today, in: infos)
         default:
+            #if DEBUG
+            // Debug aid for screenshots: -campaignFilter number:2
+            if filterRaw.hasPrefix("number:"), let n = Int(filterRaw.dropFirst(7)), let c = infos.first(where: { $0.number == n }) { return c }
+            #endif
             return infos.first { $0.id.uuidString == filterRaw } ?? CampaignRules.campaign(for: today, in: infos)
         }
     }

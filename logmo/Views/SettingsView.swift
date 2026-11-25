@@ -26,7 +26,7 @@ struct SettingsView: View {
                 } header: { Text("Appearance") }
                 .listRowBackground(theme.card)
                 Section("Goals and campaigns") {
-                    NavigationLink("Weekly goals") { GoalsEditor() }
+                    NavigationLink("Weekly goals (current campaign)") { CurrentGoalsEditor() }
                     NavigationLink("Fitness campaigns") { CampaignsView() }
                 }
                 .listRowBackground(theme.card)

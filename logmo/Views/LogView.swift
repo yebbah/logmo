@@ -56,6 +56,7 @@ struct LogView: View {
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
+    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
 
     @State private var date = Calendar.current.startOfDay(for: Date())
     @State private var draft = DayDraft()
@@ -66,7 +67,7 @@ struct LogView: View {
 
     /// Goals in force for the day being edited, shown as hints in the empty fields.
     private var goals: GoalSet? {
-        GoalTimeline(weekGoals).goals(forWeekStarting: Metrics.weekStart(of: date))
+        GoalTimeline(weekGoals, campaigns: campaigns.map(\.info)).goals(forDay: date)
     }
 
     private func hint(_ goal: Int?) -> String { goal.map { "goal \($0.formatted())" } ?? "—" }

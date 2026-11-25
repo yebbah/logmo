@@ -7,6 +7,7 @@ import SwiftData
 @Model
 final class WeekGoal {
     var id: UUID = UUID()
+    var campaignID: UUID?                 // the campaign these goals belong to (nil only before migration)
     var weekStart: Date = Date()          // the Monday, start of day
     var updatedAt: Date = Date()
 
@@ -16,8 +17,9 @@ final class WeekGoal {
     var stepsDaily: Int?                  // steps per day
     var waterDailyMl: Int?                // ml per day
 
-    init(weekStart: Date) {
+    init(weekStart: Date, campaignID: UUID? = nil) {
         self.weekStart = weekStart
+        self.campaignID = campaignID
     }
 
     var goalSet: GoalSet {
@@ -26,8 +28,19 @@ final class WeekGoal {
     }
 }
 
+extension WeekGoal {
+    var stored: StoredGoal { StoredGoal(campaignID: campaignID, weekStart: weekStart, goals: goalSet) }
+}
+
 extension GoalTimeline {
-    init(_ goals: [WeekGoal]) {
-        self.init(byWeek: Dictionary(goals.map { ($0.weekStart, $0.goalSet) }, uniquingKeysWith: { a, _ in a }))
+    /// Every campaign's goals, looked up per campaign.
+    init(_ goals: [WeekGoal], campaigns: [CampaignInfo]) {
+        self.init(byWeek: [:], book: GoalRules.book(campaigns: campaigns, goals: goals.map(\.stored)))
+    }
+
+    /// One campaign's goals only (what the goals editor works on).
+    init(_ goals: [WeekGoal], campaign: CampaignInfo) {
+        let mine = goals.filter { ($0.campaignID ?? campaign.id) == campaign.id }
+        self.init(byWeek: Dictionary(mine.map { ($0.weekStart, $0.goalSet) }, uniquingKeysWith: { a, _ in a }))
     }
 }

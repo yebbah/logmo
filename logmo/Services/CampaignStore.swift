@@ -23,8 +23,35 @@ enum CampaignStore {
         }
         if let d = CampaignRules.defaultNeeded(existing: campaigns.map(\.info), earliestLog: firstLog, today: today) {
             context.insert(Campaign(d))
+            seedGoals(context, for: d)
         }
+        assignOrphanGoals(context)
         try? context.save()
+    }
+
+    private static func allGoals(_ context: ModelContext) -> [WeekGoal] {
+        (try? context.fetch(FetchDescriptor<WeekGoal>())) ?? []
+    }
+
+    /// A new campaign starts with a copy of the most recent weekly goals, so nothing is unset.
+    static func seedGoals(_ context: ModelContext, for info: CampaignInfo, from source: [StoredGoal]? = nil) {
+        let existing = source ?? allGoals(context).map(\.stored)
+        guard let seed = GoalRules.seed(for: info, from: existing) else { return }
+        let g = WeekGoal(weekStart: seed.weekStart, campaignID: info.id)
+        g.caloriesWeekly = seed.goals.caloriesWeekly
+        g.caloriesAtOrUnder = seed.goals.caloriesAtOrUnder
+        g.proteinDaily = seed.goals.proteinDaily
+        g.stepsDaily = seed.goals.stepsDaily
+        g.waterDailyMl = seed.goals.waterDailyMl
+        context.insert(g)
+    }
+
+    /// Goals made before goals belonged to campaigns are attached to the campaign containing their week.
+    static func assignOrphanGoals(_ context: ModelContext) {
+        let infos = all(context).map(\.info)
+        for g in allGoals(context) where g.campaignID == nil {
+            g.campaignID = GoalRules.assignedCampaign(for: g.weekStart, in: infos)?.id
+        }
     }
 
     @discardableResult
@@ -36,11 +63,16 @@ enum CampaignStore {
         case .failure(let e):
             return .failure(e)
         case .success(let plan):
-            if let del = plan.deleteDefault, let m = campaigns.first(where: { $0.id == del }) { context.delete(m) }
+            let source = allGoals(context).map(\.stored)            // taken before anything is deleted
+            if let del = plan.deleteDefault {
+                if let m = campaigns.first(where: { $0.id == del }) { context.delete(m) }
+                for g in allGoals(context) where g.campaignID == del { context.delete(g) }
+            }
             if let e = plan.endDefault, let m = campaigns.first(where: { $0.id == e.id }) {
                 m.end = e.on; m.updatedAt = Date()
             }
             context.insert(Campaign(plan.new))
+            seedGoals(context, for: plan.new, from: source)
             try? context.save()
             return .success(())
         }

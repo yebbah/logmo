@@ -1,14 +1,15 @@
 import SwiftUI
 import SwiftData
 
-/// Set goals for one Monday-to-Sunday week. Opens on next week when it's Sunday
-/// (the day goals are set), otherwise on the current week.
+/// Set one campaign's goals for one Monday-to-Sunday week. Opens on next week when it's
+/// Sunday (the day goals are set), otherwise on the current week, kept inside the campaign.
 struct GoalsEditor: View {
     @Environment(\.theme) private var theme
     @Environment(\.modelContext) private var context
     @Query private var goals: [WeekGoal]
 
-    @State private var weekStart = GoalsEditor.defaultWeek()
+    let campaign: CampaignInfo
+    @State private var weekStart: Date
     @State private var calories = ""
     @State private var protein = ""
     @State private var steps = ""
@@ -16,30 +17,48 @@ struct GoalsEditor: View {
     @State private var atOrUnder = true
     @State private var savedFlash = false
 
-    static func defaultWeek(today: Date = Date()) -> Date {
+    init(campaign: CampaignInfo) {
+        self.campaign = campaign
+        _weekStart = State(initialValue: GoalsEditor.defaultWeek(for: campaign))
+    }
+
+    private static func bounds(_ c: CampaignInfo, today: Date = Date()) -> (min: Date, max: Date) {
+        let cal = Calendar.current
+        let minWeek = Metrics.weekStart(of: c.start)
+        var maxWeek = cal.date(byAdding: .day, value: 7, to: Metrics.weekStart(of: today))!
+        if let end = c.end { maxWeek = min(maxWeek, Metrics.weekStart(of: end)) }
+        return (minWeek, max(minWeek, maxWeek))
+    }
+
+    static func defaultWeek(for c: CampaignInfo, today: Date = Date()) -> Date {
         let cal = Calendar.current
         let ws = Metrics.weekStart(of: today)
-        // On Sunday, plan the coming week.
-        return cal.component(.weekday, from: today) == 1 ? cal.date(byAdding: .day, value: 7, to: ws)! : ws
+        let wanted = cal.component(.weekday, from: today) == 1 ? cal.date(byAdding: .day, value: 7, to: ws)! : ws   // Sunday: plan next week
+        let b = bounds(c, today: today)
+        return min(max(wanted, b.min), b.max)
     }
 
     private var cal: Calendar { .current }
     private var thisWeek: Date { Metrics.weekStart(of: Date()) }
-    private var maxWeek: Date { cal.date(byAdding: .day, value: 7, to: thisWeek)! }
-    private var timeline: GoalTimeline { GoalTimeline(goals) }
+    private var minWeek: Date { GoalsEditor.bounds(campaign).min }
+    private var maxWeek: Date { GoalsEditor.bounds(campaign).max }
+    private var timeline: GoalTimeline { GoalTimeline(goals, campaign: campaign) }
 
     private var weekLabel: String {
         let end = cal.date(byAdding: .day, value: 6, to: weekStart)!
         let f = Date.FormatStyle().day().month(.abbreviated)
-        let tag = weekStart == thisWeek ? " · this week" : weekStart == maxWeek ? " · next week" : ""
+        let tag = weekStart == thisWeek ? " · this week" : weekStart == cal.date(byAdding: .day, value: 7, to: thisWeek)! ? " · next week" : ""
         return "\(weekStart.formatted(f)) – \(end.formatted(f))\(tag)"
     }
 
     var body: some View {
         Form {
             Section {
+                Text("Goals for \(campaign.title). Each campaign keeps its own.")
+                    .font(.footnote).foregroundStyle(theme.muted)
                 HStack {
-                    Button { move(-7) } label: { Image(systemName: "chevron.left") }.buttonStyle(.borderless)
+                    Button { move(-7) } label: { Image(systemName: "chevron.left") }
+                        .buttonStyle(.borderless).disabled(weekStart <= minWeek)
                     Spacer()
                     Text(weekLabel).font(.headline)
                     Spacer()
@@ -50,7 +69,7 @@ struct GoalsEditor: View {
                     Text("No goals set for this week. Showing goals from the week of \(from.formatted(date: .abbreviated, time: .omitted)); save to set this week's.")
                         .font(.caption).foregroundStyle(theme.muted)
                 } else if timeline.byWeek.isEmpty {
-                    Text("No goals yet. Leave a field empty to have no goal for it.")
+                    Text("No goals yet for this campaign. Leave a field empty to have no goal for it.")
                         .font(.caption).foregroundStyle(theme.muted)
                 }
             }
@@ -97,7 +116,7 @@ struct GoalsEditor: View {
     }
 
     private func move(_ days: Int) {
-        if let n = cal.date(byAdding: .day, value: days, to: weekStart), n <= maxWeek { weekStart = n }
+        if let n = cal.date(byAdding: .day, value: days, to: weekStart), n >= minWeek, n <= maxWeek { weekStart = n }
     }
 
     private func load() {
@@ -111,8 +130,8 @@ struct GoalsEditor: View {
     }
 
     private func save() {
-        let goal = goals.first { $0.weekStart == weekStart } ?? {
-            let g = WeekGoal(weekStart: weekStart); context.insert(g); return g
+        let goal = goals.first { $0.campaignID == campaign.id && $0.weekStart == weekStart } ?? {
+            let g = WeekGoal(weekStart: weekStart, campaignID: campaign.id); context.insert(g); return g
         }()
         goal.caloriesWeekly = Int(calories)
         goal.caloriesAtOrUnder = atOrUnder
@@ -128,11 +147,26 @@ struct GoalsEditor: View {
 /// Sheet wrapper for opening the editor from the dashboard.
 struct GoalsSheet: View {
     @Environment(\.dismiss) private var dismiss
+    let campaign: CampaignInfo
     var body: some View {
         NavigationStack {
-            GoalsEditor().toolbar {
+            GoalsEditor(campaign: campaign).toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
             }
+        }
+    }
+}
+
+/// Settings entry: edits the goals of whichever campaign is running today.
+struct CurrentGoalsEditor: View {
+    @Environment(\.theme) private var theme
+    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
+
+    var body: some View {
+        if let c = CampaignRules.campaign(for: Date(), in: campaigns.map(\.info)) {
+            GoalsEditor(campaign: c)
+        } else {
+            Text("Log something first, and a campaign will be created.").foregroundStyle(theme.muted).padding()
         }
     }
 }

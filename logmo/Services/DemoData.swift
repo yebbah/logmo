@@ -50,9 +50,12 @@ enum DemoData {
                                              end: cal.date(byAdding: .day, value: -1, to: cutStart)!)))
         context.insert(Campaign(CampaignInfo(number: 2, kind: .cut, targetWeightKg: 78.0, start: cutStart, plannedWeeks: 8)))
         }
+        try? context.save()
+        let infos = (try? context.fetch(FetchDescriptor<Campaign>()))?.map(\.info) ?? []
         let thisWeek = Metrics.weekStart(of: today)
         for w in -6...0 {
-            let g = WeekGoal(weekStart: cal.date(byAdding: .day, value: 7 * w, to: thisWeek)!)
+            let ws = cal.date(byAdding: .day, value: 7 * w, to: thisWeek)!
+            let g = WeekGoal(weekStart: ws, campaignID: GoalRules.assignedCampaign(for: ws, in: infos)?.id)
             g.caloriesWeekly = 14500; g.proteinDaily = 140; g.stepsDaily = 8000; g.waterDailyMl = 2200
             context.insert(g)
         }

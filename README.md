@@ -2,7 +2,7 @@
 
 ## logmo iPhone app (SwiftUI, iOS 17+)
 
-Log weight, food (calories, protein, carbs, fat), water, steps and the workbook's 1–5 check-in ratings against weekly goals. The dashboard shows goal status, three streaks, compliance and the weight trend with optional biofeedback lines. Two themes (Clean, Midnight) in Settings. Fitness campaigns (cut, bulk, maintenance) with history. A Dashboard tab that filters by campaign, a Streaks tab for goals, streaks and compliance, and full-screen landscape charts.
+Log weight, food (calories, protein, carbs, fat), water, steps and the workbook's 1–5 check-in ratings against weekly goals. The dashboard shows goal status, three streaks, compliance and the weight trend with optional biofeedback lines. Two themes (Clean, Midnight) in Settings. Fitness campaigns (cut, bulk, maintenance) with history. Weekly goals are stored per campaign. A Dashboard tab that filters by campaign and holds the goals, a Streaks tab for streaks and compliance, and full-screen landscape charts.
 
 ### Run it
 1. Install Xcode, then `brew install xcodegen`

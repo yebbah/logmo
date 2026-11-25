@@ -105,7 +105,7 @@ enum Insights {
         let map = Dictionary(snaps.map { (cal.startOfDay(for: $0.date), $0) }, uniquingKeysWith: { a, _ in a })
         var hit = 0, missed = 0
         for d in days(from: from, to: to, calendar: cal) {
-            guard let goal = timeline.goals(forWeekStarting: Metrics.weekStart(of: d, calendar: cal))?.proteinDaily
+            guard let goal = timeline.goals(forDay: d, calendar: cal)?.proteinDaily
             else { continue }
             if let p = map[d]?.proteinG, p >= goal { hit += 1 } else { missed += 1 }
         }

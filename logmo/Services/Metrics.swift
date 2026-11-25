@@ -44,10 +44,24 @@ struct GoalSet: Equatable {
 /// inherits the most recent earlier ones.
 struct GoalTimeline: Equatable {
     var byWeek: [Date: GoalSet] = [:]
-    func goals(forWeekStarting ws: Date) -> GoalSet? {
+    /// When present, goals are looked up per campaign (each day uses its own campaign's goals).
+    var book: GoalBook? = nil
+
+    func goals(forWeekStarting ws: Date, calendar cal: Calendar = .current) -> GoalSet? {
+        if let book { return book.goals(forWeekStarting: ws, calendar: cal) }
         guard let key = byWeek.keys.filter({ $0 <= ws }).max() else { return nil }
         return byWeek[key]
     }
+
+    /// The goals that apply to one day.
+    func goals(forDay d: Date, calendar cal: Calendar = .current) -> GoalSet? {
+        if let book { return book.goals(forDay: d, calendar: cal) }
+        return goals(forWeekStarting: Metrics.weekStart(of: d, calendar: cal), calendar: cal)
+    }
+
+    var isEmpty: Bool { book?.isEmpty ?? byWeek.isEmpty }
+    var firstWeek: Date? { book?.firstWeek ?? byWeek.keys.min() }
+
     func inheritedFrom(_ ws: Date) -> Date? {
         guard byWeek[ws] == nil else { return nil }
         return byWeek.keys.filter { $0 <= ws }.max()
@@ -166,7 +180,7 @@ enum Metrics {
         var set = Set<Date>()
         for s in days {
             let d = cal.startOfDay(for: s.date)
-            let goals = timeline.goals(forWeekStarting: weekStart(of: d, calendar: cal))
+            let goals = timeline.goals(forDay: d, calendar: cal)
             if dayGoalStatus(s, goals: goals).allMet { set.insert(d) }
         }
         return streak(of: set, today: today, calendar: cal)
@@ -176,12 +190,12 @@ enum Metrics {
     /// The week in progress never breaks or extends the streak.
     static func weeklyStreak(_ days: [DaySnapshot], timeline: GoalTimeline, today: Date,
                              calendar cal: Calendar = .current) -> (current: Int, longest: Int) {
-        guard let first = timeline.byWeek.keys.min() else { return (0, 0) }
+        guard let first = timeline.firstWeek else { return (0, 0) }
         let thisWeek = weekStart(of: today, calendar: cal)
         var results: [Bool] = []
         var ws = first
         while ws < thisWeek {
-            let st = weekStatus(days, weekStart: ws, goals: timeline.goals(forWeekStarting: ws),
+            let st = weekStatus(days, weekStart: ws, goals: timeline.goals(forWeekStarting: ws, calendar: cal),
                                 today: today, calendar: cal)
             results.append(st.outcome == .met)
             ws = addDays(7, to: ws, cal)
@@ -280,7 +294,7 @@ enum Metrics {
             let d = addDays(-offset, to: t, cal)
             let s = map[d]
             let ws = weekStart(of: d, calendar: cal)
-            let goals = timeline.goals(forWeekStarting: ws)
+            let goals = timeline.goals(forDay: d, calendar: cal)
             let ok = dayComplied(s, required: required, goals: goals,
                                  calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, calendar: cal))
             evaluated += 1

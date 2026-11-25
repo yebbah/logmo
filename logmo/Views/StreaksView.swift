@@ -9,16 +9,16 @@ struct StreaksView: View {
     @AppStorage("historyWeeks") private var historyWeeks = 8
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
+    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
 
     @State private var window = 7
-    @State private var showGoals = false
 
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: Date()) }
 
     var body: some View {
         let snaps = logs.map(\.snapshot)
-        let timeline = GoalTimeline(weekGoals)
+        let timeline = GoalTimeline(weekGoals, campaigns: campaigns.map(\.info))
         let required = RequiredTrackers.parse(requiredRaw)
         let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
 
@@ -27,8 +27,6 @@ struct StreaksView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         streaksCard(snaps, timeline).id("streaks")
-                        if needsGoals(timeline) { goalsBanner(timeline) }
-                        todayCard(snaps, timeline).id("goals")
                         complianceCard(Metrics.compliance(snaps, today: today, windowDays: window,
                                                           required: required, timeline: timeline)).id("compliance")
                         dailyHistoryCard(snaps, timeline)
@@ -39,7 +37,7 @@ struct StreaksView: View {
                 }
                 .onAppear {
                     #if DEBUG
-                    // Debug aid for screenshots: -scrollTo goals|compliance|journey
+                    // Debug aid for screenshots: -scrollTo compliance|journey
                     if let id = UserDefaults.standard.string(forKey: "scrollTo") {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo(id, anchor: .top) }
                     }
@@ -48,7 +46,6 @@ struct StreaksView: View {
             }
             .background(theme.bg)
             .navigationTitle("Streaks")
-            .sheet(isPresented: $showGoals) { GoalsSheet() }
         }
     }
 
@@ -81,112 +78,6 @@ struct StreaksView: View {
             Text("best \(longest)").font(.caption2).foregroundStyle(theme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: Goals banner
-
-    /// Sunday is when goals get set for the coming week; also prompt if none exist yet.
-    private func needsGoals(_ t: GoalTimeline) -> Bool {
-        if t.byWeek.isEmpty { return true }
-        let isSunday = cal.component(.weekday, from: today) == 1
-        let next = cal.date(byAdding: .day, value: 7, to: Metrics.weekStart(of: today))!
-        return isSunday && t.byWeek[next] == nil
-    }
-
-    private func goalsBanner(_ t: GoalTimeline) -> some View {
-        Button { showGoals = true } label: {
-            HStack {
-                Image(systemName: "target")
-                VStack(alignment: .leading) {
-                    Text(t.byWeek.isEmpty ? "Set your weekly goals" : "Set goals for next week").font(.headline)
-                    Text(t.byWeek.isEmpty ? "Calories, protein, steps and water." : "It's Sunday: plan the week ahead.")
-                        .font(.caption).foregroundStyle(theme.muted)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(theme.muted)
-            }
-            .padding().frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: Today + this week
-
-    private func todayCard(_ snaps: [DaySnapshot], _ t: GoalTimeline) -> some View {
-        let ws = Metrics.weekStart(of: today)
-        let goals = t.goals(forWeekStarting: ws)
-        let todays = snaps.first { cal.isDate($0.date, inSameDayAs: today) }
-        let status = Metrics.dayGoalStatus(todays, goals: goals)
-        let week = Metrics.weekStatus(snaps, weekStart: ws, goals: goals, today: today)
-
-        return Card(title: "Goals") {
-            if goals == nil {
-                Text("No goals set yet.").foregroundStyle(theme.muted)
-            } else {
-                Text("Today").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-                goalRow("Protein", value: todays?.proteinG, goal: goals?.proteinDaily, unit: "g", met: status.protein)
-                goalRow("Steps", value: todays?.steps, goal: goals?.stepsDaily, unit: "", met: status.steps)
-                goalRow("Water", value: todays?.waterMl, goal: goals?.waterDailyMl, unit: "ml", met: status.water)
-                if !(goals?.hasDailyGoals ?? false) { Text("No daily goals set.").font(.caption).foregroundStyle(theme.muted) }
-
-                Divider()
-                Text("This week").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-                weekRow(week)
-            }
-            Button("Edit goals") { showGoals = true }.font(.subheadline)
-        }
-    }
-
-    private func goalRow(_ title: String, value: Int?, goal: Int?, unit: String, met: Bool?) -> some View {
-        Group {
-            if let goal {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(title)
-                        Spacer()
-                        Text("\((value ?? 0).formatted()) / \(goal.formatted()) \(unit)")
-                            .font(.subheadline).monospacedDigit().foregroundStyle(theme.muted)
-                        StatusIcon(ok: met == true ? true : nil)
-                    }
-                    ProgressView(value: min(Double(value ?? 0) / Double(max(goal, 1)), 1))
-                        .tint(met == true ? theme.good : theme.accent)
-                }
-            }
-        }
-    }
-
-    private func weekRow(_ w: WeekStatus) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let goal = w.goal {
-                HStack {
-                    Text("Calories")
-                    Spacer()
-                    Text("avg \(Int((w.average ?? 0).rounded()).formatted()) / \(Int((w.dailyTarget ?? 0).rounded()).formatted()) kcal")
-                        .font(.subheadline).monospacedDigit().foregroundStyle(theme.muted)
-                    StatusIcon(ok: w.outcome == .met ? true : w.outcome == .missed ? false : nil)
-                }
-                ProgressView(value: min((w.average ?? 0) / max(w.dailyTarget ?? 1, 1), 1))
-                    .tint(offTarget(w) ? theme.bad : (w.outcome == .met ? theme.good : theme.accent))
-                Text(weekCaption(w, goal)).font(.caption).foregroundStyle(theme.muted)
-            } else {
-                Text("No weekly calorie goal set.").font(.caption).foregroundStyle(theme.muted)
-            }
-        }
-    }
-
-    /// Average currently on the wrong side of the daily-equivalent target.
-    private func offTarget(_ w: WeekStatus) -> Bool {
-        guard let avg = w.average, let target = w.dailyTarget else { return false }
-        return w.atOrUnder ? avg > target : avg < target
-    }
-
-    private func weekCaption(_ w: WeekStatus, _ goal: Int) -> String {
-        let days = "\(w.daysWithCalories) of 7 days logged"
-        guard let avg = w.average, let target = w.dailyTarget else { return "No calories logged yet · \(days)" }
-        let diff = Int(abs(avg - target).rounded())
-        let side = w.atOrUnder ? (avg <= target ? "under" : "over") : (avg >= target ? "over" : "under")
-        return "\(diff.formatted()) kcal/day \(side) target (\(goal.formatted()) ÷ 7) · \(days)"
     }
 
     // MARK: Compliance
