@@ -60,9 +60,9 @@ struct StreaksView: View {
                 streakTile("Logging", log.current, log.longest, "days",
                            "Consecutive days with any entry logged. A day you haven't logged yet today doesn't break it. Streaks run across campaigns.")
                 streakTile("Daily goals", daily.current, daily.longest, "days",
-                           "Consecutive days on which your protein, steps and water goals were all met. Today doesn't break it until the day is over.")
+                           "Consecutive days on which you weighed in and met every daily goal you set (protein, water, and steps when they are a daily total), against the goals of the campaign that day belonged to. A day outside any campaign has no goals, so it breaks the streak. Today doesn't break it until the day is over.")
                 streakTile("Weekly goal", weekly.current, weekly.longest, "weeks",
-                           "Consecutive finished weeks (Monday to Sunday) in which every weekly goal was met: average calories, steps when set as a weekly average, and workout days. The week in progress neither extends nor breaks it.")
+                           "Consecutive finished weeks (Monday to Sunday) in which every weekly goal was met: average calories, steps when set as a weekly average, and workout days. A week with no weekly goals, or that belonged to no campaign, counts as not met. The week in progress neither extends nor breaks it.")
             }
         }
     }
