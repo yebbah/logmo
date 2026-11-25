@@ -89,12 +89,13 @@ struct SuggestSheet: View {
 
             Section {
                 row("Campaign", "\(s.kind.title) · week \(s.weekNumber)" + (s.totalWeeks.map { " of \($0)" } ?? ""))
-                row("Weight trend", s.weightChangeKgPerWeek.map { String(format: "%+.2f kg a week", $0) } ?? "not enough weigh-ins")
+                row("Weight trend", s.weightChangeKgPerWeek.map { String(format: "%+.2f kg a week", $0) } ?? "not enough weigh-ins", goal: "\(s.weighIns) weigh-ins, 21 days")
                 row("Calories", "\(s.avgCalories.map { $0.formatted() } ?? "—") a day", goal: s.current.caloriesWeekly.map { "goal \(($0 / 7).formatted())" })
                 row("Protein, carbs, fat", "\(s.avgProteinG.map(String.init) ?? "—") / \(s.avgCarbsG.map(String.init) ?? "—") / \(s.avgFatG.map(String.init) ?? "—") g")
                 row("Steps", "\(s.avgSteps.map { $0.formatted() } ?? "—") a day", goal: s.current.stepsDaily.map { "goal \($0.formatted())" })
                 row("Workouts", "\(s.workoutDays)", goal: s.current.workoutDaysWeekly.map { "goal \($0)" })
                 row("Days with daily goals met", "\(s.dailyGoalDaysMet) of \(s.daysCovered)")
+                row("Logged on", "calories \(s.calorieDays) · steps \(s.stepsDays) · check-in \(s.ratingDays) of \(s.daysCovered) days")
                 row("Check-in averages", ratingsText(s))
                 if trackCycle {
                     Toggle(isOn: $includeCycle) { VStack(alignment: .leading) { Text("Include cycle"); Text("\(s.periodDays ?? 0) period days").font(.caption).foregroundStyle(theme.muted) } }
@@ -111,7 +112,7 @@ struct SuggestSheet: View {
                 if !canPlanNextWeek {
                     Text("Next week is outside this campaign, so there is nothing to plan.").foregroundStyle(theme.muted)
                 } else if !SuggestionRules.hasEnoughData(s) {
-                    Text("Log at least three days in the week assessed for a useful suggestion.").foregroundStyle(theme.muted)
+                    Text("Nothing is logged in the week assessed yet. Log a few days first.").foregroundStyle(theme.muted)
                 } else {
                     Button { run(s) } label: { Text("Suggest next week").fontWeight(.semibold).frame(maxWidth: .infinity) }
                 }
@@ -175,14 +176,52 @@ struct SuggestSheet: View {
             .listRowBackground(theme.card)
 
             Section {
-                ForEach(Array(p.reasons.enumerated()), id: \.offset) { _, r in
-                    Label { Text(r).font(.subheadline) } icon: { Image(systemName: "sparkle").foregroundStyle(theme.accent) }
+                Text(p.headline).font(.subheadline.weight(.semibold))
+                HStack(spacing: 6) {
+                    Image(systemName: confidenceIcon(p.confidence)).foregroundStyle(confidenceColor(p.confidence))
+                    Text("\(p.confidence.title) confidence").font(.subheadline.weight(.semibold))
+                    Spacer()
                 }
-            } header: { Text("Why") } footer: {
-                Text((p.source == .appleIntelligence ? "Written by Apple Intelligence on your iPhone, " : "A basic, rule-based suggestion, ")
-                     + "held to limits: calories move at most 150 a day (never below 1,200), steps 2,000, lifting days 1, and a cut never gets harder in a sick or very fatigued week. A suggestion, not medical advice.")
+                Text("Weight trend \(p.metricConfidence.weight.title.lowercased()) · calorie logs \(p.metricConfidence.nutrition.title.lowercased()) · steps \(p.metricConfidence.activity.title.lowercased()) · check-ins \(p.metricConfidence.recovery.title.lowercased())")
+                    .font(.caption).foregroundStyle(theme.muted)
+                if let note = p.note {
+                    Label { Text(note).font(.subheadline) } icon: { Image(systemName: "sparkles").foregroundStyle(theme.accent) }
+                }
+            } header: { Text("In short") } footer: {
+                Text(p.source == .appleIntelligence
+                     ? "The numbers and evidence are calculated by logmo. Apple Intelligence on your iPhone chose within the limits and wrote the note."
+                     : "A rule-based suggestion calculated by logmo on your iPhone.")
             }
             .listRowBackground(theme.card)
+
+            Section {
+                ForEach(Array(p.evidence.enumerated()), id: \.offset) { _, r in
+                    Label { Text(r).font(.subheadline) } icon: { Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(theme.muted) }
+                }
+            } header: { Text("What the data says") } footer: {
+                Text("Every figure here is calculated from what you logged. Days you didn't log are never counted as zero.")
+            }
+            .listRowBackground(theme.card)
+
+            if !p.cautions.isEmpty {
+                Section {
+                    ForEach(Array(p.cautions.enumerated()), id: \.offset) { _, r in
+                        Label { Text(r).font(.subheadline) } icon: { Image(systemName: "exclamationmark.circle").foregroundStyle(theme.warn) }
+                    }
+                } header: { Text("Worth knowing") }
+                .listRowBackground(theme.card)
+            }
+
+            if !p.needMoreData.isEmpty {
+                Section {
+                    ForEach(Array(p.needMoreData.enumerated()), id: \.offset) { _, r in
+                        Label { Text(r).font(.subheadline) } icon: { Image(systemName: "plus.circle").foregroundStyle(theme.accent) }
+                    }
+                } header: { Text("To firm this up") } footer: {
+                    Text("Held to limits: a change needs a reliable trend and calorie logs, calories never go below 1,200 or lower when a target is already low, and steps and lifting days are never raised automatically. A suggestion, not medical advice.")
+                }
+                .listRowBackground(theme.card)
+            }
 
             Section {
                 Button { use(p) } label: { Text("Use for next week").fontWeight(.semibold).frame(maxWidth: .infinity) }
@@ -197,6 +236,9 @@ struct SuggestSheet: View {
             .listRowBackground(theme.card)
         }
     }
+
+    private func confidenceIcon(_ c: DataConfidence) -> String { c == .high ? "checkmark.seal.fill" : (c == .medium ? "checkmark.seal" : "questionmark.circle") }
+    private func confidenceColor(_ c: DataConfidence) -> Color { c == .high ? theme.good : (c == .medium ? theme.accent : theme.warn) }
 
     private func goalRow(_ title: String, _ value: String, was: String?, changed: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {

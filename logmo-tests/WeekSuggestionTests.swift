@@ -4,115 +4,335 @@ import SwiftData
 
 final class WeekSuggestionTests: XCTestCase {
     var cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; c.firstWeekday = 2; return c }()
-    func day(_ n: Int) -> Date { cal.date(from: DateComponents(year: 2026, month: 11, day: n))! }   // Mon 2 Nov 2026
+    func day(_ n: Int) -> Date { cal.date(from: DateComponents(year: 2026, month: 11, day: n))! }   // Mon 2 Nov 2026; Sun 22 Nov is "today"
 
-    let goals = GoalSet(caloriesWeekly: 14700, proteinDaily: 150, stepsDaily: 10000, waterDailyMl: 2500, workoutDaysWeekly: 4)   // 2,100/day
+    let goals = GoalSet(caloriesWeekly: 14700, proteinDaily: 150, stepsDaily: 10000, waterDailyMl: 2500, workoutDaysWeekly: 4)   // 2,100 a day
+    let calm = ["sleep": 4, "fatigue": 2, "soreness": 2, "performance": 4, "hunger": 3, "stress": 2, "appetite": 3]
 
-    /// A full week 2–8 Nov with a weight change of `perDay` kg a day.
-    func week(perDay: Double = -0.05, ratings: [String: Int] = ["sleep": 4, "fatigue": 3, "soreness": 3, "performance": 4],
-              sick: Set<Int> = [], period: Set<Int> = [], steps: Int = 10000, calories: Int = 2050) -> [DaySnapshot] {
-        (2...8).map { n in
-            var s = DaySnapshot(date: day(n), weightKg: 80 + perDay * Double(n - 2), logged: Set(Tracker.allCases), complete: Set(Tracker.allCases),
-                                calories: calories, proteinG: 150, carbsG: 220, fatG: 60, waterMl: 2500, steps: steps, ratings: ratings)
+    /// Daily logs from `from` to 22 Nov. A nil value means "not logged that day", never zero.
+    func data(from: Int = 2, weightPerDay: Double = -0.07, calories: Int? = 2100, steps: Int? = 10000,
+              ratings: [String: Int]? = nil, sick: Set<Int> = [], period: Set<Int> = [],
+              weighOn: (Int) -> Bool = { _ in true }, jitter: (Int) -> Double = { _ in 0 }) -> [DaySnapshot] {
+        (from...22).map { n in
+            var logged: Set<Tracker> = []
+            let w: Double? = weighOn(n) ? 80 + weightPerDay * Double(n - 2) + jitter(n) : nil
+            if w != nil { logged.insert(.weight) }
+            if calories != nil { logged.insert(.food) }
+            if steps != nil { logged.insert(.steps) }
+            var s = DaySnapshot(date: day(n), weightKg: w, logged: logged, complete: logged, calories: calories, proteinG: calories == nil ? nil : 150,
+                                carbsG: calories == nil ? nil : 220, fatG: calories == nil ? nil : 60, waterMl: 2500, steps: steps, ratings: ratings ?? calm)
+            if !s.ratings.isEmpty { s.logged.insert(.checkIn) }
             s.isSick = sick.contains(n); s.onPeriod = period.contains(n)
             return s
         }
     }
-    func summary(_ kind: CampaignKind, _ snaps: [DaySnapshot], cycle: Bool = true, sick: Bool = true) -> WeekSummary {
+
+    func summary(_ kind: CampaignKind, _ snaps: [DaySnapshot], goals g: GoalSet? = nil, cycle: Bool = true, sick: Bool = true) -> WeekSummary {
         let c = CampaignInfo(number: 1, kind: kind, start: day(2), plannedWeeks: 12)
-        return SuggestionRules.summary(campaign: c, snaps: snaps, current: goals, window: .thisWeekSoFar,
-                                       includeCycle: cycle, includeSick: sick, today: day(8), calendar: cal)
+        return SuggestionRules.summary(campaign: c, snaps: snaps, current: g ?? goals, window: .thisWeekSoFar,
+                                       includeCycle: cycle, includeSick: sick, today: day(22), calendar: cal)
+    }
+    func suggestion(_ kind: CampaignKind, _ snaps: [DaySnapshot], goals g: GoalSet? = nil) -> PlanSuggestion {
+        SuggestionRules.baseline(summary(kind, snaps, goals: g))
+    }
+    func text(_ p: PlanSuggestion) -> String { ([p.headline, p.note ?? ""] + p.evidence + p.cautions + p.needMoreData).joined(separator: " ") }
+
+    // MARK: Facts are calculated, from what was logged
+
+    func testSummaryHoldsOnlyCalculatedNumbers() {
+        let s = summary(.cut, data())
+        XCTAssertEqual(s.daysCovered, 7); XCTAssertEqual(s.daysLogged, 7)
+        XCTAssertEqual(s.avgCalories, 2100); XCTAssertEqual(s.avgSteps, 10000); XCTAssertEqual(s.calorieDays, 7)
+        XCTAssertEqual(s.weighIns, 21); XCTAssertEqual(s.weighSpanDays, 20)
+        XCTAssertEqual(s.weightChangeKgPerWeek!, -0.49, accuracy: 0.02)
+        XCTAssertEqual(s.ratingAverages["fatigue"], 2)
     }
 
-    func testSummaryHoldsOnlyNumbers() {
-        let s = summary(.cut, week())
-        XCTAssertEqual(s.daysCovered, 7); XCTAssertEqual(s.daysLogged, 7)
-        XCTAssertEqual(s.avgCalories, 2050); XCTAssertEqual(s.avgSteps, 10000); XCTAssertEqual(s.workoutDays, 7)
-        XCTAssertEqual(s.weightChangeKgPerWeek!, -0.35, accuracy: 0.02)
-        XCTAssertEqual(s.ratingAverages["fatigue"], 3)
-        XCTAssertEqual(s.periodDays, 0); XCTAssertEqual(s.sickDays, 0)
+    func testMissingLogsAreNeverZero() {
+        let s = summary(.cut, data(calories: nil, steps: nil))
+        XCTAssertNil(s.avgCalories); XCTAssertNil(s.avgSteps)
+        XCTAssertEqual(s.calorieDays, 0); XCTAssertEqual(s.stepsDays, 0)
+        let p = SuggestionRules.baseline(s)
+        XCTAssertTrue(p.evidence.contains { $0.contains("No calories were logged") })
+        XCTAssertEqual(p.steps, 10000)                                              // no steps data: the goal is left alone
     }
 
     func testCycleAndSicknessCanBeLeftOut() {
-        let snaps = week(sick: [3, 4], period: [2])
-        let s = summary(.cut, snaps, cycle: false, sick: false)
-        XCTAssertNil(s.periodDays); XCTAssertNil(s.sickDays)
-        let t = summary(.cut, snaps)
-        XCTAssertEqual(t.periodDays, 1); XCTAssertEqual(t.sickDays, 2)
+        let snaps = data(sick: [20, 21], period: [16])
+        let off = summary(.cut, snaps, cycle: false, sick: false)
+        XCTAssertNil(off.periodDays); XCTAssertNil(off.sickDays)
+        let on = summary(.cut, snaps)
+        XCTAssertEqual(on.periodDays, 1); XCTAssertEqual(on.sickDays, 2)
     }
 
-    func testAGoodCutHoldsCalories() {
-        let p = SuggestionRules.baseline(summary(.cut, week(perDay: -0.07)))        // about -0.49 kg a week, 0.6%
+    // MARK: Confidence
+
+    func testInsufficientHistoryKeepsTargetsAndSaysWhatIsNeeded() {
+        let p = suggestion(.cut, data(from: 20, weightPerDay: 0))
         XCTAssertEqual(p.caloriesPerDay, 2100)
-        XCTAssertEqual(p.proteinG, 150)
-        XCTAssertGreaterThan(p.carbsG, 0); XCTAssertGreaterThan(p.fatG, 0)
+        XCTAssertEqual(p.confidence, .low)
+        XCTAssertTrue(p.headline.contains("for now"))
+        XCTAssertTrue(p.needMoreData.contains { $0.contains("Weigh in") })
+        XCTAssertTrue(p.evidence.first!.contains("aren't enough weigh-ins"))
     }
 
-    func testAStalledCutLowersCaloriesWithinTheLimit() {
-        let p = SuggestionRules.baseline(summary(.cut, week(perDay: 0)))
-        XCTAssertEqual(p.caloriesPerDay, 2000)                                       // -100
-        XCTAssertGreaterThanOrEqual(p.caloriesPerDay, 2100 - 150)
+    func testConfidenceIsPerMetric() {
+        // Calorie logs every day, but weigh-ins on only three days: nutrition is fine, the trend isn't.
+        let s = summary(.cut, data(weightPerDay: 0, weighOn: { [2, 12, 22].contains($0) }))
+        let a = SuggestionRules.assess(s)
+        XCTAssertEqual(a.confidence.nutrition, .high); XCTAssertEqual(a.confidence.weight, .low)
+        XCTAssertEqual(a.confidence.forCalories, .low)
+        XCTAssertEqual(SuggestionRules.baseline(s).caloriesPerDay, 2100)
     }
 
-    func testABulkThatIsNotGainingRaisesCalories() {
-        XCTAssertEqual(SuggestionRules.baseline(summary(.bulk, week(perDay: 0))).caloriesPerDay, 2200)
+    func testFullHistoryGivesHighConfidence() {
+        XCTAssertEqual(SuggestionRules.baseline(summary(.cut, data())).confidence, .high)
     }
 
-    func testSicknessNeverTightensACutAndLightensLifting() {
-        let p = SuggestionRules.baseline(summary(.cut, week(perDay: 0, sick: [3, 4])))   // a stall that would normally cut harder
-        XCTAssertGreaterThanOrEqual(p.caloriesPerDay, 2100)
-        XCTAssertEqual(p.workoutDays, 3)
-        XCTAssertLessThanOrEqual(p.steps, 10000)
+    func testScatteredWeighInsLowerConfidenceAndOneOutlierDoesNotMoveTheTarget() {
+        let calmA = SuggestionRules.assess(summary(.cut, data()))
+        let outlier = data(jitter: { $0 == 18 ? 3.0 : 0 })                          // one odd weigh-in
+        let s = summary(.cut, outlier)
+        let a = SuggestionRules.assess(s)
+        XCTAssertLessThan(a.confidence.weight, calmA.confidence.weight)
+        XCTAssertEqual(SuggestionRules.baseline(s).caloriesPerDay, 2100)            // still on track, so unchanged
     }
 
-    func testPeriodWeekDoesNotReadAStallAsAReasonToCutHarder() {
-        let p = SuggestionRules.baseline(summary(.cut, week(perDay: 0, period: [2, 3])))
+    // MARK: Progress by campaign
+
+    func testACutOnTrackKeepsCalories() {
+        let p = suggestion(.cut, data(weightPerDay: -0.07))
         XCTAssertEqual(p.caloriesPerDay, 2100)
-        XCTAssertTrue(p.reasons.contains { $0.lowercased().contains("period") })
+        XCTAssertTrue(p.headline.hasPrefix("Keep calories at 2,100"))
+        XCTAssertTrue(p.evidence.first!.contains("in the range this campaign aims for"))
     }
 
-    func testStrainDropsALiftingDay() {
-        let tired = ["sleep": 2, "fatigue": 5, "soreness": 4, "performance": 2]
-        let p = SuggestionRules.baseline(summary(.cut, week(perDay: 0, ratings: tired)))
+    func testABulkOnTrackKeepsCalories() {
+        XCTAssertEqual(suggestion(.bulk, data(weightPerDay: 0.04)).caloriesPerDay, 2100)
+    }
+
+    func testMaintenanceThatIsStableKeepsCalories() {
+        XCTAssertEqual(suggestion(.maintenance, data(weightPerDay: 0)).caloriesPerDay, 2100)
+    }
+
+    func testACutLosingTooFastRaisesCalories() {
+        let p = suggestion(.cut, data(weightPerDay: -0.15))
+        XCTAssertEqual(p.caloriesPerDay, 2200)
+        XCTAssertTrue(p.headline.contains("Raise calories by 100"))
+    }
+
+    func testAPlateauWithGoodAdherenceLowersCaloriesModestly() {
+        let p = suggestion(.cut, data(weightPerDay: 0, ratings: calm))
+        XCTAssertEqual(p.caloriesPerDay, 2000)
+        XCTAssertEqual(p.confidence, .high)
+    }
+
+    func testAPlateauWithPoorAdherenceIsNotATargetProblem() {
+        let p = suggestion(.cut, data(weightPerDay: 0, calories: 2500))              // eating well above the target
+        XCTAssertEqual(p.caloriesPerDay, 2100)
+        XCTAssertTrue(p.cautions.contains { $0.contains("following it more closely") })
+    }
+
+    func testABulkNotGainingWithGoodAdherenceRaisesCalories() {
+        XCTAssertEqual(suggestion(.bulk, data(weightPerDay: 0)).caloriesPerDay, 2200)
+    }
+
+    func testABulkNotGainingBecauseOfUnderEatingKeepsTheTarget() {
+        let p = suggestion(.bulk, data(weightPerDay: 0, calories: 1700))
+        XCTAssertEqual(p.caloriesPerDay, 2100)
+        XCTAssertTrue(p.cautions.contains { $0.contains("following it more closely") })
+    }
+
+    func testAMaintenanceDriftUpLowersAndDriftDownRaises() {
+        XCTAssertEqual(suggestion(.maintenance, data(weightPerDay: 0.1)).caloriesPerDay, 2000)
+        XCTAssertEqual(suggestion(.maintenance, data(weightPerDay: -0.1)).caloriesPerDay, 2200)
+    }
+
+    func testNoCalorieChangeWithoutCalorieLogs() {
+        let p = suggestion(.cut, data(weightPerDay: 0, calories: nil))
+        XCTAssertEqual(p.caloriesPerDay, 2100)
+        XCTAssertEqual(p.metricConfidence.nutrition, .low)
+        XCTAssertTrue(p.needMoreData.contains { $0.contains("Log your calories") })
+    }
+
+    func testContradictoryLogsAndScaleKeepTheTarget() {
+        let p = suggestion(.cut, data(weightPerDay: 0.05, calories: 1900))           // eating under target yet gaining
+        XCTAssertEqual(p.caloriesPerDay, 2100)
+        XCTAssertTrue(p.cautions.contains { $0.contains("opposite directions") })
+    }
+
+    // MARK: Recovery and biofeedback
+
+    func testHighFatigueBlocksALowerCutTargetAndLightensLifting() {
+        let tired = ["sleep": 3, "fatigue": 5, "soreness": 4, "performance": 3, "hunger": 3]
+        let p = suggestion(.cut, data(weightPerDay: 0, ratings: tired))
+        XCTAssertEqual(p.caloriesPerDay, 2100)
         XCTAssertEqual(p.workoutDays, 3)
-        XCTAssertGreaterThanOrEqual(p.caloriesPerDay, 2100)
+        XCTAssertTrue(p.cautions.contains { $0.contains("recovery looks strained") })
+        XCTAssertTrue(p.evidence.contains { $0.contains("not a judgement on whether training is safe") })
     }
 
-    func testNotEnoughWeighInsHoldsCalories() {
-        var snaps = week(); for i in snaps.indices where i > 0 { snaps[i].weightKg = nil }
+    func testSicknessBlocksTighteningAndLeavesStepsAlone() {
+        let p = suggestion(.cut, data(weightPerDay: 0, steps: 4000, sick: [20, 21]))
+        XCTAssertEqual(p.caloriesPerDay, 2100)
+        XCTAssertEqual(p.workoutDays, 3)
+        XCTAssertEqual(p.steps, 10000)                                               // no rework of steps during illness
+        XCTAssertTrue(p.cautions.contains { $0.contains("you were sick") })
+    }
+
+    func testAPeriodWeekDoesNotLowerACutTarget() {
+        let p = suggestion(.cut, data(weightPerDay: 0, period: [20, 21]))
+        XCTAssertEqual(p.caloriesPerDay, 2100)
+        XCTAssertTrue(p.cautions.contains { $0.contains("period days can mask progress") })
+    }
+
+    func testContradictoryBiofeedbackIsFlaggedAndNotTreatedAsGoodRecovery() {
+        let odd = ["sleep": 4, "fatigue": 2, "soreness": 2, "performance": 4, "hunger": 4, "appetite": 1]
+        let s = summary(.cut, data(ratings: odd))
+        let a = SuggestionRules.assess(s)
+        XCTAssertEqual(a.recovery, .mixed)
+        XCTAssertTrue(a.cautions.contains { $0.contains("don't usually go together") })
+        XCTAssertEqual(SuggestionRules.baseline(s).workoutDays, 4)                   // mixed signals: no change either way
+    }
+
+    func testGoodRecoveryNeverRaisesLifting() {
+        let p = suggestion(.cut, data(weightPerDay: -0.07, ratings: calm))
+        XCTAssertEqual(SuggestionRules.assess(summary(.cut, data())).recovery, .good)
+        XCTAssertEqual(p.workoutDays, 4)
+        XCTAssertTrue(p.evidence.contains { $0.contains("self-reports") })
+    }
+
+    func testPersistentHungerAndFatigueOnACutReviewsTheTarget() {
+        let hungry = ["sleep": 3, "fatigue": 4, "soreness": 3, "performance": 3, "hunger": 5]
+        let p = suggestion(.cut, data(weightPerDay: -0.07, ratings: hungry))
+        XCTAssertEqual(p.caloriesPerDay, 2200)
+        XCTAssertTrue(p.cautions.contains { $0.contains("Hunger and fatigue are both high") })
+    }
+
+    // MARK: Adherence is not miscalibration
+
+    func testMissedWorkoutsDoNotLowerTheGoalWhenRecoveryIsFine() {
+        var snaps = data()
+        for i in snaps.indices where i % 2 == 0 { snaps[i].ratings["performance"] = nil }   // trains on fewer days than the goal
         let p = SuggestionRules.baseline(summary(.cut, snaps))
-        XCTAssertEqual(p.caloriesPerDay, 2100)
-        XCTAssertTrue(p.reasons.first!.contains("weigh-ins"))
+        XCTAssertEqual(p.workoutDays, 4)
+        XCTAssertTrue(p.evidence.contains { $0.contains("isn't lowered just because") })
     }
 
-    func testClampHoldsWhateverProposesTheNumbers() {
-        let s = summary(.cut, week(perDay: 0, sick: [3]))
-        var wild = PlanSuggestion(caloriesPerDay: 900, proteinG: 900, carbsG: -5, fatG: 5, steps: 40000, workoutDays: 7, waterMl: 99999, reasons: ["a", "", "b"])
-        wild = SuggestionRules.clamp(wild, around: s)
-        XCTAssertEqual(wild.caloriesPerDay, 2100)                                    // sick on a cut: no harder, and within 150
-        XCTAssertEqual(wild.steps, 12000); XCTAssertEqual(wild.workoutDays, 5)
-        XCTAssertEqual(wild.proteinG, 300); XCTAssertEqual(wild.carbsG, 0); XCTAssertEqual(wild.fatG, 20)
-        XCTAssertEqual(wild.waterMl, 6000); XCTAssertEqual(wild.reasons, ["a", "b"])
-        var low = PlanSuggestion(caloriesPerDay: 1000, proteinG: 100, carbsG: 100, fatG: 50, steps: 8000, workoutDays: 4, reasons: [])
-        low = SuggestionRules.clamp(low, around: summary(.maintenance, week()))
-        XCTAssertEqual(low.caloriesPerDay, 1950)                                     // at most 150 below 2,100
+    func testAStepsGoalFarAboveWhatIsDoneIsRecalibrated_butOnlyWithEnoughData() {
+        let p = suggestion(.cut, data(steps: 4000))
+        XCTAssertLessThan(p.steps, 10000); XCTAssertGreaterThanOrEqual(p.steps, 8000)
+        XCTAssertTrue(p.evidence.contains { $0.contains("steps goal comes down") })
+        let few = suggestion(.cut, data(from: 20, steps: 4000))                      // only 3 days: too little to recalibrate
+        XCTAssertEqual(few.steps, 10000)
+    }
+
+    // MARK: Safety
+
+    func testALowCalorieTargetIsNeverLoweredEvenIfItExceedsTheFloor() {
+        var low = goals; low.caloriesWeekly = 1300 * 7
+        let p = suggestion(.cut, data(weightPerDay: 0, calories: 1300), goals: low)
+        XCTAssertEqual(p.caloriesPerDay, 1300)
+        XCTAssertTrue(p.cautions.contains { $0.contains("already low") })
+        var mid = goals; mid.caloriesWeekly = 1450 * 7                                // above 1,200 but still treated as low
+        XCTAssertEqual(suggestion(.cut, data(weightPerDay: 0, calories: 1450), goals: mid).caloriesPerDay, 1450)
+    }
+
+    func testATargetFarBelowEstimatedMaintenanceIsFlaggedEvenAboveTheFixedThreshold() {
+        var g = goals; g.caloriesWeekly = 1800 * 7
+        let s = summary(.cut, data(weightPerDay: -0.1, calories: 1800), goals: g)       // losing about 0.7 kg a week on 1,800
+        XCTAssertNotNil(s.estimatedMaintenance)
+        let p = SuggestionRules.baseline(s)
+        XCTAssertGreaterThanOrEqual(p.caloriesPerDay, 1800)
+        XCTAssertTrue(p.cautions.contains { $0.contains("already low") || $0.contains("below your estimated maintenance") } || s.estimatedMaintenance! >= 2400)
+    }
+
+    func testAIChoicesAreClampedToWhatTheEvidenceSupports() {
+        let s = summary(.cut, data(weightPerDay: 0))                                  // supports 2,100 down to 2,000
+        let a = SuggestionRules.assess(s)
+        XCTAssertEqual(a.allowedCalories, 2000...2100)
+        let greedy = SuggestionRules.compose(s, a, calories: 900, steps: 40000, workouts: 7, source: .appleIntelligence)
+        XCTAssertEqual(greedy.caloriesPerDay, 2000); XCTAssertEqual(greedy.steps, 10000); XCTAssertEqual(greedy.workoutDays, 4)
+        let wild = SuggestionRules.clamp(PlanSuggestion(caloriesPerDay: 5000, proteinG: 900, carbsG: -5, fatG: 5, steps: 0, workoutDays: -3), around: s)
+        XCTAssertEqual(wild.caloriesPerDay, 2100); XCTAssertEqual(wild.steps, 10000); XCTAssertEqual(wild.workoutDays, 4)    // nothing supports a change in these
+    }
+
+    func testAIcannotChangeCaloriesWhenConfidenceIsLow() {
+        let s = summary(.cut, data(from: 20, weightPerDay: 0))
+        let p = SuggestionRules.compose(s, SuggestionRules.assess(s), calories: 1800, steps: 10000, workouts: 4, source: .appleIntelligence)
+        XCTAssertEqual(p.caloriesPerDay, 2100)
+    }
+
+    func testAIcannotCutHarderWhenSick() {
+        let s = summary(.cut, data(weightPerDay: 0, sick: [21]))
+        let p = SuggestionRules.compose(s, SuggestionRules.assess(s), calories: 1900, steps: 12000, workouts: 6, source: .appleIntelligence)
+        XCTAssertEqual(p.caloriesPerDay, 2100); XCTAssertEqual(p.steps, 10000); XCTAssertLessThanOrEqual(p.workoutDays, 4)
+    }
+
+    func testMacrosAddUpToTheCalories() {
+        for (kind, w) in [(CampaignKind.cut, 0.0), (.bulk, 0.0), (.maintenance, 0.1), (.cut, -0.15)] {
+            let p = suggestion(kind, data(weightPerDay: w))
+            let kcal = 4 * p.proteinG + 4 * p.carbsG + 9 * p.fatG
+            XCTAssertLessThanOrEqual(abs(kcal - p.caloriesPerDay), 25, "\(kind) \(w): \(kcal) vs \(p.caloriesPerDay)")
+        }
+        let m = SuggestionRules.macros(calories: 1600, proteinGoal: 150, kind: .cut)
+        XCTAssertLessThanOrEqual(abs(4 * m.protein + 4 * m.carbs + 9 * m.fat - 1600), 25)
+    }
+
+    func testKeptCaloriesKeepTheUsersOwnMacros() {
+        var g = goals; g.carbsDaily = 230; g.fatDaily = 65
+        let p = suggestion(.cut, data(weightPerDay: -0.07), goals: g)
+        XCTAssertEqual(p.caloriesPerDay, 2100); XCTAssertEqual(p.carbsG, 230); XCTAssertEqual(p.fatG, 65)
     }
 
     func testTheSuggestionKeepsTheJudgingModes() {
         var base = goals; base.caloriesAtOrUnder = false; base.stepsIsWeeklyAverage = true
-        let g = PlanSuggestion(caloriesPerDay: 2000, proteinG: 150, carbsG: 210, fatG: 58, steps: 9500, workoutDays: 3, waterMl: 2500, reasons: []).goalSet(keeping: base)
+        let g = PlanSuggestion(caloriesPerDay: 2000, proteinG: 150, carbsG: 210, fatG: 58, steps: 9500, workoutDays: 3, waterMl: 2500).goalSet(keeping: base)
         XCTAssertEqual(g.caloriesWeekly, 14000); XCTAssertFalse(g.caloriesAtOrUnder); XCTAssertTrue(g.stepsIsWeeklyAverage)
         XCTAssertEqual(g.carbsDaily, 210); XCTAssertEqual(g.fatDaily, 58)
-        XCTAssertTrue(g.hasDailyGoals)                                               // carbs and fat don't change what is judged
+        XCTAssertTrue(g.hasDailyGoals)
         XCTAssertFalse(GoalSet(carbsDaily: 200, fatDaily: 60).hasDailyGoals)
     }
 
-    func testThePromptHoldsNoNamesOrDates() {
-        let s = summary(.cut, week(sick: [3], period: [2]))
-        let text = AIAdvisor.prompt(for: s, baseline: SuggestionRules.baseline(s))
-        XCTAssertTrue(text.contains("Campaign: Cut, week 1 of 12"))
-        XCTAssertTrue(text.contains("Sick days this week: 1")); XCTAssertTrue(text.contains("Period days this week: 1"))
+    // MARK: Explanations come from the facts
+
+    func testExplanationsQuoteTheActualLoggedNumbers() {
+        let p = suggestion(.cut, data(weightPerDay: -0.07, calories: 2050, steps: 9000))
+        let t = text(p)
+        XCTAssertTrue(t.contains("2,050 kcal a day against a goal of 2,100"))
+        XCTAssertTrue(t.contains("logged on 7 of 7 days"))
+        XCTAssertTrue(t.contains("9,000 a day against a goal of 10,000"))
+        XCTAssertTrue(t.contains("21 weigh-ins"))
+        XCTAssertFalse(t.contains("1700"))                                            // the old generic sentence is gone
+    }
+
+    func testThePromptHoldsFactsAndRangesButNoNamesOrDates() {
+        let s = summary(.cut, data(sick: [21], period: [16]))
+        let a = SuggestionRules.assess(s)
+        let text = AIAdvisor.prompt(for: s, assessment: a)
+        XCTAssertTrue(text.contains("campaign: Cut, week 3 of 12"))
+        XCTAssertTrue(text.contains("sick days: 1")); XCTAssertTrue(text.contains("period days: 1"))
+        XCTAssertTrue(text.contains("confidence: High")); XCTAssertTrue(text.contains("you may choose calories between"))
         XCTAssertFalse(text.contains("2026")); XCTAssertFalse(text.contains("Nov"))
+    }
+
+    // MARK: The model's note is checked
+
+    func testANoteWithAnInventedNumberIsRejected() {
+        let facts = "weight trend per week: -0.49 kg; calories per day: average 2100, goal 2100"
+        XCTAssertNil(NoteValidator.clean("You lost 3 kg this week.", facts: facts, targets: [2100]))
+        XCTAssertNil(NoteValidator.clean("Your average of 2,350 is above goal.", facts: facts, targets: [2100]))
+        XCTAssertEqual(NoteValidator.clean("Your trend of -0.49 kg a week fits a cut; calories stay at 2,100.", facts: facts, targets: [2100]),
+                       "Your trend of -0.49 kg a week fits a cut; calories stay at 2,100.")
+    }
+
+    func testANoteWithSafetyOrMedicalClaimsIsRejected() {
+        let facts = "calories per day: average 2100"
+        for bad in ["It is safe to train hard this week.", "That is not safe.", "This may be a diagnosis.", "Results are guaranteed.", "You must eat more."] {
+            XCTAssertNil(NoteValidator.clean(bad, facts: facts, targets: []), bad)
+        }
+        XCTAssertNil(NoteValidator.clean("", facts: facts, targets: []))
+        XCTAssertNil(NoteValidator.clean(String(repeating: "a", count: 400), facts: facts, targets: []))
     }
 }
 

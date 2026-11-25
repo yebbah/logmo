@@ -92,11 +92,12 @@ Open it from the Campaigns tab or the Goals card. This week comes first, then **
 
 Tap **Suggest** on the Goals card, the sparkles button on the Weekly plan, or the button on the plan prompts. You can do this any day.
 
-1. **See what's shared.** A sheet lists exactly what the assistant sees: numbers only (your campaign type, weight trend, averages against goals, workouts, check-in averages, and period and sick days if you track them, each with an off switch). No name, dates or notes. Choose **This week so far** or **Last week**. You need at least three logged days.
-2. **Get a suggestion.** It proposes next week's calories, protein, carbs, fat, steps, lifting days and water, with reasons.
-3. **Decide.** **Use for next week** saves it as "Set by you". **Edit first** opens the week editor with it filled in. **Not now** saves nothing.
+1. **See what's shared.** A sheet lists exactly what the assistant sees: numbers only (your campaign type, weight trend, averages against goals, workouts, check-in averages, and period and sick days if you track them, each with an off switch). No name, dates or notes. Choose **This week so far** or **Last week**. The more days you've logged, the more confident it can be.
+2. **Get a suggestion.** logmo works out the facts first: your weight trend over up to 3 weeks, what you actually ate and walked against your goals, how you've been following the plan, and your check-ins. It then proposes next week's calories, protein, carbs, fat, steps, lifting days and water.
+3. **Read why.** You see a short headline (keep, raise or lower calories), a **confidence** level (high, medium or low, with a breakdown for weigh-ins, calorie logs, steps and check-ins), the evidence behind it, anything worth knowing, and what more to log if the data is thin. Days you didn't log are never counted as zero.
+4. **Decide.** **Use for next week** saves it as "Set by you". **Edit first** opens the week editor with it filled in. **Not now** saves nothing.
 
-It takes your campaign into account (cut, bulk or maintenance), how you feel, your weight trend, your cycle and any sick days. It keeps changes small, never cuts harder when you were sick or very tired, and doesn't read a period week's scale as a stall.
+How it decides: calories change only when your weight is outside what your campaign aims for, there's enough data to trust that, the last few days agree, and you've actually been eating near your target. If you've been well off your target, it keeps the target and says following it comes first. With low confidence it keeps your targets and tells you what to log. It won't lower a calorie target that is already low, never cuts harder in a sick or strained week, and never raises steps or lifting days by itself. Check-in scores are self-reports, so it never says whether training is safe.
 
 It runs on your iPhone, so nothing leaves it. It needs iOS 26 or later with Apple Intelligence turned on. Without that you still get a simpler, rule-based suggestion. It is a suggestion, not medical advice.
 

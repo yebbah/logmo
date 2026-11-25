@@ -63,30 +63,41 @@ struct GoalsCard: View {
         let stepsWeek = Metrics.stepsWeekStatus(snaps, weekStart: ws, goals: wkGoals, today: today)
         let workouts = Metrics.workoutWeek(snaps, weekStart: ws, goals: wkGoals, today: today)
 
-        if goals == nil {
-            Text("No goals set for this campaign yet.").foregroundStyle(theme.muted)
-        } else {
-            Text("Today").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-            if goals?.hasDailyGoals == true { weighInRow(logged: todays?.weightKg != nil) }
-            goalRow("Protein", value: todays?.proteinG, goal: goals?.proteinDaily, unit: "g", met: status.protein)
-            goalRow("Steps", value: todays?.steps, goal: goals?.dailyStepsGoal, unit: "", met: status.steps)
-            goalRow("Water", value: todays?.waterMl, goal: goals?.waterDailyMl, unit: "ml", met: status.water)
-            if !(goals?.hasDailyGoals ?? false) { Text("No daily goals set.").font(.caption).foregroundStyle(theme.muted) }
+        VStack(alignment: .leading, spacing: 22) {
+            if goals == nil {
+                Text("No goals set for this campaign yet.").foregroundStyle(theme.muted)
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    sectionLabel("Today")
+                    if goals?.hasDailyGoals == true { weighInRow(logged: todays?.weightKg != nil) }
+                    goalRow("Protein", value: todays?.proteinG, goal: goals?.proteinDaily, unit: "g", met: status.protein)
+                    goalRow("Steps", value: todays?.steps, goal: goals?.dailyStepsGoal, unit: "", met: status.steps)
+                    goalRow("Water", value: todays?.waterMl, goal: goals?.waterDailyMl, unit: "ml", met: status.water)
+                    if !(goals?.hasDailyGoals ?? false) { Text("No daily goals set.").font(.caption).foregroundStyle(theme.muted) }
+                }
 
-            if goals?.hasWeeklyGoals == true {
-                Divider()
-                Text("This week").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-                if week.goal != nil { weekRow(week) }
-                if stepsWeek.goal != nil { stepsRow(stepsWeek) }
-                if workouts.target != nil { workoutRow(workouts) }
+                if goals?.hasWeeklyGoals == true {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 18) {
+                        sectionLabel("This week")
+                        if week.goal != nil { weekRow(week) }
+                        if stepsWeek.goal != nil { stepsRow(stepsWeek) }
+                        if workouts.target != nil { workoutRow(workouts) }
+                    }
+                }
             }
-        }
-        HStack(spacing: 18) {
-            if live || upcoming { Button("Edit goals", action: onEdit) }
-            Button("Weekly plan", action: onPlan)
-            if live, let onSuggest { Button { onSuggest() } label: { Label("Suggest", systemImage: "sparkles") } }
-        }
+            Divider()
+            HStack(spacing: 22) {
+                if live || upcoming { Button("Edit goals", action: onEdit) }
+                Button("Weekly plan", action: onPlan)
+                if live, let onSuggest { Button { onSuggest() } label: { Label("Suggest", systemImage: "sparkles") } }
+            }
         .font(.subheadline).buttonStyle(.borderless)
+        }
+    }
+
+    private func sectionLabel(_ t: String) -> some View {
+        Text(t.uppercased()).font(.caption.weight(.semibold)).tracking(0.6).foregroundStyle(theme.muted)
     }
 
     private func weighInRow(logged: Bool) -> some View {
@@ -101,7 +112,7 @@ struct GoalsCard: View {
     private func goalRow(_ title: String, value: Int?, goal: Int?, unit: String, met: Bool?) -> some View {
         Group {
             if let goal {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(title)
                         Spacer()
@@ -117,7 +128,7 @@ struct GoalsCard: View {
     }
 
     private func weekRow(_ w: WeekStatus) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             if let goal = w.goal {
                 HStack {
                     Text("Calories")
@@ -136,7 +147,7 @@ struct GoalsCard: View {
     }
 
     private func stepsRow(_ w: WeekStatus) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Steps, weekly average")
                 Spacer()
@@ -153,7 +164,7 @@ struct GoalsCard: View {
     private func workoutRow(_ w: WorkoutWeek) -> some View {
         let target = w.target ?? 0
         let open = w.possible - w.done
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Workout days")
                 Spacer()

@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v13.1 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v14.0 and app version 1.0.0 (build 1).
 
 ---
 
@@ -57,7 +57,14 @@ Two local notification types, both scheduled on the phone:
 
 ### AI suggestion
 
-`AIAdvisor` uses the on-device Foundation Models framework, only on iOS 26+ with Apple Intelligence available. Flow: `SuggestionRules.summary` builds a numbers-only `WeekSummary` (shown to the user first) → `SuggestionRules.baseline` computes a rule-based proposal → the model refines it and writes reasons → `SuggestionRules.clamp` holds the numbers to safety limits. If the model is unavailable or fails, the baseline is used. No network is involved.
+The suggestion is calculated first and explained second:
+
+1. `SuggestionRules.summary` builds a numbers-only `WeekSummary` (weight slope over up to 21 days with scatter, recent slope, averages, days logged per metric, check-in averages and changes, sick and period days, estimated maintenance). It is shown to the user first.
+2. `SuggestionRules.assess` turns it into an `Assessment`: per-metric `DataConfidence`, rate status against the campaign's band, intake and adherence, recovery, contradictions, the supported calorie, steps and lifting changes, the **allowed ranges**, and the evidence, caution and "needs more data" texts. All text is written from the facts.
+3. `AIAdvisor` (Foundation Models, iOS 26+ with Apple Intelligence) gets the facts and ranges as structured context, picks calories, steps and lifting days **inside the ranges**, and writes a one- or two-sentence note.
+4. `SuggestionRules.compose` clamps the model's choices to the ranges, rebuilds macros so they add up, and writes the headline. `NoteValidator` drops the note if it uses a number not in the facts or targets, makes a safety or medical claim, or is too long.
+
+If the model is unavailable or fails, steps 1, 2 and 4 stand alone. No network is involved. Thresholds (confidence cut-offs, rate bands, the 1,500 kcal and 25% deficit low-target rules, step sizes) are constants in `WeekSuggestion.swift`; changing one means updating `WeekSuggestionTests`.
 
 ## 3. Build, sign and install
 
@@ -82,7 +89,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (138 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (164 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 
