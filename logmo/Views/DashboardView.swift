@@ -88,7 +88,7 @@ struct DashboardView: View {
             .background(theme.bg)
             .navigationTitle("Dashboard")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     if let text = CampaignRules.daysLeftBadge(infos, today: today) {
                         Button { nav.tab = 3 } label: {
                             // An HStack, not a Label: the toolbar turns a Label into just its icon.

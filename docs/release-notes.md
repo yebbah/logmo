@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 1)**, built to PRD v20.4, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 1)**, built to PRD v20.5, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -51,7 +51,7 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 
 ### Starting weight and days left
 - **Every campaign asks for a starting weight**, filled in with your current trend weight so a campaign that continues an earlier one carries the trend on. The trend is seeded from it on the campaign's first day. It can be changed on a running or upcoming campaign.
-- A **days-left badge** in the Dashboard's top-left corner shows the days remaining in the running campaign.
+- A **days-left badge** in the Dashboard's top-right corner shows the days remaining in the running campaign.
 
 ### Estimated maintenance (TDEE)
 - **Dashboard card** laid out like the workbook: the estimate with its status (Updating, Holding or Formula), your goal against it in one line (with a warning when logs look incomplete), a chart over time, and a weekly table of goal, eaten and maintenance.
