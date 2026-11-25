@@ -25,8 +25,9 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(theme.muted)
                 } header: { Text("Appearance") }
                 .listRowBackground(theme.card)
-                Section("Goals") {
+                Section("Goals and campaigns") {
                     NavigationLink("Weekly goals") { GoalsEditor() }
+                    NavigationLink("Fitness campaigns") { CampaignsView() }
                 }
                 .listRowBackground(theme.card)
                 Section {
@@ -76,16 +77,17 @@ struct SettingsView: View {
                 .listRowBackground(theme.card)
                 Section {
                     Button("Delete all data", role: .destructive) { confirmDelete = true }
-                } footer: { Text("Deletes logs and goals. Data is stored only on this iPhone.") }
+                } footer: { Text("Deletes logs, goals and campaign history. Data is stored only on this iPhone.") }
                 .listRowBackground(theme.card)
             }
             .scrollContentBackground(.hidden)
             .background(theme.bg)
             .navigationTitle("Settings")
-            .confirmationDialog("Delete every log and goal on this iPhone?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            .confirmationDialog("Delete every log, goal and campaign on this iPhone?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete all", role: .destructive) {
                     try? context.delete(model: DayLog.self)
                     try? context.delete(model: WeekGoal.self)
+                    try? context.delete(model: Campaign.self)
                     try? context.save()
                 }
             }

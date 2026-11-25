@@ -14,3 +14,7 @@
 /logmo.xcodeproj/
 /logmo/Info.plist
 xcuserdata/
+
+# macOS / local reference images
+.DS_Store
+Screenshot*.png

@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 2.1
+version: 3.0
 created: 2026-11-11
 updated: 2026-11-24
 ---
 
-# logmo: Product Requirements (v2.1)
+# logmo: Product Requirements (v3.0)
 
 ## Vision and outcome
 
@@ -26,7 +26,7 @@ Success means the user can log a full day in under a minute and see at a glance 
 - **Weekly goals:** one set of goals per week (see FR-3).
 - **Trend weight:** exponentially smoothed weight, distinct from a measured weight.
 
-## Requirements (v2.0)
+## Requirements
 
 **FR-1. Log a day.** Choose any date up to today and view or edit that day's values:
 - Weight (kg or lb).
@@ -75,15 +75,40 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 
 **FR-6. Compliance.** A day is **complied** when every *required* tracker is fully logged, every daily goal that was set is met, *and* (when a calorie goal exists) the average calories of that day's week are on target. The calorie test uses the whole week's average (the week so far, while it is in progress), not the single day, so a day can change from complied to not complied as the week's average moves. Required trackers are chosen in Settings, all five by default. Over a 7- or 30-day window (today inclusive) the dashboard shows the share of days complied and, per tracker, the days it was fully logged. Today is left out of the count until it is complied, so an unfinished day is not a miss.
 
-**FR-7. Weight trend and biofeedback.** Chart measured weights and the smoothed trend over 30 days, 90 days or 1 year, with the latest trend value and its 7-day change (hidden until a week of history exists).
+**FR-7. Weight trend and biofeedback.** Show weigh-ins and the smoothed trend as two separate lines: weigh-ins connected with markers, the trend as a thick line, with a legend. Ranges are 14 days, 30 days, 90 days or All (of the period selected in FR-12). The latest trend value and last weigh-in are shown, and value labels appear when 15 or fewer points are on screen. The trend is computed over all data and only displayed per period, so it never restarts at a campaign boundary.
 - Smoothing: `trend = α × weight + (1 − α) × previous trend`, α = 2 / (N + 1). Default N = 16, matching the workbook's value for male input; the user can choose 7, 10, 14, 16 or 20. The first weigh-in seeds the trend, and days without a weigh-in carry the previous trend forward.
 - **Biofeedback overlay:** a switch adds one smoothed trend line per rating beside the weight line, each with its own tick box to show or hide it. Ratings use a right-hand 1–5 axis and a fixed 7-day smoothing. The choices are remembered on the device.
 
 **FR-8. Appearance.** Two themes, switched in Settings and remembered on the device: **Clean** (light, white cards, blue accent) and **Midnight** (dark navy, cyan accent). The choice applies to every screen, including charts and the biofeedback line colours. Clean is the default.
 
-**FR-9. Local-first and control.** All data is stored on the device and works offline. The user can delete all data (logs and goals) from Settings. Nothing is sent to any service.
+**FR-9. Local-first and control.** All data is stored on the device and works offline. The user can delete all data (logs, goals and campaign history) from Settings. Nothing is sent to any service.
 
-**FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps` and the seven ratings. Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Goals are not included. Export is user-initiated and is the only way data leaves the phone in v2.0. It is a backup, not an import path.
+**FR-10. Export.** From Settings, export all daily logs as a CSV file through the iOS share sheet. One row per day, oldest first, columns `date, weight_kg, calories_kcal, protein_g, fat_g, carbs_g, water_ml, steps` and the seven ratings. Dates are `yyyy-MM-dd`; weight is always kg; missing values are empty cells, so a real 0 stays distinguishable from missing. Goals are not included. Export is user-initiated and is the only way data leaves the phone. It is a backup, not an import path.
+
+**FR-11. Fitness campaigns.** From Settings the user defines a campaign:
+- **Type:** cut, bulk or maintenance.
+- **Target weight** (optional for maintenance), **start date** and **length in weeks** (any number; nothing assumes four weeks to a month).
+- Campaigns are numbered 1, 2, 3 … in order of creation.
+
+Rules:
+- Every day belongs to exactly one campaign.
+- When no real campaign is running, an automatic **default maintenance campaign** is open. It takes the next number, so the stretches between campaigns keep their own history. The first default starts on the first logged day (or today).
+- Starting a campaign closes the running default the day before the new start date. The start date can't be before the running default began.
+- Only one real campaign runs at a time. It can be **ended early** (or run to its planned end); it stays in history either way. Ending it opens a new default campaign the next day.
+- **History:** Settings lists every campaign (running, completed, ended early, default) with dates and trend-weight change. A detail view shows type, dates, planned and actual length, target, trend weight start to end, change, versus target, days logged, and average calories, protein and steps.
+
+**FR-12. Dashboard sections and campaign filter.** The dashboard has a **Showing** menu: *Current campaign* (default), *Overall (all time)*, or any past campaign. It limits the campaign card, recent performance, the weigh-in chart, rate of change, steps and calories, biofeedback and protein intake. Streaks, compliance, goals and the overall journey are not filtered: they are about now or about all time. Sections, top to bottom:
+1. **Campaign card:** title, dates, **days left** (whole days after today until the planned end, 0 once reached), week x of y, target weight and distance from it (using the trend). Overall shows all data since the first weigh-in.
+2. Goals, streaks and compliance (FR-3 to FR-6).
+3. **Recent performance:** overall trend change in the period; average calories, protein and steps over the last 14 days; trend change over 7, 14 and 21 days. Averages use only days with a value.
+4. **Weigh-ins and trend** chart (FR-7).
+5. **Rate of change per week:** one bar per day, trend weight today minus 7 days earlier, over the last 12 weeks, with the latest value and its percent of body weight.
+6. **Steps and calories:** last 14 days as grouped bars (steps on the left axis, calories on the right) and the past-7-day averages.
+7. **Biofeedback, last 7 days:** one small bar chart per rating with its 7-day average and which direction is better: higher for sleep and training performance, lower for fatigue, stress, hunger and soreness, and none for appetite. Days without a rating have no bar.
+8. **Protein intake:** days the protein goal was hit out of days with a goal, last 14 days. An unlogged day counts as missed.
+9. **Overall weight journey:** weigh-ins and trend across all campaigns, with the total change since the first weigh-in. Always shown, regardless of the filter.
+10. **Recent history:** daily goals for the last 7 days and the weekly calorie goal for the last 4, 8 or 12 weeks (selectable).
+
 
 ## Extensibility (provisions, not features)
 
@@ -91,7 +116,7 @@ For logging and daily goals, a day not yet logged *today* does not break the cur
 - **Cloud sync:** the data model is compatible with CloudKit (defaulted fields, no unique constraints, per-record id and `updatedAt`). A `SyncBackend` interface exists for another backend.
 - Neither is user-visible in v1; Settings shows "Not yet available".
 
-## Out of scope for v2.0
+## Out of scope
 
 Social features, Android, accounts, notifications, and everything listed under Later phases. A new visual theme is planned but not yet specified: mockups are pending the user's choice.
 
@@ -135,3 +160,11 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D16 | Goals are not in the CSV export | Assumption: backing up goals is a gap |
 | D17 | Two themes (Clean, Midnight), chosen in Settings; Clean is the default | Decided |
 | D18 | A finished week needs calories on all seven days to be "met", even though it is judged on the average | Assumption: confirm, or allow partial weeks |
+| D19 | The dashboard opens on the current campaign, with Overall one tap away | Decided |
+| D20 | Streaks and compliance are not filtered by campaign | Assumption: they describe consistency over time |
+| D21 | The trend line is computed over all data and sliced per campaign | Assumption: smoothing shouldn't restart at a boundary |
+| D22 | Only one real campaign at a time; start date can't precede the running default's start | Assumption |
+| D23 | "Days left" counts whole days after today until the planned end | Assumption |
+| D24 | Deleting all data also deletes campaign history | Assumption |
+| D25 | Choosing cut or bulk does not change the calorie-goal direction, which stays at-or-under unless the user switches it in the goals editor | Assumption: confirm |
+| D26 | Weekly history length is selectable (4, 8, 12 weeks) | Decided: months can have 5 weeks |

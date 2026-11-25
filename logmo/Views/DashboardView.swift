@@ -4,54 +4,148 @@ import Charts
 
 struct DashboardView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.modelContext) private var context
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
-    @AppStorage(SettingsKey.bioOverlay) private var bioOn = false
-    @AppStorage(SettingsKey.bioShown) private var bioShownRaw = Rating.allCases.map(\.rawValue).joined(separator: ",")
+    @AppStorage("campaignFilter") private var filterRaw = "current"      // current | overall | <campaign id>
+    @AppStorage("historyWeeks") private var historyWeeks = 4
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
+    @Query(sort: \Campaign.number) private var campaigns: [Campaign]
 
     @State private var window = 7
-    @State private var range = 30
     @State private var showGoals = false
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: Date()) }
-    private var bioShown: Set<String> { Set(bioShownRaw.split(separator: ",").map(String.init)) }
 
     var body: some View {
         let snaps = logs.map(\.snapshot)
         let timeline = GoalTimeline(weekGoals)
         let required = RequiredTrackers.parse(requiredRaw)
+        let infos = campaigns.map(\.info)
+        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
+        let selected = selectedCampaign(infos)
+        let scope = scopeFor(selected, snaps)
 
         NavigationStack {
             ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 16) {
-                    if needsGoals(timeline) { goalsBanner(timeline) }
-                    todayCard(snaps, timeline)
-                    streaksCard(snaps, timeline)
-                    complianceCard(Metrics.compliance(snaps, today: today, windowDays: window,
-                                                      required: required, timeline: timeline)).id("compliance")
-                    historyCard(snaps, timeline, required).id("history")
-                    weightCard(snaps).id("weight")
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if needsGoals(timeline) { goalsBanner(timeline) }
+                        campaignPicker(infos)
+                        campaignCard(selected, scope, trend, infos)
+                        todayCard(snaps, timeline)
+                        streaksCard(snaps, timeline)
+                        complianceCard(Metrics.compliance(snaps, today: today, windowDays: window,
+                                                          required: required, timeline: timeline)).id("compliance")
+                        PerformanceCard(snaps: snaps, trend: trend, scope: scope).id("performance")
+                        WeightChartCard(title: "Weigh-ins and trend", trend: trend, snaps: snaps, scope: scope,
+                                        smoothing: smoothing).id("weight")
+                        RateCard(trend: trend, scope: scope).id("rate")
+                        StepsCaloriesCard(snaps: snaps, scope: scope).id("steps")
+                        BiofeedbackBarsCard(snaps: snaps, scope: scope).id("bio")
+                        ProteinDonutCard(snaps: snaps, timeline: timeline, scope: scope)
+                        OverallJourneyCard(trend: trend).id("overall")
+                        historyCard(snaps, timeline)
+                    }
+                    .padding()
                 }
-                .padding()
-            }
-            .onAppear {
-                #if DEBUG
-                // Debug aid for screenshots: -scrollTo compliance|history|weight
-                if let id = UserDefaults.standard.string(forKey: "scrollTo") {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo(id, anchor: .top) }
+                .onAppear {
+                    CampaignStore.ensureDefault(context)
+                    #if DEBUG
+                    // Debug aid for screenshots: -scrollTo compliance|performance|weight|rate|steps|bio|overall
+                    if let id = UserDefaults.standard.string(forKey: "scrollTo") {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo(id, anchor: .top) }
+                    }
+                    #endif
                 }
-                #endif
-            }
             }
             .background(theme.bg)
             .navigationTitle("Dashboard")
             .sheet(isPresented: $showGoals) { GoalsSheet() }
+        }
+    }
+
+    // MARK: Campaign filter
+
+    private func selectedCampaign(_ infos: [CampaignInfo]) -> CampaignInfo? {
+        switch filterRaw {
+        case "overall": return nil
+        case "current": return CampaignRules.campaign(for: today, in: infos)
+        default:
+            return infos.first { $0.id.uuidString == filterRaw } ?? CampaignRules.campaign(for: today, in: infos)
+        }
+    }
+
+    /// Everything on the dashboard below the picker is limited to this range, except
+    /// streaks, compliance, goals and the overall journey, which are about "now" or "all time".
+    private func scopeFor(_ c: CampaignInfo?, _ snaps: [DaySnapshot]) -> DateScope {
+        if let c { return DateScope(start: c.start, end: min(c.end ?? today, today)) }
+        let first = snaps.map { cal.startOfDay(for: $0.date) }.min() ?? today
+        return DateScope(start: first, end: today)
+    }
+
+    private func campaignPicker(_ infos: [CampaignInfo]) -> some View {
+        let current = CampaignRules.campaign(for: today, in: infos)
+        return HStack {
+            Text("Showing").foregroundStyle(theme.muted)
+            Spacer()
+            Picker("Campaign", selection: $filterRaw) {
+                Text("Current\(current.map { " · #\($0.number) \($0.kind.title)" } ?? "")").tag("current")
+                Text("Overall (all time)").tag("overall")
+                ForEach(infos.sorted { $0.number > $1.number }) { c in
+                    Text("#\(c.number) \(c.kind.title)\(c.isDefault ? " (default)" : "")").tag(c.id.uuidString)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 6)
+        .background(theme.card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(theme.border, lineWidth: 1))
+    }
+
+    private func campaignCard(_ c: CampaignInfo?, _ scope: DateScope, _ trend: [TrendPoint], _ infos: [CampaignInfo]) -> some View {
+        let df = Date.FormatStyle().day().month(.abbreviated)
+        return Card(title: c?.title ?? "Overall") {
+            if let c {
+                let range = c.end.map { "\(c.start.formatted(df)) – \($0.formatted(df))" } ?? "since \(c.start.formatted(df))"
+                Text(range + (c.endedEarly ? " · ended early" : "")).font(.caption).foregroundStyle(theme.muted)
+
+                if c.plannedWeeks != nil, c.end == nil, let left = CampaignRules.daysLeft(c, today: today) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("\(left)").font(.system(size: 44, weight: .bold, design: .rounded))
+                        Text(left == 1 ? "day left" : "days left").foregroundStyle(theme.muted)
+                        Spacer()
+                        Text("week \(CampaignRules.weekNumber(c, today: today)) of \(c.plannedWeeks ?? 0)")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
+                    }
+                    let total = Double((c.plannedWeeks ?? 1) * 7)
+                    ProgressView(value: min(max(1 - Double(left) / total, 0), 1))
+                } else if let planned = c.plannedWeeks {
+                    Text("\(planned)-week campaign" + (c.end != nil ? ", finished" : ""))
+                        .font(.subheadline).foregroundStyle(theme.muted)
+                } else {
+                    Text("Automatic maintenance period between campaigns.").font(.subheadline).foregroundStyle(theme.muted)
+                }
+
+                if let target = c.targetWeightKg, let now = trend.last(where: { $0.date <= scope.end }) {
+                    let diff = unit.fromKg(now.trendKg) - unit.fromKg(target)
+                    HStack {
+                        Text("Target \(String(format: "%.1f", unit.fromKg(target))) \(unit.rawValue)")
+                        Spacer()
+                        Text(abs(diff) < 0.05 ? "At target" : String(format: "%.1f %@ %@", abs(diff), unit.rawValue,
+                                                                      diff > 0 ? "above" : "below"))
+                            .foregroundStyle(theme.muted)
+                    }.font(.subheadline)
+                }
+            } else {
+                let first = trend.first?.date
+                Text(first.map { "All data since \($0.formatted(date: .abbreviated, time: .omitted)), across \(infos.count) campaign\(infos.count == 1 ? "" : "s")" }
+                     ?? "No data yet.").font(.subheadline).foregroundStyle(theme.muted)
+            }
         }
     }
 
@@ -183,7 +277,7 @@ struct DashboardView: View {
                 streakTile("Daily goals", daily.current, daily.longest, "days")
                 streakTile("Weekly goal", weekly.current, weekly.longest, "weeks")
             }
-            Text("Logging: any entry. Daily goals: protein, steps and water all met. Weekly goal: finished weeks within the calorie goal.")
+            Text("Logging: any entry. Daily goals: protein, steps and water all met. Weekly goal: finished weeks within the calorie goal. Streaks run across campaigns.")
                 .font(.caption).foregroundStyle(theme.muted)
         }
     }
@@ -227,11 +321,11 @@ struct DashboardView: View {
 
     // MARK: Recent history
 
-    private func historyCard(_ snaps: [DaySnapshot], _ t: GoalTimeline, _ required: Set<Tracker>) -> some View {
+    private func historyCard(_ snaps: [DaySnapshot], _ t: GoalTimeline) -> some View {
         let map = Dictionary(snaps.map { (cal.startOfDay(for: $0.date), $0) }, uniquingKeysWith: { a, _ in a })
         let days = (0..<7).reversed().map { cal.date(byAdding: .day, value: -$0, to: today)! }
         let thisWeek = Metrics.weekStart(of: today)
-        let weeks = (0..<4).reversed().map { cal.date(byAdding: .day, value: -7 * $0, to: thisWeek)! }
+        let weeks = (0..<historyWeeks).reversed().map { cal.date(byAdding: .day, value: -7 * $0, to: thisWeek)! }
 
         return Card(title: "Recent") {
             Text("Daily goals, last 7 days").font(.caption).foregroundStyle(theme.muted)
@@ -247,133 +341,22 @@ struct DashboardView: View {
                     }.frame(maxWidth: .infinity)
                 }
             }
-            Text("Weekly calorie goal, last 4 weeks").font(.caption).foregroundStyle(theme.muted).padding(.top, 4)
             HStack {
+                Text("Weekly calorie goal").font(.caption).foregroundStyle(theme.muted)
+                Spacer()
+                Picker("Weeks", selection: $historyWeeks) {
+                    Text("4 weeks").tag(4); Text("8 weeks").tag(8); Text("12 weeks").tag(12)
+                }.pickerStyle(.menu)
+            }.padding(.top, 4)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 56), spacing: 8)], spacing: 10) {
                 ForEach(weeks, id: \.self) { ws in
                     let st = Metrics.weekStatus(snaps, weekStart: ws, goals: t.goals(forWeekStarting: ws), today: today)
                     VStack(spacing: 4) {
                         statusIcon(st.outcome == .met ? true : st.outcome == .missed ? false : nil)
                         Text(ws.formatted(.dateTime.day().month(.abbreviated))).font(.caption2).foregroundStyle(theme.muted)
-                    }.frame(maxWidth: .infinity)
-                }
-            }
-        }
-    }
-
-    // MARK: Weight + biofeedback
-
-    private func weightCard(_ snaps: [DaySnapshot]) -> some View {
-        let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothing)
-        let cutoff = cal.date(byAdding: .day, value: -range, to: today)!
-        let shown = trend.filter { $0.date >= cutoff }
-        let change = Metrics.trendChange(trend, overDays: 7)
-
-        return Card(title: "Weight trend") {
-            Picker("Range", selection: $range) {
-                Text("30d").tag(30); Text("90d").tag(90); Text("1y").tag(365)
-            }.pickerStyle(.segmented)
-
-            if let last = trend.last {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(String(format: "%.1f", unit.fromKg(last.trendKg))).font(.system(size: 36, weight: .bold, design: .rounded))
-                    Text(unit.rawValue).foregroundStyle(theme.muted)
-                    Spacer()
-                    if let change {
-                        Text(String(format: "%+.2f %@ / 7d", unit.fromKg(change) - unit.fromKg(0), unit.rawValue))
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-                    } else {
-                        Text("7-day change needs a week of history").font(.caption).foregroundStyle(theme.muted)
                     }
                 }
             }
-
-            Toggle("Show biofeedback", isOn: $bioOn)
-
-            if bioOn {
-                let columns = [GridItem(.adaptive(minimum: 110), spacing: 8)]
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
-                    ForEach(Rating.allCases) { r in
-                        let on = bioShown.contains(r.rawValue)
-                        Button { toggle(r) } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: on ? "checkmark.square.fill" : "square")
-                                Text(r.title).font(.caption).lineLimit(1)
-                            }
-                            .padding(.horizontal, 8).padding(.vertical, 6)
-                            .foregroundStyle(on ? theme.color(for: r) : theme.muted)
-                            .background((on ? theme.color(for: r) : theme.muted).opacity(0.12), in: Capsule())
-                        }.buttonStyle(.plain)
-                    }
-                }
-            }
-
-            if shown.isEmpty {
-                ContentUnavailableView("No weigh-ins yet", systemImage: "scalemass",
-                                       description: Text("Log your weight to see the trend."))
-            } else {
-                weightChart(shown, snaps, cutoff)
-            }
-        }
-    }
-
-    private func toggle(_ r: Rating) {
-        var s = bioShown
-        if s.contains(r.rawValue) { s.remove(r.rawValue) } else { s.insert(r.rawValue) }
-        bioShownRaw = Rating.allCases.map(\.rawValue).filter(s.contains).joined(separator: ",")
-    }
-
-    private func weightChart(_ shown: [TrendPoint], _ snaps: [DaySnapshot], _ cutoff: Date) -> some View {
-        // Ratings (1–5) are drawn on the weight axis by mapping 1…5 onto its visible range;
-        // a second axis on the right labels them 1–5.
-        let ys = shown.flatMap { p in [unit.fromKg(p.trendKg)] + (p.weightKg.map { [unit.fromKg($0)] } ?? []) }
-        let rawLo = ys.min() ?? 0, rawHi = ys.max() ?? 1
-        let pad = max((rawHi - rawLo) * 0.1, 0.5)
-        let lo = rawLo - pad, hi = rawHi + pad
-        func mapRating(_ r: Double) -> Double { lo + (r - 1) / 4 * (hi - lo) }
-
-        let active = bioOn ? Rating.allCases.filter { bioShown.contains($0.rawValue) } : []
-        let series: [(Rating, [ValuePoint])] = active.map { r in
-            (r, Metrics.ratingTrend(snaps, rating: r.rawValue, through: today)
-                .filter { $0.date >= cutoff })
-        }
-
-        return VStack(alignment: .leading, spacing: 6) {
-            Chart {
-                ForEach(shown) { p in
-                    if let w = p.weightKg {
-                        PointMark(x: .value("Date", p.date), y: .value("Weight", unit.fromKg(w)))
-                            .foregroundStyle(theme.muted).symbolSize(24)
-                    }
-                    LineMark(x: .value("Date", p.date), y: .value("Trend", unit.fromKg(p.trendKg)),
-                             series: .value("Series", "weight"))
-                        .foregroundStyle(theme.accent).interpolationMethod(.monotone)
-                        .lineStyle(StrokeStyle(lineWidth: 3))
-                }
-                ForEach(series, id: \.0) { r, points in
-                    ForEach(points) { p in
-                        LineMark(x: .value("Date", p.date), y: .value(r.title, mapRating(p.trend)),
-                                 series: .value("Series", r.rawValue))
-                            .foregroundStyle(theme.color(for: r)).interpolationMethod(.monotone)
-                            .lineStyle(StrokeStyle(lineWidth: 1.5))
-                    }
-                }
-            }
-            .chartYScale(domain: lo...hi)
-            .chartYAxis {
-                AxisMarks(position: .leading)
-                AxisMarks(position: .trailing, values: bioOn ? [1.0, 2, 3, 4, 5].map(mapRating) : []) { v in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0))
-                    AxisValueLabel {
-                        if let y = v.as(Double.self) { Text("\(Int(((y - lo) / (hi - lo) * 4 + 1).rounded()))") }
-                    }
-                }
-            }
-            .frame(height: 220)
-
-            Text(bioOn
-                 ? "Left axis: weight (\(unit.rawValue)), thick line is the \(smoothing)-day trend. Right axis: biofeedback 1–5, 7-day smoothed. Higher isn't always better; see each rating's meaning on the Log screen."
-                 : "Dots: weigh-ins. Line: \(smoothing)-day smoothed trend.")
-                .font(.caption).foregroundStyle(theme.muted)
         }
     }
 }
