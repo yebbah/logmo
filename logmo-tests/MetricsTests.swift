@@ -117,6 +117,41 @@ final class MetricsTests: XCTestCase {
         XCTAssertEqual(Metrics.weeklyStreak(week(2, kcal: 100), timeline: GoalTimeline(), today: day(30), calendar: cal).current, 0)
     }
 
+    // MARK: weekly calorie average
+    func testCalorieAverageComparison() {
+        XCTAssertTrue(Metrics.calorieAverageOK(total: 14000, days: 7, goal: 14000, atOrUnder: true))    // 2000/day vs 2000
+        XCTAssertFalse(Metrics.calorieAverageOK(total: 14007, days: 7, goal: 14000, atOrUnder: true))
+        XCTAssertTrue(Metrics.calorieAverageOK(total: 4000, days: 2, goal: 14000, atOrUnder: true))     // average of days so far
+        XCTAssertFalse(Metrics.calorieAverageOK(total: 4400, days: 2, goal: 14000, atOrUnder: true))    // 2200/day
+        XCTAssertTrue(Metrics.calorieAverageOK(total: 4400, days: 2, goal: 14000, atOrUnder: false))
+        XCTAssertFalse(Metrics.calorieAverageOK(total: 0, days: 0, goal: 14000, atOrUnder: true))       // nothing logged
+    }
+    func testWeekStatusExposesAverage() {
+        let st = Metrics.weekStatus([full(2, kcal: 2000), full(3, kcal: 2100)], weekStart: day(2), goals: goals, today: day(3), calendar: cal)
+        XCTAssertEqual(st.average!, 2050, accuracy: 1e-9)
+        XCTAssertEqual(st.dailyTarget!, 2000, accuracy: 1e-9)
+        XCTAssertNil(Metrics.weekStatus([], weekStart: day(2), goals: goals, today: day(3), calendar: cal).average)
+    }
+    func testDayNotCompliedWhenWeekAverageOverTarget() {
+        let req = Set(Tracker.allCases)
+        // two fully logged days, goals met, but averaging 2,200 kcal against a 2,000/day target
+        let days = [full(2, kcal: 2200), full(3, kcal: 2200)]
+        let c = Metrics.compliance(days, today: day(4), windowDays: 3, required: req, timeline: timeline(), calendar: cal)
+        XCTAssertEqual(c.windowDays, 2)                     // the 4th is today and unlogged: left out
+        XCTAssertEqual(c.compliedDays, 0)
+        XCTAssertEqual(c.goalDays, 2)                       // daily goals alone were met
+        // a lower-calorie day brings the average back on target: 2200 + 1800 → 2000
+        let recovered = [full(2, kcal: 2200), full(3, kcal: 1800)]
+        let r = Metrics.compliance(recovered, today: day(4), windowDays: 3, required: req, timeline: timeline(), calendar: cal)
+        XCTAssertEqual(r.compliedDays, 2)                   // judged on the week's average, not each day
+    }
+    func testNoCalorieGoalMeansCaloriesDontAffectCompliance() {
+        let g = GoalSet(proteinDaily: 140)
+        let c = Metrics.compliance([full(2, kcal: 9000)], today: day(2), windowDays: 1, required: Set(Tracker.allCases),
+                                   timeline: timeline(g), calendar: cal)
+        XCTAssertEqual(c.compliedDays, 1)
+    }
+
     // MARK: compliance
     func testComplianceNeedsLoggingAndGoals() {
         let req = Set(Tracker.allCases)

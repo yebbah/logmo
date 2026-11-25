@@ -28,6 +28,9 @@ struct LogmoApp: App {
 
 struct RootView: View {
     // Debug aid for screenshots: -tab 0|1|2
+    @AppStorage(SettingsKey.theme) private var themeRaw = AppTheme.clean.rawValue
+    private var theme: AppTheme { AppTheme(rawValue: themeRaw) ?? .clean }
+
     @State private var tab: Int = {
         #if DEBUG
         return UserDefaults.standard.integer(forKey: "tab")
@@ -42,6 +45,9 @@ struct RootView: View {
             LogView().tabItem { Label("Log", systemImage: "square.and.pencil") }.tag(1)
             SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(2)
         }
+        .environment(\.theme, theme)
+        .preferredColorScheme(theme.scheme)
+        .tint(theme.accent)
     }
 }
 
@@ -51,4 +57,5 @@ enum SettingsKey {
     static let required = "requiredTrackers"
     static let bioOverlay = "bioOverlayOn"
     static let bioShown = "bioShown"
+    static let theme = "theme"
 }

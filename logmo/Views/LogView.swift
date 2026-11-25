@@ -51,6 +51,7 @@ struct DayDraft: Equatable {
 }
 
 struct LogView: View {
+    @Environment(\.theme) private var theme
     @Environment(\.modelContext) private var context
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @Query(sort: \DayLog.day) private var logs: [DayLog]
@@ -90,10 +91,12 @@ struct LogView: View {
                             .disabled(date >= today)
                     }
                 }
+                .listRowBackground(theme.card)
 
                 Section("Weight") {
                     field("Weight (\(unit.rawValue))", $draft.weight, "—", decimal: true)
                 }
+                .listRowBackground(theme.card)
 
                 Section("Food") {
                     field("Calories (kcal)", $draft.calories, "—")
@@ -101,6 +104,7 @@ struct LogView: View {
                     field("Carbs (g)", $draft.carbs, "—")
                     field("Fat (g)", $draft.fat, "—")
                 }
+                .listRowBackground(theme.card)
 
                 Section("Water") {
                     field("Total (ml)", $draft.water, hint(goals?.waterDailyMl))
@@ -111,17 +115,22 @@ struct LogView: View {
                         }
                     }
                 }
+                .listRowBackground(theme.card)
 
                 Section("Activity") {
                     field("Steps", $draft.steps, hint(goals?.stepsDaily))
                 }
+                .listRowBackground(theme.card)
 
                 Section("Check-in (1–5, tap again to clear)") {
                     ForEach(Rating.allCases) { r in
                         RatingRow(title: r.title, low: r.low, high: r.high, value: draft.ratings[r]) { draft.ratings[r] = $0 }
                     }
                 }
+                .listRowBackground(theme.card)
             }
+            .scrollContentBackground(.hidden)
+            .background(theme.bg)
             .navigationTitle(date == today ? "Today" : date.formatted(date: .abbreviated, time: .omitted))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
@@ -170,6 +179,7 @@ struct LogView: View {
 }
 
 struct RatingRow: View {
+    @Environment(\.theme) private var theme
     let title: String
     let low: String
     let high: String
@@ -186,15 +196,15 @@ struct RatingRow: View {
                         Button { set(value == n ? nil : n) } label: {
                             Text("\(n)").font(.callout.weight(.semibold))
                                 .frame(width: 32, height: 32)
-                                .background(value == n ? Color.accentColor : Color(.secondarySystemFill), in: Circle())
-                                .foregroundStyle(value == n ? .white : .primary)
+                                .background(value == n ? theme.accent : theme.track, in: Circle())
+                                .foregroundStyle(value == n ? theme.onAccent : Color.primary)
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("\(title) \(n): \(n == 1 ? low : n == 5 ? high : "")")
                     }
                 }
             }
-            Text("1 = \(low) · 5 = \(high)").font(.caption).foregroundStyle(.secondary)
+            Text("1 = \(low) · 5 = \(high)").font(.caption).foregroundStyle(theme.muted)
         }
     }
 }

@@ -3,6 +3,7 @@ import SwiftData
 import Charts
 
 struct DashboardView: View {
+    @Environment(\.theme) private var theme
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
     @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
@@ -48,7 +49,7 @@ struct DashboardView: View {
                 #endif
             }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(theme.bg)
             .navigationTitle("Dashboard")
             .sheet(isPresented: $showGoals) { GoalsSheet() }
         }
@@ -72,13 +73,13 @@ struct DashboardView: View {
                     Text(t.byWeek.isEmpty ? "Set your weekly goals" : "Set goals for next week")
                         .font(.headline)
                     Text(t.byWeek.isEmpty ? "Calories, protein, steps and water." : "It's Sunday: plan the week ahead.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(theme.muted)
                 }
                 Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                Image(systemName: "chevron.right").foregroundStyle(theme.muted)
             }
             .padding().frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+            .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
     }
@@ -94,16 +95,16 @@ struct DashboardView: View {
 
         return Card(title: "Goals") {
             if goals == nil {
-                Text("No goals set yet.").foregroundStyle(.secondary)
+                Text("No goals set yet.").foregroundStyle(theme.muted)
             } else {
-                Text("Today").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                Text("Today").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
                 goalRow("Protein", value: todays?.proteinG, goal: goals?.proteinDaily, unit: "g", met: status.protein)
                 goalRow("Steps", value: todays?.steps, goal: goals?.stepsDaily, unit: "", met: status.steps)
                 goalRow("Water", value: todays?.waterMl, goal: goals?.waterDailyMl, unit: "ml", met: status.water)
-                if !(goals?.hasDailyGoals ?? false) { Text("No daily goals set.").font(.caption).foregroundStyle(.secondary) }
+                if !(goals?.hasDailyGoals ?? false) { Text("No daily goals set.").font(.caption).foregroundStyle(theme.muted) }
 
                 Divider()
-                Text("This week").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                Text("This week").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
                 weekRow(week)
             }
             Button("Edit goals") { showGoals = true }.font(.subheadline)
@@ -118,11 +119,11 @@ struct DashboardView: View {
                         Text(title)
                         Spacer()
                         Text("\((value ?? 0).formatted()) / \(goal.formatted()) \(unit)")
-                            .font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+                            .font(.subheadline).monospacedDigit().foregroundStyle(theme.muted)
                         statusIcon(met == true ? true : nil)
                     }
                     ProgressView(value: min(Double(value ?? 0) / Double(max(goal, 1)), 1))
-                        .tint(met == true ? Theme.good : .accentColor)
+                        .tint(met == true ? theme.good : theme.accent)
                 }
             }
         }
@@ -134,35 +135,40 @@ struct DashboardView: View {
                 HStack {
                     Text("Calories")
                     Spacer()
-                    Text("\(w.total.formatted()) / \(goal.formatted()) kcal")
-                        .font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+                    Text("avg \(Int((w.average ?? 0).rounded()).formatted()) / \(Int((w.dailyTarget ?? 0).rounded()).formatted()) kcal")
+                        .font(.subheadline).monospacedDigit().foregroundStyle(theme.muted)
                     switch w.outcome {
                     case .met: statusIcon(true)
                     case .missed: statusIcon(false)
                     default: statusIcon(nil)
                     }
                 }
-                ProgressView(value: min(Double(w.total) / Double(max(goal, 1)), 1))
-                    .tint(w.outcome == .missed ? Theme.bad : (w.outcome == .met ? Theme.good : .accentColor))
-                Text(weekCaption(w, goal)).font(.caption).foregroundStyle(.secondary)
+                ProgressView(value: min((w.average ?? 0) / max(w.dailyTarget ?? 1, 1), 1))
+                    .tint(offTarget(w) ? theme.bad : (w.outcome == .met ? theme.good : theme.accent))
+                Text(weekCaption(w, goal)).font(.caption).foregroundStyle(theme.muted)
             } else {
-                Text("No weekly calorie goal set.").font(.caption).foregroundStyle(.secondary)
+                Text("No weekly calorie goal set.").font(.caption).foregroundStyle(theme.muted)
             }
         }
     }
 
+    /// Average currently on the wrong side of the daily-equivalent target.
+    private func offTarget(_ w: WeekStatus) -> Bool {
+        guard let avg = w.average, let target = w.dailyTarget else { return false }
+        return w.atOrUnder ? avg > target : avg < target
+    }
+
     private func weekCaption(_ w: WeekStatus, _ goal: Int) -> String {
-        let left = goal - w.total
         let days = "\(w.daysWithCalories) of 7 days logged"
-        if w.atOrUnder {
-            return left >= 0 ? "\(left.formatted()) kcal left · \(days)" : "\((-left).formatted()) kcal over · \(days)"
-        }
-        return left > 0 ? "\(left.formatted()) kcal to go · \(days)" : "Goal reached · \(days)"
+        guard let avg = w.average, let target = w.dailyTarget else { return "No calories logged yet · \(days)" }
+        let diff = Int(abs(avg - target).rounded())
+        let side = w.atOrUnder ? (avg <= target ? "under" : "over") : (avg >= target ? "over" : "under")
+        return "\(diff.formatted()) kcal/day \(side) target (\(goal.formatted()) ÷ 7) · \(days)"
     }
 
     private func statusIcon(_ ok: Bool?) -> some View {
         Image(systemName: ok == true ? "checkmark.circle.fill" : ok == false ? "xmark.circle.fill" : "circle")
-            .foregroundStyle(ok == true ? Theme.good : ok == false ? Theme.bad : Color.secondary)
+            .foregroundStyle(ok == true ? theme.good : ok == false ? theme.bad : theme.muted)
     }
 
     // MARK: Streaks
@@ -178,16 +184,16 @@ struct DashboardView: View {
                 streakTile("Weekly goal", weekly.current, weekly.longest, "weeks")
             }
             Text("Logging: any entry. Daily goals: protein, steps and water all met. Weekly goal: finished weeks within the calorie goal.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(theme.muted)
         }
     }
 
     private func streakTile(_ title: String, _ current: Int, _ longest: Int, _ unit: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(theme.muted)
             Text("\(current)").font(.system(size: 34, weight: .bold, design: .rounded))
-            Text(current == 1 ? String(unit.dropLast()) : unit).font(.caption).foregroundStyle(.secondary)
-            Text("best \(longest)").font(.caption2).foregroundStyle(.secondary)
+            Text(current == 1 ? String(unit.dropLast()) : unit).font(.caption).foregroundStyle(theme.muted)
+            Text("best \(longest)").font(.caption2).foregroundStyle(theme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -202,20 +208,20 @@ struct DashboardView: View {
 
             HStack {
                 Text("\(Int((c.rate * 100).rounded()))%").font(.system(size: 36, weight: .bold, design: .rounded))
-                Text("\(c.compliedDays) of \(c.windowDays) days complied").foregroundStyle(.secondary)
+                Text("\(c.compliedDays) of \(c.windowDays) days complied").foregroundStyle(theme.muted)
             }
-            Text("Complied = everything required is fully logged and the daily goals are met.")
-                .font(.caption).foregroundStyle(.secondary)
+            Text("Complied = everything required is fully logged, the daily goals are met, and the week's average calories are on target.")
+                .font(.caption).foregroundStyle(theme.muted)
             ForEach(Tracker.allCases) { t in
                 HStack {
                     Text(t.title).frame(width: 80, alignment: .leading).font(.subheadline)
                     ProgressView(value: c.rate(for: t))
                     Text("\(c.perTracker[t, default: 0])/\(c.windowDays)")
-                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                        .font(.caption).monospacedDigit().foregroundStyle(theme.muted)
                         .frame(width: 44, alignment: .trailing)
                 }
             }
-            Text("Bars show days each was fully logged.").font(.caption2).foregroundStyle(.secondary)
+            Text("Bars show days each was fully logged.").font(.caption2).foregroundStyle(theme.muted)
         }
     }
 
@@ -228,7 +234,7 @@ struct DashboardView: View {
         let weeks = (0..<4).reversed().map { cal.date(byAdding: .day, value: -7 * $0, to: thisWeek)! }
 
         return Card(title: "Recent") {
-            Text("Daily goals, last 7 days").font(.caption).foregroundStyle(.secondary)
+            Text("Daily goals, last 7 days").font(.caption).foregroundStyle(theme.muted)
             HStack {
                 ForEach(days, id: \.self) { d in
                     let goals = t.goals(forWeekStarting: Metrics.weekStart(of: d))
@@ -237,17 +243,17 @@ struct DashboardView: View {
                         ? (st.allMet ? true : (d == today && map[d] == nil ? nil : false)) : nil
                     VStack(spacing: 4) {
                         statusIcon(ok)
-                        Text(d.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
+                        Text(d.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(theme.muted)
                     }.frame(maxWidth: .infinity)
                 }
             }
-            Text("Weekly calorie goal, last 4 weeks").font(.caption).foregroundStyle(.secondary).padding(.top, 4)
+            Text("Weekly calorie goal, last 4 weeks").font(.caption).foregroundStyle(theme.muted).padding(.top, 4)
             HStack {
                 ForEach(weeks, id: \.self) { ws in
                     let st = Metrics.weekStatus(snaps, weekStart: ws, goals: t.goals(forWeekStarting: ws), today: today)
                     VStack(spacing: 4) {
                         statusIcon(st.outcome == .met ? true : st.outcome == .missed ? false : nil)
-                        Text(ws.formatted(.dateTime.day().month(.abbreviated))).font(.caption2).foregroundStyle(.secondary)
+                        Text(ws.formatted(.dateTime.day().month(.abbreviated))).font(.caption2).foregroundStyle(theme.muted)
                     }.frame(maxWidth: .infinity)
                 }
             }
@@ -270,13 +276,13 @@ struct DashboardView: View {
             if let last = trend.last {
                 HStack(alignment: .firstTextBaseline) {
                     Text(String(format: "%.1f", unit.fromKg(last.trendKg))).font(.system(size: 36, weight: .bold, design: .rounded))
-                    Text(unit.rawValue).foregroundStyle(.secondary)
+                    Text(unit.rawValue).foregroundStyle(theme.muted)
                     Spacer()
                     if let change {
                         Text(String(format: "%+.2f %@ / 7d", unit.fromKg(change) - unit.fromKg(0), unit.rawValue))
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
                     } else {
-                        Text("7-day change needs a week of history").font(.caption).foregroundStyle(.secondary)
+                        Text("7-day change needs a week of history").font(.caption).foregroundStyle(theme.muted)
                     }
                 }
             }
@@ -294,8 +300,8 @@ struct DashboardView: View {
                                 Text(r.title).font(.caption).lineLimit(1)
                             }
                             .padding(.horizontal, 8).padding(.vertical, 6)
-                            .foregroundStyle(on ? Theme.color(for: r) : .secondary)
-                            .background((on ? Theme.color(for: r) : Color.secondary).opacity(0.12), in: Capsule())
+                            .foregroundStyle(on ? theme.color(for: r) : theme.muted)
+                            .background((on ? theme.color(for: r) : theme.muted).opacity(0.12), in: Capsule())
                         }.buttonStyle(.plain)
                     }
                 }
@@ -336,18 +342,18 @@ struct DashboardView: View {
                 ForEach(shown) { p in
                     if let w = p.weightKg {
                         PointMark(x: .value("Date", p.date), y: .value("Weight", unit.fromKg(w)))
-                            .foregroundStyle(.secondary).symbolSize(24)
+                            .foregroundStyle(theme.muted).symbolSize(24)
                     }
                     LineMark(x: .value("Date", p.date), y: .value("Trend", unit.fromKg(p.trendKg)),
                              series: .value("Series", "weight"))
-                        .foregroundStyle(Color.accentColor).interpolationMethod(.monotone)
+                        .foregroundStyle(theme.accent).interpolationMethod(.monotone)
                         .lineStyle(StrokeStyle(lineWidth: 3))
                 }
                 ForEach(series, id: \.0) { r, points in
                     ForEach(points) { p in
                         LineMark(x: .value("Date", p.date), y: .value(r.title, mapRating(p.trend)),
                                  series: .value("Series", r.rawValue))
-                            .foregroundStyle(Theme.color(for: r)).interpolationMethod(.monotone)
+                            .foregroundStyle(theme.color(for: r)).interpolationMethod(.monotone)
                             .lineStyle(StrokeStyle(lineWidth: 1.5))
                     }
                 }
@@ -367,12 +373,13 @@ struct DashboardView: View {
             Text(bioOn
                  ? "Left axis: weight (\(unit.rawValue)), thick line is the \(smoothing)-day trend. Right axis: biofeedback 1–5, 7-day smoothed. Higher isn't always better; see each rating's meaning on the Log screen."
                  : "Dots: weigh-ins. Line: \(smoothing)-day smoothed trend.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(theme.muted)
         }
     }
 }
 
 struct Card<Content: View>: View {
+    @Environment(\.theme) private var theme
     let title: String
     @ViewBuilder var content: Content
     var body: some View {
@@ -382,6 +389,7 @@ struct Card<Content: View>: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .background(theme.card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(theme.border, lineWidth: 1))
     }
 }

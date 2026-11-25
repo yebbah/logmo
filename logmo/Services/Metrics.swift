@@ -74,6 +74,10 @@ struct WeekStatus: Equatable {
     var total: Int
     var daysWithCalories: Int
     var outcome: WeekOutcome
+    /// Average daily calories over the days that have calories logged.
+    var average: Double? { daysWithCalories == 0 ? nil : Double(total) / Double(daysWithCalories) }
+    /// The weekly goal expressed per day (goal ÷ 7): what the average is compared against.
+    var dailyTarget: Double? { goal.map { Double($0) / 7 } }
 }
 
 // MARK: - Series
@@ -204,8 +208,27 @@ enum Metrics {
                              water: check(s?.waterMl, goals.waterDailyMl))
     }
 
-    /// Weekly calories. A finished week only counts as met if calories were logged on
-    /// all seven days, otherwise the total would be understated.
+    /// Average daily calories (over logged days) against the goal ÷ 7, compared as
+    /// `total × 7` vs `goal × days` so no rounding is involved.
+    static func calorieAverageOK(total: Int, days n: Int, goal: Int, atOrUnder: Bool) -> Bool {
+        guard n > 0 else { return false }
+        return atOrUnder ? total * 7 <= goal * n : total * 7 >= goal * n
+    }
+
+    /// Is the week's average calorie intake on target? nil when there is no calorie goal.
+    /// A week in progress is judged on the days logged so far; a finished week on the whole week.
+    static func weekCalorieOK(_ map: [Date: DaySnapshot], weekStart ws: Date, goals: GoalSet?,
+                              calendar cal: Calendar = .current) -> Bool? {
+        guard let goals, let goal = goals.caloriesWeekly else { return nil }
+        var total = 0, n = 0
+        for i in 0..<7 {
+            if let c = map[addDays(i, to: ws, cal)]?.calories { total += c; n += 1 }
+        }
+        return calorieAverageOK(total: total, days: n, goal: goal, atOrUnder: goals.caloriesAtOrUnder)
+    }
+
+    /// Weekly calories, judged on the week's average. A finished week only counts as met
+    /// if calories were logged on all seven days, so a few logged days can't stand in for a week.
     static func weekStatus(_ days: [DaySnapshot], weekStart ws: Date, goals: GoalSet?, today: Date,
                            calendar cal: Calendar = .current) -> WeekStatus {
         let map = byDay(days, cal)
@@ -221,7 +244,7 @@ enum Metrics {
         let finished = cal.startOfDay(for: today) > addDays(6, to: ws, cal)
         let outcome: WeekOutcome
         if finished {
-            outcome = (n == 7 && (under ? total <= goal : total >= goal)) ? .met : .missed
+            outcome = (n == 7 && calorieAverageOK(total: total, days: n, goal: goal, atOrUnder: under)) ? .met : .missed
         } else if under && total > goal {
             outcome = .missed
         } else {
@@ -233,10 +256,13 @@ enum Metrics {
 
     // MARK: Compliance
 
-    /// Complied = every required tracker fully logged AND every daily goal met.
-    static func dayComplied(_ s: DaySnapshot?, required: Set<Tracker>, goals: GoalSet?) -> Bool {
+    /// Complied = every required tracker fully logged, every daily goal met, and (when a
+    /// calorie goal exists) the week's average calories on target (`calorieOK`).
+    static func dayComplied(_ s: DaySnapshot?, required: Set<Tracker>, goals: GoalSet?,
+                            calorieOK: Bool? = nil) -> Bool {
         guard let s, !s.logged.isEmpty else { return false }
         guard required.isSubset(of: s.complete) else { return false }
+        if calorieOK == false { return false }
         if goals?.hasDailyGoals == true { return dayGoalStatus(s, goals: goals).allMet }
         return true
     }
@@ -253,8 +279,10 @@ enum Metrics {
         for offset in 0..<windowDays {
             let d = addDays(-offset, to: t, cal)
             let s = map[d]
-            let goals = timeline.goals(forWeekStarting: weekStart(of: d, calendar: cal))
-            let ok = dayComplied(s, required: required, goals: goals)
+            let ws = weekStart(of: d, calendar: cal)
+            let goals = timeline.goals(forWeekStarting: ws)
+            let ok = dayComplied(s, required: required, goals: goals,
+                                 calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, calendar: cal))
             if offset == 0 && !ok { continue }
             evaluated += 1
             if ok { complied += 1 }

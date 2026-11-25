@@ -4,6 +4,7 @@ import SwiftData
 /// Set goals for one Monday-to-Sunday week. Opens on next week when it's Sunday
 /// (the day goals are set), otherwise on the current week.
 struct GoalsEditor: View {
+    @Environment(\.theme) private var theme
     @Environment(\.modelContext) private var context
     @Query private var goals: [WeekGoal]
 
@@ -47,22 +48,24 @@ struct GoalsEditor: View {
                 }
                 if let from = timeline.inheritedFrom(weekStart) {
                     Text("No goals set for this week. Showing goals from the week of \(from.formatted(date: .abbreviated, time: .omitted)); save to set this week's.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(theme.muted)
                 } else if timeline.byWeek.isEmpty {
                     Text("No goals yet. Leave a field empty to have no goal for it.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(theme.muted)
                 }
             }
+            .listRowBackground(theme.card)
 
             Section {
-                row("Total this week (kcal)", $calories)
+                row("Weekly total (kcal)", $calories)
                 Picker("Goal is to stay", selection: $atOrUnder) {
                     Text("At or under").tag(true)
                     Text("At or over").tag(false)
                 }
             } header: { Text("Weekly") } footer: {
-                Text("Met when the week's total calories are at or under (or over) the goal. Every day needs calories logged, or the week can't count as met.")
+                Text("Enter the weekly total. It is judged on the week's average: average daily calories at or under (or over) the total ÷ 7. A finished week needs calories logged on all seven days to count as met.")
             }
+            .listRowBackground(theme.card)
 
             Section {
                 row("Protein (g)", $protein)
@@ -71,12 +74,16 @@ struct GoalsEditor: View {
             } header: { Text("Every day") } footer: {
                 Text("Each is met at or above the goal. A day with no value logged is not met.")
             }
+            .listRowBackground(theme.card)
 
             Section {
                 Button(savedFlash ? "Saved ✓" : "Save goals for this week") { save() }
                     .frame(maxWidth: .infinity)
             }
+            .listRowBackground(theme.card)
         }
+        .scrollContentBackground(.hidden)
+        .background(theme.bg)
         .navigationTitle("Weekly goals")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { load() }
