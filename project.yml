@@ -17,7 +17,8 @@ targets:
       properties:
         CFBundleDisplayName: logmo
         UILaunchScreen: {}
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Landscape is allowed only so a chart can open full screen; AppDelegate keeps everything else portrait.
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # Added when Apple Health lands:
         # NSHealthShareUsageDescription: "Read weight, water and nutrition to save you typing."
     settings:

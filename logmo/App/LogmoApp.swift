@@ -3,6 +3,8 @@ import SwiftData
 
 @main
 struct LogmoApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     let container: ModelContainer = {
         // Local only. To enable iCloud later: add the CloudKit capability and
         // change `.none` to `.automatic`. The model is already CloudKit-compatible.
@@ -27,7 +29,7 @@ struct LogmoApp: App {
 }
 
 struct RootView: View {
-    // Debug aid for screenshots: -tab 0|1|2
+    // Debug aid for screenshots: -tab 0 Dashboard | 1 Streaks | 2 Log | 3 Settings
     @AppStorage(SettingsKey.theme) private var themeRaw = AppTheme.clean.rawValue
     private var theme: AppTheme { AppTheme(rawValue: themeRaw) ?? .clean }
 
@@ -59,8 +61,9 @@ struct RootView: View {
     private var tabs: some View {
         TabView(selection: $tab) {
             DashboardView().tabItem { Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis") }.tag(0)
-            LogView().tabItem { Label("Log", systemImage: "square.and.pencil") }.tag(1)
-            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(2)
+            StreaksView().tabItem { Label("Streaks", systemImage: "flame") }.tag(1)
+            LogView().tabItem { Label("Log", systemImage: "square.and.pencil") }.tag(2)
+            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(3)
         }
         .environment(\.theme, theme)
         .preferredColorScheme(theme.scheme)

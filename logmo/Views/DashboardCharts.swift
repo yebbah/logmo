@@ -10,22 +10,32 @@ struct DateScope: Equatable {
 private func fmt(_ v: Double, _ digits: Int = 1) -> String { String(format: "%.\(digits)f", v) }
 private func signed(_ v: Double, _ digits: Int = 2) -> String { String(format: "%+.\(digits)f", v) }
 
+#if DEBUG
+/// Debug aid for screenshots: `-expand weight|rate|steps|overall` opens that chart full screen.
+private func debugExpand(_ name: String, _ flag: Binding<Bool>) {
+    if UserDefaults.standard.string(forKey: "expand") == name {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { flag.wrappedValue = true }
+    }
+}
+#endif
+
 // MARK: - Weigh-ins vs trend
 
-/// Weigh-ins and the smoothed trend as two lines, with optional biofeedback lines on a
-/// second 1–5 axis. Ratings are drawn on the weight axis by mapping 1…5 onto its visible range.
-struct WeightChartCard: View {
+/// Range picker, numbers, biofeedback switch and the chart itself. Used inline in a card
+/// and, with `compact`, in the landscape full-screen view; both share the same settings.
+struct WeightChartBody: View {
     @Environment(\.theme) private var theme
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage(SettingsKey.bioOverlay) private var bioOn = false
     @AppStorage(SettingsKey.bioShown) private var bioShownRaw = Rating.allCases.map(\.rawValue).joined(separator: ",")
     @AppStorage("weightRange") private var range = 30          // days; 0 = the whole scope
 
-    let title: String
     let trend: [TrendPoint]
     let snaps: [DaySnapshot]
     let scope: DateScope
     let smoothing: Int
+    let height: CGFloat?
+    let compact: Bool
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
     private var bioShown: Set<String> { Set(bioShownRaw.split(separator: ",").map(String.init)) }
@@ -39,15 +49,16 @@ struct WeightChartCard: View {
     private var shown: [TrendPoint] { trend.filter { $0.date >= from && $0.date <= scope.end } }
 
     var body: some View {
-        Card(title: title) {
+        VStack(alignment: .leading, spacing: compact ? 6 : 12) {
             Picker("Range", selection: $range) {
                 Text("14d").tag(14); Text("30d").tag(30); Text("90d").tag(90); Text("All").tag(0)
             }.pickerStyle(.segmented)
 
             if let last = shown.last {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(fmt(unit.fromKg(last.trendKg))).font(.system(size: 34, weight: .bold, design: .rounded))
-                    Text("\(unit.rawValue) trend").foregroundStyle(theme.muted)
+                    Text(fmt(unit.fromKg(last.trendKg)))
+                        .font(.system(size: compact ? 20 : 34, weight: .bold, design: .rounded))
+                    Text("\(unit.rawValue) trend").foregroundStyle(theme.muted).font(compact ? .caption : .body)
                     Spacer()
                     if let w = shown.last(where: { $0.weightKg != nil })?.weightKg {
                         Text("last weigh-in \(fmt(unit.fromKg(w)))").font(.caption).foregroundStyle(theme.muted)
@@ -62,26 +73,29 @@ struct WeightChartCard: View {
                 ContentUnavailableView("No weigh-ins here", systemImage: "scalemass",
                                        description: Text("Log your weight to see the trend."))
             } else {
-                chart
+                chart.chartHeight(height)
                 legend
             }
         }
     }
 
-    private var chips: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], alignment: .leading, spacing: 8) {
-            ForEach(Rating.allCases) { r in
-                let on = bioShown.contains(r.rawValue)
-                Button { toggle(r) } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: on ? "checkmark.square.fill" : "square")
-                        Text(r.title).font(.caption).lineLimit(1)
-                    }
-                    .padding(.horizontal, 8).padding(.vertical, 6)
-                    .foregroundStyle(on ? theme.color(for: r) : theme.muted)
-                    .background((on ? theme.color(for: r) : theme.muted).opacity(0.12), in: Capsule())
-                }.buttonStyle(.plain)
-            }
+    @ViewBuilder private var chips: some View {
+        let items = ForEach(Rating.allCases) { r in
+            let on = bioShown.contains(r.rawValue)
+            Button { toggle(r) } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: on ? "checkmark.square.fill" : "square")
+                    Text(r.title).font(.caption).lineLimit(1)
+                }
+                .padding(.horizontal, 8).padding(.vertical, 6)
+                .foregroundStyle(on ? theme.color(for: r) : theme.muted)
+                .background((on ? theme.color(for: r) : theme.muted).opacity(0.12), in: Capsule())
+            }.buttonStyle(.plain)
+        }
+        if compact {
+            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { items } }
+        } else {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], alignment: .leading, spacing: 8) { items }
         }
     }
 
@@ -92,7 +106,10 @@ struct WeightChartCard: View {
     }
 
     private var weighIns: [TrendPoint] { shown.filter { $0.weightKg != nil } }
-    private var labelled: Bool { shown.count <= 15 }
+    /// Weigh-in values are labelled when there's room; trend values only on the last point
+    /// unless there are very few points, so labels don't pile up.
+    private var labelled: Bool { shown.count <= (compact ? 31 : 15) }
+    private var labelAllTrend: Bool { shown.count <= 15 }
 
     private var yRange: (lo: Double, hi: Double) {
         var ys = shown.map { unit.fromKg($0.trendKg) }
@@ -127,7 +144,7 @@ struct WeightChartCard: View {
                     .foregroundStyle(theme.accent).interpolationMethod(.monotone).lineStyle(StrokeStyle(lineWidth: 3))
             }
             ForEach(shown) { p in
-                if labelled {
+                if labelAllTrend || p.id == shown.last?.id {
                     PointMark(x: .value("Date", p.date), y: .value("Trend", unit.fromKg(p.trendKg)))
                         .foregroundStyle(theme.accent).symbolSize(20)
                         .annotation(position: .bottom, spacing: 2) {
@@ -150,7 +167,6 @@ struct WeightChartCard: View {
                 AxisValueLabel { if let y = v.as(Double.self) { Text("\(Int(((y - lo) / (hi - lo) * 4 + 1).rounded()))") } }
             }
         }
-        .frame(height: 240)
     }
 
     private var legend: some View {
@@ -159,11 +175,34 @@ struct WeightChartCard: View {
                 HStack(spacing: 6) { Circle().fill(theme.muted).frame(width: 8, height: 8); Text("Weigh-ins") }
                 HStack(spacing: 6) { Capsule().fill(theme.accent).frame(width: 16, height: 4); Text("Trend (\(smoothing)-day smoothing)") }
             }.font(.caption).foregroundStyle(theme.muted)
-            if bioOn {
+            if bioOn && !compact {
                 Text("Right axis: biofeedback 1–5, 7-day smoothed. Higher isn't always better; see each rating's meaning on the Log screen.")
                     .font(.caption2).foregroundStyle(theme.muted)
             }
         }
+    }
+}
+
+struct WeightChartCard: View {
+    let title: String
+    let trend: [TrendPoint]
+    let snaps: [DaySnapshot]
+    let scope: DateScope
+    let smoothing: Int
+    @State private var full = false
+
+    var body: some View {
+        Card(title: title, trailing: { ExpandButton { full = true } }) {
+            WeightChartBody(trend: trend, snaps: snaps, scope: scope, smoothing: smoothing, height: 240, compact: false)
+        }
+        .landscapeCover(isPresented: $full) {
+            FullScreenFrame(title: title) {
+                WeightChartBody(trend: trend, snaps: snaps, scope: scope, smoothing: smoothing, height: nil, compact: true)
+            }
+        }
+        #if DEBUG
+        .onAppear { debugExpand("weight", $full) }
+        #endif
     }
 }
 
@@ -174,13 +213,16 @@ struct RateCard: View {
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     let trend: [TrendPoint]
     let scope: DateScope
+    @State private var full = false
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
+    private var points: [RatePoint] {
+        Array(Insights.rateOfChange(trend).filter { $0.date >= scope.start && $0.date <= scope.end }.suffix(84))   // last 12 weeks
+    }
 
     var body: some View {
-        let all = Insights.rateOfChange(trend).filter { $0.date >= scope.start && $0.date <= scope.end }
-        let pts = Array(all.suffix(84))                       // last 12 weeks
-        Card(title: "Rate of change per week") {
+        let pts = points
+        Card(title: "Rate of change per week", trailing: { if !pts.isEmpty { ExpandButton { full = true } } }) {
             if let last = pts.last {
                 let base = trend.first(where: { $0.date == last.date })?.trendKg ?? 1
                 HStack(alignment: .firstTextBaseline) {
@@ -190,17 +232,26 @@ struct RateCard: View {
                     Text("\(signed(last.kgPerWeek / base * 100, 2))% of body weight")
                         .font(.caption).foregroundStyle(theme.muted)
                 }
-                Chart(pts) { p in
-                    BarMark(x: .value("Date", p.date, unit: .day), y: .value("Rate", unit.fromKg(p.kgPerWeek) - unit.fromKg(0)))
-                        .foregroundStyle(theme.accent)
-                    RuleMark(y: .value("Zero", 0)).foregroundStyle(theme.muted).lineStyle(StrokeStyle(lineWidth: 1))
-                }
-                .frame(height: 150)
+                chart(pts).chartHeight(150)
                 Text("Each bar: trend weight today minus 7 days earlier. Needs a week of history.")
                     .font(.caption).foregroundStyle(theme.muted)
             } else {
                 Text("Needs at least a week of weigh-ins in this period.").foregroundStyle(theme.muted)
             }
+        }
+        .landscapeCover(isPresented: $full) {
+            FullScreenFrame(title: "Rate of change per week") { chart(pts).chartHeight(nil) }
+        }
+        #if DEBUG
+        .onAppear { debugExpand("rate", $full) }
+        #endif
+    }
+
+    private func chart(_ pts: [RatePoint]) -> some View {
+        Chart(pts) { p in
+            BarMark(x: .value("Date", p.date, unit: .day), y: .value("Rate", unit.fromKg(p.kgPerWeek) - unit.fromKg(0)))
+                .foregroundStyle(theme.accent)
+            RuleMark(y: .value("Zero", 0)).foregroundStyle(theme.muted).lineStyle(StrokeStyle(lineWidth: 1))
         }
     }
 }
@@ -211,6 +262,7 @@ struct StepsCaloriesCard: View {
     @Environment(\.theme) private var theme
     let snaps: [DaySnapshot]
     let scope: DateScope
+    @State private var full = false
 
     private struct Bar: Identifiable { var id: String; var day: Date; var metric: String; var value: Double }
 
@@ -231,7 +283,7 @@ struct StepsCaloriesCard: View {
             if let c = map[d]?.calories { bars.append(Bar(id: "c\(d.timeIntervalSince1970)", day: d, metric: "Calories", value: Double(c) * factor)) }
         }
 
-        return Card(title: "Steps and calories") {
+        return Card(title: "Steps and calories", trailing: { if !bars.isEmpty { ExpandButton { full = true } } }) {
             HStack(spacing: 24) {
                 tile(week.calories.map { "\(Int($0.rounded()).formatted()) cals" } ?? "—", "Average calories, past 7 days")
                 tile(week.steps.map { "\(Int($0.rounded()).formatted()) steps" } ?? "—", "Average steps, past 7 days")
@@ -239,22 +291,31 @@ struct StepsCaloriesCard: View {
             if bars.isEmpty {
                 Text("No steps or calories logged in this period.").foregroundStyle(theme.muted)
             } else {
-                Chart(bars) { b in
-                    BarMark(x: .value("Day", b.day, unit: .day), y: .value("Value", b.value))
-                        .position(by: .value("Metric", b.metric))
-                        .foregroundStyle(by: .value("Metric", b.metric))
-                }
-                .chartForegroundStyleScale(["Steps": theme.accent.opacity(0.55), "Calories": theme.accent])
-                .chartYScale(domain: 0...(yMax * 1.05))
-                .chartYAxis {
-                    AxisMarks(position: .leading)
-                    AxisMarks(position: .trailing, values: [0, 0.25, 0.5, 0.75, 1].map { $0 * yMax }) { v in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0))
-                        AxisValueLabel { if let y = v.as(Double.self) { Text(Int((y / factor).rounded()).formatted()) } }
-                    }
-                }
-                .frame(height: 200)
+                chart(bars, yMax, factor).chartHeight(200)
                 Text("Left axis: steps. Right axis: calories. Last 14 days.").font(.caption).foregroundStyle(theme.muted)
+            }
+        }
+        .landscapeCover(isPresented: $full) {
+            FullScreenFrame(title: "Steps and calories") { chart(bars, yMax, factor).chartHeight(nil) }
+        }
+        #if DEBUG
+        .onAppear { debugExpand("steps", $full) }
+        #endif
+    }
+
+    private func chart(_ bars: [Bar], _ yMax: Double, _ factor: Double) -> some View {
+        Chart(bars) { b in
+            BarMark(x: .value("Day", b.day, unit: .day), y: .value("Value", b.value))
+                .position(by: .value("Metric", b.metric))
+                .foregroundStyle(by: .value("Metric", b.metric))
+        }
+        .chartForegroundStyleScale(["Steps": theme.accent.opacity(0.55), "Calories": theme.accent])
+        .chartYScale(domain: 0...(yMax * 1.05))
+        .chartYAxis {
+            AxisMarks(position: .leading)
+            AxisMarks(position: .trailing, values: [0, 0.25, 0.5, 0.75, 1].map { $0 * yMax }) { v in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0))
+                AxisValueLabel { if let y = v.as(Double.self) { Text(Int((y / factor).rounded()).formatted()) } }
             }
         }
     }
@@ -383,15 +444,12 @@ struct PerformanceCard: View {
             Text("Weight change from the trend").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
             HStack(alignment: .top, spacing: 12) {
                 ForEach([7, 14, 21], id: \.self) { n in
-                    let c = change(inScope, n)
+                    let c = Metrics.trendChange(inScope, overDays: n)
                     tile(c.map { "\(signed(unit.fromKg($0) - unit.fromKg(0))) \(unit.rawValue)" } ?? "—", "In \(n) days")
                 }
             }
         }
     }
-
-    /// Trend change over `n` days, only when that many days of this period exist.
-    private func change(_ t: [TrendPoint], _ n: Int) -> Double? { Metrics.trendChange(t, overDays: n) }
 
     private func tile(_ value: String, _ caption: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -407,11 +465,12 @@ struct OverallJourneyCard: View {
     @Environment(\.theme) private var theme
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     let trend: [TrendPoint]
+    @State private var full = false
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
 
     var body: some View {
-        Card(title: "Overall weight journey") {
+        Card(title: "Overall weight journey", trailing: { if !trend.isEmpty { ExpandButton { full = true } } }) {
             if let first = trend.first, let last = trend.last {
                 let change = unit.fromKg(last.trendKg) - unit.fromKg(first.trendKg)
                 HStack(alignment: .firstTextBaseline) {
@@ -421,27 +480,43 @@ struct OverallJourneyCard: View {
                 }
                 Text("\(fmt(unit.fromKg(first.trendKg))) → \(fmt(unit.fromKg(last.trendKg))) \(unit.rawValue), across all campaigns")
                     .font(.caption).foregroundStyle(theme.muted)
-                Chart {
-                    ForEach(trend.filter { $0.weightKg != nil }) { p in
-                        if let w = p.weightKg {
-                            LineMark(x: .value("Date", p.date), y: .value("Weigh-in", unit.fromKg(w)), series: .value("S", "w"))
-                                .foregroundStyle(theme.muted.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 1))
-                        }
-                    }
-                    ForEach(trend) { p in
-                        LineMark(x: .value("Date", p.date), y: .value("Trend", unit.fromKg(p.trendKg)), series: .value("S", "t"))
-                            .foregroundStyle(theme.accent).interpolationMethod(.monotone).lineStyle(StrokeStyle(lineWidth: 2.5))
-                    }
-                }
-                .chartYScale(domain: .automatic(includesZero: false))
-                .frame(height: 170)
-                HStack(spacing: 14) {
-                    HStack(spacing: 6) { Capsule().fill(theme.muted.opacity(0.6)).frame(width: 16, height: 3); Text("Weigh-ins") }
-                    HStack(spacing: 6) { Capsule().fill(theme.accent).frame(width: 16, height: 4); Text("Trend") }
-                }.font(.caption).foregroundStyle(theme.muted)
+                chart.chartHeight(170)
+                legend
             } else {
                 Text("Log your first weight to start your journey.").foregroundStyle(theme.muted)
             }
         }
+        .landscapeCover(isPresented: $full) {
+            FullScreenFrame(title: "Overall weight journey") {
+                chart.chartHeight(nil)
+                legend
+            }
+        }
+        #if DEBUG
+        .onAppear { debugExpand("overall", $full) }
+        #endif
+    }
+
+    private var chart: some View {
+        Chart {
+            ForEach(trend.filter { $0.weightKg != nil }) { p in
+                if let w = p.weightKg {
+                    LineMark(x: .value("Date", p.date), y: .value("Weigh-in", unit.fromKg(w)), series: .value("S", "w"))
+                        .foregroundStyle(theme.muted.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 1))
+                }
+            }
+            ForEach(trend) { p in
+                LineMark(x: .value("Date", p.date), y: .value("Trend", unit.fromKg(p.trendKg)), series: .value("S", "t"))
+                    .foregroundStyle(theme.accent).interpolationMethod(.monotone).lineStyle(StrokeStyle(lineWidth: 2.5))
+            }
+        }
+        .chartYScale(domain: .automatic(includesZero: false))
+    }
+
+    private var legend: some View {
+        HStack(spacing: 14) {
+            HStack(spacing: 6) { Capsule().fill(theme.muted.opacity(0.6)).frame(width: 16, height: 3); Text("Weigh-ins") }
+            HStack(spacing: 6) { Capsule().fill(theme.accent).frame(width: 16, height: 4); Text("Trend") }
+        }.font(.caption).foregroundStyle(theme.muted)
     }
 }

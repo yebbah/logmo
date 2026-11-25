@@ -137,7 +137,7 @@ final class MetricsTests: XCTestCase {
         // two fully logged days, goals met, but averaging 2,200 kcal against a 2,000/day target
         let days = [full(2, kcal: 2200), full(3, kcal: 2200)]
         let c = Metrics.compliance(days, today: day(4), windowDays: 3, required: req, timeline: timeline(), calendar: cal)
-        XCTAssertEqual(c.windowDays, 2)                     // the 4th is today and unlogged: left out
+        XCTAssertEqual(c.windowDays, 3)                     // the 4th is today and unlogged: counted, not complied
         XCTAssertEqual(c.compliedDays, 0)
         XCTAssertEqual(c.goalDays, 2)                       // daily goals alone were met
         // a lower-calorie day brings the average back on target: 2200 + 1800 → 2000
@@ -162,11 +162,11 @@ final class MetricsTests: XCTestCase {
         XCTAssertTrue(Metrics.dayComplied(partial, required: req.subtracting([.food]), goals: goals))  // toggle off
         XCTAssertFalse(Metrics.dayComplied(nil, required: [], goals: nil))
     }
-    func testComplianceWindowSkipsUnfinishedToday() {
+    func testComplianceIsAlwaysOutOfTheFullWindow() {
         let days = [full(5), full(6), snap(7)]            // today (7th) only partly logged
         let c = Metrics.compliance(days, today: day(7), windowDays: 7, required: Set(Tracker.allCases),
                                    timeline: timeline(), calendar: cal)
-        XCTAssertEqual(c.windowDays, 6)                   // today left out
+        XCTAssertEqual(c.windowDays, 7)                   // today counts in the total, as a day not yet complied
         XCTAssertEqual(c.compliedDays, 2)
         XCTAssertEqual(c.goalDays, 2)
         let done = Metrics.compliance([full(5), full(6), full(7)], today: day(7), windowDays: 7,

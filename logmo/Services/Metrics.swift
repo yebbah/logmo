@@ -97,7 +97,7 @@ struct ValuePoint: Identifiable, Equatable {
 }
 
 struct Compliance: Equatable {
-    var windowDays: Int                 // days evaluated; today is left out while still in progress
+    var windowDays: Int                 // the full window asked for (7 or 30); today is included
     var compliedDays: Int
     var perTracker: [Tracker: Int]      // days each tracker was fully logged
     var goalDays: Int                   // days whose daily goals were all met
@@ -267,8 +267,8 @@ enum Metrics {
         return true
     }
 
-    /// Over the last `windowDays` days ending today. Today is left out of the
-    /// denominator until it is complied, so an unfinished day isn't counted as a miss.
+    /// Over the last `windowDays` days ending today, always out of the full window. Today
+    /// counts in the total and becomes a complied day once everything for it is done.
     static func compliance(_ days: [DaySnapshot], today: Date, windowDays: Int,
                            required: Set<Tracker>, timeline: GoalTimeline,
                            calendar cal: Calendar = .current) -> Compliance {
@@ -283,7 +283,6 @@ enum Metrics {
             let goals = timeline.goals(forWeekStarting: ws)
             let ok = dayComplied(s, required: required, goals: goals,
                                  calorieOK: weekCalorieOK(map, weekStart: ws, goals: goals, calendar: cal))
-            if offset == 0 && !ok { continue }
             evaluated += 1
             if ok { complied += 1 }
             if dayGoalStatus(s, goals: goals).allMet { goalDays += 1 }
