@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 11.0
+version: 11.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v11.0)
+# logmo: Product Requirements (v11.1)
 
 ## Vision and outcome
 
@@ -166,7 +166,7 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 
 **FR-21. Delete all data.** Settings → Delete all data removes every log, goal and campaign, one by one, and checks the save; if it fails an alert says so. Afterwards the app is as new: one automatic maintenance campaign, the Dashboard back on *Current campaign*, the setup card (FR-22) showing again. Nothing from the old data remains on any screen.
 
-**FR-22. Setup and nudges.** (a) **No campaign:** when no real campaign is running or upcoming, the Dashboard shows a *Set up a campaign* card with a three-step checklist (start a campaign, set weekly goals, log a first day). Its main button does the next step; for the campaign step it opens the Campaigns tab with the new-campaign form already open. **Not now** hides the card for the rest of the day. While it shows, the separate "Set your weekly goals" banner is hidden. (b) **Finished campaign:** a real campaign whose planned weeks are over but which is still open shows a card on the Dashboard: **End & see results** (closes it on its last planned day, not as ended early, and opens the Campaigns tab) or **Extend 2 weeks** (refused if it would run into a later campaign). (c) **Log completeness:** under the date, the Log tab shows a chip for each required tracker, wrapping onto more lines rather than cutting any name short (ticked when complete: food needs all four macros, check-in all seven ratings, with n/a counting for training performance) and "n of m".
+**FR-22. Setup and nudges.** (a) **No campaign:** when no real campaign is running or upcoming, the Dashboard shows a *Set up a campaign* card with a three-step checklist (start a campaign, set weekly goals, log a first day). Its main button does the next step; for the campaign step it opens the Campaigns tab with the new-campaign form already open. **Not now** hides the card for the rest of the day. While it shows, the separate "Set your weekly goals" banner is hidden. (b) **Finished campaign:** a real campaign whose planned weeks are over but which is still open shows a card on the Dashboard: **End & see results** (closes it on its last planned day, not as ended early, and opens the Campaigns tab) or **Extend 2 weeks** (refused if it would run into a later campaign). (c) **Log completeness:** under the date, the Log tab shows one icon per required tracker (scale, fork and knife, drop, walking figure, checklist), grey until complete and then green with a tick, each with a spoken label such as "Water, done"; no words, so nothing can be cut short (ticked when complete: food needs all four macros, check-in all seven ratings, with n/a counting for training performance) and "n of m".
 
 ## Extensibility (provisions, not features)
 
@@ -269,3 +269,4 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D67 | A finished campaign stays open (and keeps collecting days) until the user closes or extends it | Assumption: nothing changes without the user |
 | D68 | The Streaks "Daily goals, last 7 days" row uses the goals of the campaign each day belongs to, and a day before the first logged day shows the neutral hollow circle, not a red cross | Fixed after a campaign started midweek showed red crosses for the days before it |
 | D69 | Restoring a backup also restores settings; a version-1 backup (no settings) restores the data and leaves settings alone | Decided |
+| D70 | The Log completeness strip uses icons only, with accessibility labels carrying the names | Decided: words didn't fit on one line |

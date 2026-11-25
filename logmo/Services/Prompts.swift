@@ -53,3 +53,16 @@ extension DayDraft {
         return s
     }
 }
+
+extension Tracker {
+    /// SF Symbol for the Log screen's completeness strip.
+    var icon: String {
+        switch self {
+        case .weight: "scalemass"
+        case .food: "fork.knife"
+        case .water: "drop"
+        case .steps: "figure.walk"
+        case .checkIn: "checklist"
+        }
+    }
+}

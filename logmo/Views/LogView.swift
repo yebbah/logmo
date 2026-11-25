@@ -131,21 +131,26 @@ struct LogView: View {
                         Spacer()
                         Text("\(required.filter(done.contains).count) of \(required.count)").font(.footnote).foregroundStyle(theme.muted)
                     }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
+                    HStack(spacing: 0) {
                         ForEach(required) { t in
                             let ok = done.contains(t)
-                            HStack(spacing: 5) {
-                                Image(systemName: ok ? "checkmark.circle.fill" : "circle")
-                                Text(t.title)
-                            }
-                            .font(.caption.weight(.semibold)).lineLimit(1).fixedSize()
-                            .padding(.horizontal, 10).padding(.vertical, 6)
-                            .foregroundStyle(ok ? theme.good : theme.muted)
-                            .background((ok ? theme.good : theme.muted).opacity(0.14), in: Capsule())
+                            Image(systemName: t.icon)
+                                .font(.title3.weight(.semibold))
+                                .frame(width: 46, height: 46)
+                                .foregroundStyle(ok ? theme.good : theme.muted)
+                                .background((ok ? theme.good : theme.muted).opacity(0.14), in: Circle())
+                                .overlay(alignment: .bottomTrailing) {
+                                    if ok {
+                                        Image(systemName: "checkmark.circle.fill").font(.caption)
+                                            .foregroundStyle(theme.good, theme.card)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                                .accessibilityLabel("\(t.title), \(ok ? "done" : "not done")")
                         }
                     }
                 }
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .contain)
             }
             .listRowBackground(theme.card)
         }
