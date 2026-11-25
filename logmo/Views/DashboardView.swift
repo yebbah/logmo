@@ -87,18 +87,6 @@ struct DashboardView: View {
             }
             .background(theme.bg)
             .navigationTitle("Dashboard")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if let text = CampaignRules.daysLeftBadge(infos, today: today) {
-                        Button { nav.tab = 3 } label: {
-                            // An HStack, not a Label: the toolbar turns a Label into just its icon.
-                            HStack(spacing: 5) { Image(systemName: "flag.checkered"); Text(text) }
-                                .font(.footnote.weight(.semibold)).foregroundStyle(theme.accent).fixedSize()
-                        }
-                        .accessibilityLabel("\(text) in the current campaign. Opens Campaigns.")
-                    }
-                }
-            }
             .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week, prefill: t.prefill) }
             .sheet(item: $startWeightFor) { StartWeightSheet(campaign: $0) }
             .sheet(item: $suggestCampaign, onDismiss: {
@@ -120,9 +108,16 @@ struct DashboardView: View {
             Text(h.title).font(.title3.weight(.bold))
             Text(h.dates).font(.subheadline).foregroundStyle(theme.muted)
             Spacer(minLength: 0)
+            // Days left sits at the right end of this line: a toolbar item would add an empty bar above the title.
+            if let text = CampaignRules.daysLeftBadge(infos, today: today) {
+                Button { nav.tab = 3 } label: {
+                    HStack(spacing: 5) { Image(systemName: "flag.checkered"); Text(text) }
+                        .font(.footnote.weight(.semibold)).foregroundStyle(theme.accent).fixedSize()
+                }
+                .accessibilityLabel("\(text) in the current campaign. Opens Campaigns.")
+            }
         }
         .padding(.horizontal, 4)
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: Setup and finished-campaign prompts
