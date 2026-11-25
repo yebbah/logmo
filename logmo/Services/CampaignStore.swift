@@ -112,4 +112,27 @@ enum CampaignStore {
         try? context.save()
         ensureDefault(context, today: today)
     }
+
+    /// Close a campaign whose planned days are over, on its last planned day (not an early end).
+    static func finish(_ context: ModelContext, _ campaign: Campaign, today: Date = Date()) {
+        guard !campaign.isDefault, campaign.end == nil, let last = CampaignRules.plannedEnd(campaign.info) else { return }
+        campaign.end = last
+        campaign.endedEarly = false
+        campaign.updatedAt = Date()
+        try? context.save()
+        ensureDefault(context, today: today)
+    }
+
+    /// Lengthen a campaign by whole weeks. Refused when it would run into a campaign that starts later.
+    @discardableResult
+    static func extend(_ context: ModelContext, _ campaign: Campaign, byWeeks weeks: Int) -> Bool {
+        guard !campaign.isDefault, campaign.end == nil, let planned = campaign.plannedWeeks, weeks > 0 else { return false }
+        var info = campaign.info; info.plannedWeeks = planned + weeks
+        if let newEnd = CampaignRules.plannedEnd(info),
+           all(context).contains(where: { $0.id != campaign.id && $0.start > campaign.start && $0.start <= newEnd }) { return false }
+        campaign.plannedWeeks = planned + weeks
+        campaign.updatedAt = Date()
+        try? context.save()
+        return true
+    }
 }

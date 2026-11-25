@@ -7,6 +7,8 @@ import Charts
 struct DashboardView: View {
     @Environment(\.theme) private var theme
     @Environment(\.modelContext) private var context
+    @Environment(AppNavigation.self) private var nav
+    @AppStorage("setupDismissedOn") private var setupDismissedOn = ""        // yyyy-MM-dd the setup card was last put off
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
     @AppStorage("campaignFilter") private var filterRaw = "current"      // current | overall | <campaign id>
@@ -35,12 +37,16 @@ struct DashboardView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 16) {
+                        setupCard(infos)
+                        finishedCard(infos)
                         campaignPicker(infos)
                         campaignCard(selected, scope, trend, infos)
                         if let gc = goalCampaign(selected, infos) {
                             let explicit = PlanStore.explicitWeeks(weekGoals, campaignID: gc.id)
-                            let prompt = PlanRules.prompt(gc, hasAnyGoals: weekGoals.contains { $0.campaignID == gc.id },
-                                                          explicit: explicit, today: today)
+                            let rawPrompt = PlanRules.prompt(gc, hasAnyGoals: weekGoals.contains { $0.campaignID == gc.id },
+                                                             explicit: explicit, today: today)
+                            // The setup card already asks for goals, so don't ask twice.
+                            let prompt: PlanPrompt = (rawPrompt == .setGoals && setupStep(infos) != nil && !setupDismissedToday) ? .none : rawPrompt
                             PlanPromptBanner(prompt: prompt, onKeep: { keep(prompt, gc) }, onChange: { change(prompt, gc) })
                             GoalsCard(campaign: gc, snaps: snaps, timeline: timeline, explicitWeeks: explicit,
                                       onEdit: { goalsTarget = GoalsTarget(campaign: gc, week: nil) },
@@ -69,6 +75,53 @@ struct DashboardView: View {
             .navigationTitle("Dashboard")
             .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week) }
             .navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
+        }
+    }
+
+    // MARK: Setup and finished-campaign prompts
+
+    private var todayKey: String { today.formatted(.iso8601.year().month().day()) }
+    private var setupDismissedToday: Bool { setupDismissedOn == todayKey }
+
+    private func setupStep(_ infos: [CampaignInfo]) -> SetupRules.Step? {
+        SetupRules.next(campaigns: infos, hasConfirmedGoals: weekGoals.contains { $0.confirmed }, logCount: logs.count, today: today)
+    }
+
+    /// First-run checklist, and the nudge to configure a campaign when none is running. "Not now" hides it for today.
+    @ViewBuilder private func setupCard(_ infos: [CampaignInfo]) -> some View {
+        if let next = setupStep(infos), !setupDismissedToday {
+            let needsCampaign = SetupRules.needsCampaign(infos, today: today)
+            let steps = SetupRules.Step.allCases.map { s in
+                (s.title, SetupRules.done(s, campaigns: infos, hasConfirmedGoals: weekGoals.contains { $0.confirmed },
+                                          logCount: logs.count, today: today))
+            }
+            PromptCard(tint: theme.accent, icon: "flag.checkered",
+                       title: needsCampaign ? "Set up a campaign" : "Get set up",
+                       text: needsCampaign ? "No campaign is running. Pick a cut, bulk or maintenance, with dates and a target."
+                                           : "A couple of steps left to get the most from logmo.",
+                       steps: steps,
+                       actions: [.init(title: "Not now", run: { setupDismissedOn = todayKey }),
+                                 .init(title: needsCampaign ? "Set up campaign" : next.title, filled: true, run: { runSetup(next, infos) })])
+        }
+    }
+
+    private func runSetup(_ step: SetupRules.Step, _ infos: [CampaignInfo]) {
+        switch step {
+        case .campaign: nav.openNewCampaign = true; nav.tab = 3
+        case .goals:
+            if let c = CampaignRules.campaign(for: today, in: infos) { goalsTarget = GoalsTarget(campaign: c, week: nil) }
+        case .firstLog: nav.tab = 2
+        }
+    }
+
+    /// A real campaign past its planned last day, still open: close it, extend it, or start the next.
+    @ViewBuilder private func finishedCard(_ infos: [CampaignInfo]) -> some View {
+        if let c = infos.first(where: { SetupRules.isFinished($0, today: today) }),
+           let model = campaigns.first(where: { $0.id == c.id }) {
+            PromptCard(tint: theme.warn, icon: "flag.checkered.2.crossed", title: "\(c.name) has finished",
+                       text: "Its \(c.plannedWeeks ?? 0) weeks are over. Close it to see how it went, or keep going.",
+                       actions: [.init(title: "Extend 2 weeks", run: { CampaignStore.extend(context, model, byWeeks: 2) }),
+                                 .init(title: "End & see results", filled: true, run: { CampaignStore.finish(context, model); nav.tab = 3 })])
         }
     }
 

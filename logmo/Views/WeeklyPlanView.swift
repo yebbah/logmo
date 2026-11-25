@@ -233,16 +233,16 @@ struct WeeklyPlanView: View {
                 let current = rows.filter { $0.phase == .current }
                 let past = rows.filter { $0.phase == .past }.reversed()
 
-                if !future.isEmpty {
-                    sectionTitle("Plan ahead")
-                    ForEach(future) { r in
+                if !current.isEmpty {
+                    sectionTitle("This week")
+                    ForEach(current) { r in
                         WeekRowCard(row: r, onEdit: editable ? { editing = EditTarget(week: r.weekStart) } : nil,
                                     onKeep: editable ? { PlanStore.confirm(context, campaignID: campaign.id, week: r.weekStart) } : nil)
                     }
                 }
-                if !current.isEmpty {
-                    sectionTitle("This week")
-                    ForEach(current) { r in
+                if !future.isEmpty {
+                    sectionTitle("Plan ahead")
+                    ForEach(future) { r in
                         WeekRowCard(row: r, onEdit: editable ? { editing = EditTarget(week: r.weekStart) } : nil,
                                     onKeep: editable ? { PlanStore.confirm(context, campaignID: campaign.id, week: r.weekStart) } : nil)
                     }

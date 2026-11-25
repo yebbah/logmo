@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.theme) private var theme
@@ -15,6 +16,9 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
     @State private var confirmDelete = false
+    @State private var deleteError: String?
+    @State private var pickBackup = false
+    @State private var pendingRestore: BackupFile?
 
     @Query(sort: \DayLog.day) private var logs: [DayLog]
 
@@ -116,8 +120,14 @@ struct SettingsView: View {
                         Label("Export data as CSV", systemImage: "square.and.arrow.up")
                     }
                     .disabled(logs.isEmpty)
+                    if let data = try? Backup.encode(Backup.make(context)) {
+                        ShareLink(item: BackupDocument(data: data), preview: SharePreview("logmo-backup.json")) {
+                            Label("Save a full backup", systemImage: "externaldrive.badge.icloud")
+                        }
+                    }
+                    Button { pickBackup = true } label: { Label("Restore from a backup", systemImage: "arrow.counterclockwise") }
                 } header: { Text("Backup") } footer: {
-                    Text("Data lives only on this iPhone. Export saves daily logs (not goals or campaigns) as a copy you can keep in Files or iCloud Drive.")
+                    Text("Data lives only on this iPhone. A full backup saves logs, weekly goals and campaigns in one file you can keep in Files or iCloud Drive; restoring replaces what is on the phone. The CSV holds daily logs only, for spreadsheets.")
                 }
                 .listRowBackground(theme.card)
                 AboutSection()
@@ -139,12 +149,26 @@ struct SettingsView: View {
             }
             }
             .navigationTitle("Settings")
+            .fileImporter(isPresented: $pickBackup, allowedContentTypes: [.json]) { result in
+                guard case .success(let url) = result else { return }
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                do { pendingRestore = try Backup.decode(Data(contentsOf: url)) }
+                catch { deleteError = "That file isn't a logmo backup." }
+            }
+            .confirmationDialog("Replace everything on this iPhone with the backup?", isPresented: Binding(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } }), titleVisibility: .visible) {
+                Button("Restore", role: .destructive) {
+                    if let f = pendingRestore { do { try Backup.restore(f, into: context) } catch { deleteError = error.localizedDescription } }
+                    pendingRestore = nil
+                }
+            } message: { Text(pendingRestore.map { "\($0.logs.count) days, \($0.campaigns.count) campaigns, \($0.goals.count) weekly goal sets." } ?? "") }
+            .alert("Something went wrong", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: { Text(deleteError ?? "") }
             .confirmationDialog("Delete every log, goal and campaign on this iPhone?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete all", role: .destructive) {
-                    try? context.delete(model: DayLog.self)
-                    try? context.delete(model: WeekGoal.self)
-                    try? context.delete(model: Campaign.self)
-                    try? context.save()
+                    do { try DataReset.deleteAll(context) }
+                    catch { deleteError = error.localizedDescription }
                 }
             }
         }

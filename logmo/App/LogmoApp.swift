@@ -32,6 +32,7 @@ struct LogmoApp: App {
 @Observable
 final class AppNavigation {
     var tab = 0     // 0 Dashboard, 1 Streaks, 2 Log, 3 Campaigns, 4 Settings
+    var openNewCampaign = false     // set when a prompt sends the user to Campaigns to start one
 }
 
 struct RootView: View {
@@ -81,14 +82,21 @@ struct RootView: View {
                     .preferredColorScheme(theme.scheme)
                     .transition(.opacity)
                     .zIndex(1)
+                    .onTapGesture { skipLanding() }             // tap to skip
             }
         }
         .task {
             try? await Task.sleep(for: .milliseconds(300))      // let the landing paint first
             showTabs = true
             try? await Task.sleep(for: .milliseconds(2700))     // three seconds in all
-            withAnimation(.easeInOut(duration: 0.7)) { showLanding = false }
+            skipLanding()
         }
+    }
+
+    private func skipLanding() {
+        guard showLanding else { return }
+        showTabs = true
+        withAnimation(.easeInOut(duration: 0.7)) { showLanding = false }
     }
 
     private var tabs: some View {

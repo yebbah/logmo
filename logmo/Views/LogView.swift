@@ -62,6 +62,7 @@ struct LogView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
+    @AppStorage(SettingsKey.required) private var requiredRaw = RequiredTrackers.defaultRaw
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
@@ -117,6 +118,36 @@ struct LogView: View {
         date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated).year())
     }
 
+    /// Which required trackers are complete for this day, so it's clear what is still missing.
+    @ViewBuilder private var completenessStrip: some View {
+        let required = Tracker.allCases.filter(RequiredTrackers.parse(requiredRaw).contains)
+        if !required.isEmpty {
+            let done = draft.completeTrackers
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(required.allSatisfy(done.contains) ? "Everything required is logged" : "Still to log")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text("\(required.filter(done.contains).count) of \(required.count)").font(.footnote).foregroundStyle(theme.muted)
+                    }
+                    HStack(spacing: 8) {
+                        ForEach(required) { t in
+                            let ok = done.contains(t)
+                            Label(t.title, systemImage: ok ? "checkmark.circle.fill" : "circle")
+                                .font(.caption.weight(.semibold)).labelStyle(.titleAndIcon).lineLimit(1).minimumScaleFactor(0.7)
+                                .padding(.horizontal, 8).padding(.vertical, 5)
+                                .foregroundStyle(ok ? theme.good : theme.muted)
+                                .background((ok ? theme.good : theme.muted).opacity(0.14), in: Capsule())
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+            .listRowBackground(theme.card)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -139,6 +170,8 @@ struct LogView: View {
                     }
                 }
                 .listRowBackground(theme.card)
+
+                completenessStrip
 
                 if showTop {
                     Section("Weight") {

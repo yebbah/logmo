@@ -9,6 +9,7 @@ private func whole(_ v: Double?) -> String { v.map { Int($0.rounded()).formatted
 /// at every campaign so far.
 struct CampaignsView: View {
     @Environment(\.theme) private var theme
+    @Environment(AppNavigation.self) private var nav
     @Environment(\.modelContext) private var context
     @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
@@ -26,6 +27,13 @@ struct CampaignsView: View {
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
+
+    /// A prompt elsewhere sent the user here to start a campaign: open the form once.
+    private func openNewIfAsked() {
+        guard nav.openNewCampaign else { return }
+        nav.openNewCampaign = false
+        showNew = true
+    }
 
     var body: some View {
         let infos = campaigns.map(\.info)
@@ -80,7 +88,8 @@ struct CampaignsView: View {
                         .disabled(busy)
                 }
             }
-            .onAppear { CampaignStore.ensureDefault(context) }
+            .onAppear { CampaignStore.ensureDefault(context); openNewIfAsked() }
+            .onChange(of: nav.openNewCampaign) { _, _ in openNewIfAsked() }
             .sheet(isPresented: $showNew) { NewCampaignForm(minStart: openDefaultStart) }
             .navigationDestination(item: $planCampaign) { WeeklyPlanView(campaign: $0) }
             .alert("Rename campaign", isPresented: Binding(get: { renameTarget != nil }, set: { if !$0 { renameTarget = nil } })) {
