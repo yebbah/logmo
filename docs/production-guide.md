@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v16.0 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v16.1 and app version 1.0.0 (build 1).
 
 ---
 
@@ -58,6 +58,8 @@ User preferences live in `UserDefaults` (via `@AppStorage`), keys in `SettingsKe
 
 Besides the fields that merge (weight, calories and macros, water, steps, and the cycle's period flag), Health also fills read-only context on `DayLog`: `healthSleepMinutes`, `healthRestingHR`, `healthHRV`, `healthBodyFat`, `healthLeanKg`, `healthWorkoutMinutes`. Sleep is the union of asleep intervals per wake-up day. The cycle topic starts off and is dropped from a sync unless cycle tracking is on. Resting heart rate and HRV feed `WeekSummary` and can soften a good recovery reading and add a caution, never a target change.
 
+`HealthSync.window` decides how far back a sync reads: the last `days` (7 by default; 30 on first connection; up to 365 on request), stretched back to an older day open on the Log screen. `HealthSettings.currentAuthVersion` is bumped whenever a release reads a new type; a connection whose stored version is lower calls `requestAuthorization` once (iOS prompts only for undecided types).
+
 Syncs run on app start, on foreground, when the Log screen opens, and from the Sync and Update now buttons (20-second throttle unless forced), over the last seven days. Disconnecting only stops syncing. Health access can't be read back, so a declined type looks like no data. The entitlement signed correctly with a free personal team in this project.
 
 ### Notifications
@@ -100,7 +102,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (188 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (189 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 

@@ -163,6 +163,15 @@ final class HealthSyncTests: XCTestCase {
         XCTAssertEqual(log.steps, 4000)
     }
 
+    func testTheReadWindowStretchesBackToAnOlderDayBeingViewed() {
+        let now = Date()
+        let w = HealthSync.window(now: now, days: 7, includeDay: nil)
+        XCTAssertEqual(w.end, today); XCTAssertEqual(w.start, day(6))
+        XCTAssertEqual(HealthSync.window(now: now, days: 7, includeDay: day(40)).start, day(40))      // an older day is included
+        XCTAssertEqual(HealthSync.window(now: now, days: 7, includeDay: day(2)).start, day(6))        // a recent one changes nothing
+        XCTAssertEqual(HealthSync.window(now: now, days: 90, includeDay: nil).start, day(89))
+    }
+
     func testPressingSyncOverwritesTheViewedDayOnly() throws {
         let context = try makeContext()
         let log = DayLog(day: today); log.weightKg = 82.0; log.steps = 4000; context.insert(log)

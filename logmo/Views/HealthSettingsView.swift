@@ -50,6 +50,12 @@ struct HealthSettingsView: View {
                 .listRowBackground(theme.card)
 
                 Section {
+                    Menu {
+                        ForEach([(30, "Last 30 days"), (90, "Last 3 months"), (365, "Last year")], id: \.0) { n, label in
+                            Button(label) { update(days: n) }
+                        }
+                    } label: { Label("Import earlier days", systemImage: "clock.arrow.circlepath") }
+                    .disabled(syncing)
                     HStack {
                         Text(lastSync.map { "Updated \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Not updated yet")
                             .font(.subheadline)
@@ -58,7 +64,7 @@ struct HealthSettingsView: View {
                             .buttonStyle(.borderless).disabled(syncing)
                     }
                 } footer: {
-                    Text("logmo also updates when it opens and on the Log screen. iOS asks permission one type at a time, and a type you decline looks the same as no data. If something is missing, open Health → Sharing → Apps → logmo.")
+                    Text("logmo reads the last week on its own, and any older day you open on the Log screen. **Import earlier days** reads further back. logmo also updates when it opens. iOS asks permission one type at a time, and a type you decline looks the same as no data. If something is missing, open Health → Sharing → Apps → logmo.")
                 }
                 .listRowBackground(theme.card)
 
@@ -80,16 +86,17 @@ struct HealthSettingsView: View {
             do {
                 try await AppleHealth.requestAuthorization()
                 connected = true; failed = false
-                update()
+                UserDefaults.standard.set(HealthSettings.currentAuthVersion, forKey: HealthSettings.authVersion)
+                update(days: 30)                                    // a first import reaches back a month
             } catch { failed = true }
         }
     }
 
-    private func update() {
+    private func update(days: Int = 7) {
         guard !syncing else { return }
         syncing = true
         Task {
-            await HealthSync.sync(context, force: true)
+            await HealthSync.sync(context, force: true, days: days)
             lastSync = HealthSync.lastSync
             syncing = false
         }

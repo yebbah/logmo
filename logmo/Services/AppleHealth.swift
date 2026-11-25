@@ -202,6 +202,9 @@ enum AppleHealth {
 enum HealthSettings {
     static let connected = "healthConnected"
     static let lastSync = "healthLastSync"
+    /// Bumped whenever the app starts reading another type of data, so an existing connection asks iOS about it once.
+    static let currentAuthVersion = 2
+    static let authVersion = "healthAuthVersion"
     static func key(_ t: HealthTopic) -> String { "health.\(t.rawValue)" }
     static func isOn(_ t: HealthTopic, _ d: UserDefaults = .standard) -> Bool { d.object(forKey: key(t)) as? Bool ?? t.defaultOn }
     static func topics(_ d: UserDefaults = .standard) -> Set<HealthTopic> { Set(HealthTopic.allCases.filter { isOn($0, d) }) }
@@ -215,13 +218,26 @@ enum HealthSync {
 
     /// Pull the last week from Health (when connected and at least `minInterval` seconds since the last pull) and merge it.
     @discardableResult
-    static func sync(_ context: ModelContext, force: Bool = false, overwriteDay: Date? = nil, minInterval: TimeInterval = 20, days: Int = 7, now: Date = Date()) async -> Bool {
+    /// The days to read: the last `days` ending today, stretched back to include `includeDay` (an older day the user is looking at).
+    static func window(now: Date, days: Int, includeDay: Date?, calendar cal: Calendar = .current) -> (start: Date, end: Date) {
+        let today = cal.startOfDay(for: now)
+        var start = cal.date(byAdding: .day, value: -(max(days, 1) - 1), to: today)!
+        if let d = includeDay.map({ cal.startOfDay(for: $0) }), d < start { start = d }
+        return (start, today)
+    }
+
+    /// `includeDay`: an older day to read as well (the one open on the Log screen); `days`: how far back to read in all.
+    static func sync(_ context: ModelContext, force: Bool = false, overwriteDay: Date? = nil, includeDay: Date? = nil, minInterval: TimeInterval = 20, days: Int = 7, now: Date = Date()) async -> Bool {
         let d = UserDefaults.standard
         guard d.bool(forKey: HealthSettings.connected), AppleHealth.isAvailable else { return false }
+        if d.integer(forKey: HealthSettings.authVersion) < HealthSettings.currentAuthVersion {       // new types since last asked: iOS only prompts for those
+            try? await AppleHealth.requestAuthorization()
+            d.set(HealthSettings.currentAuthVersion, forKey: HealthSettings.authVersion)
+        }
         if !force, let last = lastSync, now.timeIntervalSince(last) < minInterval { return false }
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
-        let start = cal.date(byAdding: .day, value: -(days - 1), to: today)!
+        let (start, _) = window(now: now, days: days, includeDay: includeDay ?? overwriteDay, calendar: cal)
         var topics = HealthSettings.topics(d)
         if !d.bool(forKey: SettingsKey.trackCycle) { topics.remove(.cycle) }      // cycle only when cycle tracking is on
         let fetched = await AppleHealth.days(from: start, to: today, topics: topics)

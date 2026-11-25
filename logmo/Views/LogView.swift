@@ -322,7 +322,7 @@ struct LogView: View {
                 #endif
             }
             .onChange(of: existing(date)?.updatedAt) { _, _ in if draft == baseline { load(date) } }     // a Health update arrived while viewing
-            .onChange(of: date) { old, new in save(day: old); load(new) }
+            .onChange(of: date) { old, new in save(day: old); load(new); syncHealth(force: true) }      // an older day is filled from Health too
             .onChange(of: scenePhase) { _, phase in if phase != .active { save() } }
             .onDisappear { save() }
             // Autosave: shortly after the last change, so typing isn't interrupted.
@@ -437,7 +437,7 @@ struct LogView: View {
         syncing = true
         let day = date
         Task {
-            await HealthSync.sync(context, force: force, overwriteDay: overwrite ? day : nil)
+            await HealthSync.sync(context, force: force, overwriteDay: overwrite ? day : nil, includeDay: day)
             lastSyncShown = HealthSync.lastSync
             syncing = false
             if draft == baseline { load(date) }

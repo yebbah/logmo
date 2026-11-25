@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 16.0
+version: 16.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v16.0)
+# logmo: Product Requirements (v16.1)
 
 ## Vision and outcome
 
@@ -196,7 +196,7 @@ Streaks, compliance and the history cards use each day's own campaign goals (FR-
 - **Resting heart rate and HRV:** kept per day as recovery context. They appear in the weekly suggestion's preview and facts (this week's average and the change on the week before) and as evidence. If resting heart rate is up by at least 5 bpm and HRV down by at least 15% on the week before, a caution is added and a "good" recovery reading is softened to "mixed". They never change lifting, steps or calories on their own, and the suggestion never calls training safe or unsafe.
 - **Body fat and lean mass** (the day's last reading): shown under the weight field on the Log screen and as a **Body composition** card on the Dashboard (latest value and change since the first reading in the period shown), so the user can see whether a cut or bulk is fat or muscle. Lean mass follows the weight unit.
 - **Sleep, heart rate, HRV, body fat and lean mass are in the full backup and the daily-logs CSV** (`sleep_hours_health, resting_hr_bpm, hrv_ms, body_fat_pct, lean_mass_kg`).
-- **When it updates.** On app start, whenever the app comes to the foreground, when the Log screen opens, with **Update now** in Settings, and with a **Sync** button on the Log screen showing when it last updated. The last seven days are refreshed, so steps and food keep updating while the day is open.
+- **When it updates.** On app start, whenever the app comes to the foreground, when the Log screen opens, with **Update now** in Settings, and with a **Sync** button on the Log screen showing when it last updated. The last seven days are refreshed, so steps and food keep updating while the day is open. **Older days:** opening or moving to an older day on the Log screen reads that day from Health too (and **Sync** reads and overwrites it), and **Import earlier days** in Settings reads the last 30 days, 3 months or a year. The first connection imports the last 30 days. **New types:** when a version starts reading another type of data, the app asks iOS about it once at the next update, so an existing connection picks it up without being switched off and on.
 - **The last action wins.** The automatic refreshes (on start, on coming forward, when the Log screen opens) fill a field only if it is empty or already holds a Health value, so they never overwrite what the user typed. If the user changes or clears a Health value it becomes theirs and those refreshes leave it alone for that day. Pressing **Sync** on the Log screen is an explicit action: it **overwrites the typed values of the day on screen** with Health's (for every field Health has a reading for), after saving any edit still being typed. Typing afterwards is later still, so it stands until the next press of Sync. **Update now** in Settings is a general refresh and does not overwrite typed values; **Use Health's** on a field hands back just that field.
 - **Never zero.** A reading of zero or no reading is not imported; a day with no Health data stays empty and no record is created for it. Future days are ignored.
 - **On the Log screen.** An imported field shows a small **Health** mark; an overridden one shows **Edited by you** and **Use Health's**. Imported values count for Still to log, goals, streaks, compliance, the daily reminder and the weekly suggestion exactly like typed ones (so the suggestion's logging coverage and confidence improve when Health fills gaps).
@@ -339,3 +339,5 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D102 | Cycle from Health starts off and needs cycle tracking on; recorded flow means Yes, no record is not read as No | Decided |
 | D103 | Resting heart rate and HRV add context and a caution to the weekly suggestion but never change a target on their own | Decided: noisy signals, and self-reports and sensors can't show that training is safe |
 | D104 | Body fat and lean mass are shown on the Log screen and as a Dashboard card, not used in suggestions | Assumption |
+| D105 | Health reads reach back beyond a week for the day being viewed, for a first connection (30 days) and on request (up to a year); automatic refreshes stay at seven days | Decided: a day the user opens should show its Health data |
+| D106 | A bumped authorization version makes an existing connection ask iOS for newly read types once, because switches that are already on never re-ask | Decided: fixes new types silently returning nothing |

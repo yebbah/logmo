@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 1)**, built to PRD v16.0, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 1)**, built to PRD v16.1, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -93,4 +93,4 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 | v13 – v13.1 | Weekly suggestion with Apple Intelligence, carbs and fat guidance, daily log reminder |
 | v14 | Evidence-based suggestions with confidence and safer rules, roomier Goals card and setup prompt |
 | v15 – v15.1 | Apple Health: weight, steps, water, food and strength workouts, read only; Sync overwrites the day, Rate it fixed |
-| v16 | Apple Health: sleep hours, cycle, resting heart rate and HRV, body fat and lean mass |
+| v16 – v16.1 | Apple Health: sleep hours, cycle, resting heart rate and HRV, body fat and lean mass; older days and earlier history import; new types asked of iOS once |
