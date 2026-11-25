@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v19.1 and app version 1.0.0 (build 1).
+Version of this guide: matches PRD v20.0 and app version 1.0.0 (build 1).
 
 ---
 
@@ -43,7 +43,7 @@ SwiftUI views  ──►  Services (pure rules + stores)  ──►  SwiftData m
 - **WeekGoal**: one row per campaign per Monday. Calories (stored as a weekly total), at-or-under flag, protein, steps and whether it is a weekly average, water, workout days, carbs and fat (guidance only), `confirmed` (false = carried over).
 - **Campaign**: number, kind, default or real, target weight, start, planned weeks, end, ended early, label.
 
-Invariants the code keeps: every day belongs to exactly one campaign; there is always an open campaign (an automatic maintenance one if the user has none); a real campaign has its own goals; only one campaign can be planned but not started; past campaigns and past weeks are locked.
+Invariants the code keeps: every campaign has a start and an end (no open-ended or automatic campaigns; `CampaignStore.tidy` closes any open automatic one from an older version and creates nothing); a campaign covers its start to `CampaignRules.lastDay` and nothing after, so days outside every campaign belong to none; a campaign has its own goals; only one campaign can be planned but not started; past campaigns and past weeks are locked.
 
 ### Settings storage
 
@@ -114,7 +114,7 @@ xcodebuild test -project logmo.xcodeproj -scheme logmo \
   CODE_SIGNING_ALLOWED=NO GENERATE_INFOPLIST_FILE=YES
 ```
 
-All tests must pass before anything is merged (243 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
+All tests must pass before anything is merged (245 at this version). They cover the pure rules and the SwiftData stores (in-memory containers), not the screens.
 
 ### Install on the iPhone
 

@@ -121,7 +121,7 @@ enum Backup {
             else if let i = Int(v) { d.set(i, forKey: k) }
             else { d.set(v, forKey: k) }
         }
-        CampaignStore.ensureDefault(context)
+        CampaignStore.tidy(context)
     }
 }
 

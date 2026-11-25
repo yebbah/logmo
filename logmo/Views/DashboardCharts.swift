@@ -762,3 +762,64 @@ struct MaintenanceCard: View {
         return rows
     }
 }
+
+
+/// The workbook's weekly line on the Dashboard: the trend weight at the end of each week and how it moved from the week before.
+struct WeeklyRateCard: View {
+    @Environment(\.theme) private var theme
+    let trend: [TrendPoint]
+    let scope: DateScope
+    let unit: WeightUnit
+
+    var body: some View {
+        let rows = Metrics.weeklyTrendRows(trend, from: scope.start, through: scope.end)
+        if !rows.isEmpty {
+            Card(title: "Weekly rate of change") {
+                if let latest = rows.first(where: { $0.changeKg != nil }), let kg = latest.changeKg {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(String(format: "%+.2f %@", unit.fromKg(latest.trendKg) - unit.fromKg(latest.trendKg - kg), unit.rawValue))
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                        Text(latest.inProgress ? "so far this week" : "last full week").font(.subheadline).foregroundStyle(theme.muted)
+                        Spacer()
+                        if let p = latest.changePercent { Text(String(format: "%+.2f%% of body weight", p)).font(.caption).foregroundStyle(theme.muted) }
+                    }
+                }
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Week").frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Trend").frame(width: 78, alignment: .trailing)
+                        Text("Change").frame(width: 124, alignment: .trailing)
+                    }
+                    .font(.caption2.weight(.semibold)).foregroundStyle(theme.muted)
+                    ForEach(rows) { r in
+                        HStack(alignment: .firstTextBaseline) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(label(r)).font(.subheadline)
+                                if r.inProgress { Text("so far").font(.caption2).foregroundStyle(theme.muted) }
+                            }.frame(maxWidth: .infinity, alignment: .leading)
+                            Text(String(format: "%.2f %@", unit.fromKg(r.trendKg), unit.rawValue)).font(.subheadline).monospacedDigit().frame(width: 78, alignment: .trailing)
+                            Text(change(r)).font(.caption).monospacedDigit().foregroundStyle(r.changeKg == nil ? theme.muted : Color.primary)
+                                .multilineTextAlignment(.trailing).frame(width: 124, alignment: .trailing)
+                        }
+                        Divider()
+                    }
+                }
+                Text("The trend weight at the end of each week (Monday to Sunday) and how far it moved from the end of the week before. A week with no earlier trend to compare shows N/A.")
+                    .font(.caption).foregroundStyle(theme.muted)
+            }
+        }
+    }
+
+    private func label(_ r: WeeklyTrendRow) -> String {
+        let f = Date.FormatStyle().day().month(.abbreviated)
+        let end = Calendar.current.date(byAdding: .day, value: 6, to: r.weekStart)!
+        return "\(r.weekStart.formatted(f)) – \(end.formatted(f))"
+    }
+
+    private func change(_ r: WeeklyTrendRow) -> String {
+        guard let kg = r.changeKg else { return "N/A" }
+        let delta = unit.fromKg(r.trendKg) - unit.fromKg(r.trendKg - kg)
+        let pct = r.changePercent.map { String(format: " · %+.2f%%", $0) } ?? ""
+        return String(format: "%+.2f %@", delta, unit.rawValue) + pct
+    }
+}

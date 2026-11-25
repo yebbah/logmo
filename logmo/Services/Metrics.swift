@@ -503,3 +503,42 @@ enum WeightUnit: String, CaseIterable, Identifiable {
     func fromKg(_ kg: Double) -> Double { self == .kg ? kg : kg * 2.2046226218 }
     func toKg(_ v: Double) -> Double { self == .kg ? v : v / 2.2046226218 }
 }
+
+
+// MARK: - Weekly rate of change
+
+/// One Monday-to-Sunday week of the weight trend, like the workbook's weekly line: the trend weight at the end of the week and how it moved
+/// from the end of the week before.
+struct WeeklyTrendRow: Equatable, Identifiable {
+    var weekStart: Date
+    var endDay: Date                 // the last day of the week with data (today for the week in progress)
+    var trendKg: Double
+    var changeKg: Double?            // nil when there was no trend yet at the end of the week before: "N/A"
+    var changePercent: Double?
+    var inProgress: Bool
+    var id: Date { weekStart }
+}
+
+extension Metrics {
+    /// Newest first, up to `limit` weeks, for the weeks from `from` through `through`.
+    static func weeklyTrendRows(_ trend: [TrendPoint], from: Date, through: Date, limit: Int = 12, calendar cal: Calendar = .current) -> [WeeklyTrendRow] {
+        let byDay = Dictionary(trend.map { (cal.startOfDay(for: $0.date), $0.trendKg) }, uniquingKeysWith: { a, _ in a })
+        guard let firstDay = byDay.keys.min() else { return [] }
+        func trendOn(_ d: Date) -> Double? { d < firstDay ? nil : (byDay[d] ?? trend.filter { cal.startOfDay(for: $0.date) <= d }.last?.trendKg) }
+        let end = cal.startOfDay(for: through)
+        var ws = weekStart(of: end, calendar: cal)
+        let first = weekStart(of: from, calendar: cal)
+        var out: [WeeklyTrendRow] = []
+        while ws >= first && out.count < limit {
+            let sunday = cal.date(byAdding: .day, value: 6, to: ws)!
+            let last = min(sunday, end)
+            if let t = trendOn(last) {
+                let prev = trendOn(cal.date(byAdding: .day, value: -1, to: ws)!)
+                out.append(WeeklyTrendRow(weekStart: ws, endDay: last, trendKg: t, changeKg: prev.map { t - $0 },
+                                          changePercent: prev.flatMap { $0 > 0 ? (t - $0) / $0 * 100 : nil }, inProgress: last < sunday))
+            }
+            ws = cal.date(byAdding: .day, value: -7, to: ws)!
+        }
+        return out
+    }
+}

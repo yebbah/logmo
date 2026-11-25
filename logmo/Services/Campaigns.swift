@@ -53,11 +53,9 @@ struct StartPlan: Equatable {
     var new: CampaignInfo
     var endDefault: (id: UUID, on: Date)?
     var deleteDefault: UUID?          // a default that would have lasted zero days
-    var filler: (start: Date, end: Date)?   // maintenance between a running campaign's planned end and a queued one's start
     static func == (a: StartPlan, b: StartPlan) -> Bool {
         a.new == b.new && a.deleteDefault == b.deleteDefault
             && a.endDefault?.id == b.endDefault?.id && a.endDefault?.on == b.endDefault?.on
-            && a.filler?.start == b.filler?.start && a.filler?.end == b.filler?.end
     }
 }
 
@@ -81,6 +79,19 @@ enum CampaignRules {
         let trend = Metrics.weightTrend(snaps, through: today, smoothingDays: smoothingDays, seeds: trendSeeds(campaigns, calendar: cal), calendar: cal)
         if let t = trend.last?.trendKg { return (t * 10).rounded() / 10 }
         return snaps.filter { $0.weightKg != nil }.max { $0.date < $1.date }?.weightKg
+    }
+
+    /// The Dashboard's week line: "Week 4 of 8" for the campaign running today (counted from its start), else "Week of 23 Nov"; and the
+    /// Monday-to-Sunday dates of this week, which is what the weekly goals use.
+    static func weekHeadline(_ campaigns: [CampaignInfo], today: Date, calendar cal: Calendar = .current) -> (title: String, dates: String) {
+        let ws = Metrics.weekStart(of: today, calendar: cal)
+        let we = cal.date(byAdding: .day, value: 6, to: ws)!
+        let f = Date.FormatStyle().day().month(.abbreviated)
+        let dates = "\(ws.formatted(f)) – \(we.formatted(f))"
+        if let c = campaign(for: today, in: campaigns, calendar: cal), !c.isDefault, let total = c.plannedWeeks {
+            return ("Week \(weekNumber(c, today: today, calendar: cal)) of \(total)", dates)
+        }
+        return ("This week", dates)
     }
 
     /// The Dashboard's top-left badge: days left in the running real campaign, counting today. nil when none is running with a planned end.
@@ -132,21 +143,21 @@ enum CampaignRules {
         max(0, cal.dateComponents([.day], from: cal.startOfDay(for: today), to: c.start).day ?? 0)
     }
 
-    /// Cancelling an upcoming campaign: the default it was going to replace carries on. Returns that
-    /// default's id (the one that ends the day before the start), nil if there isn't one.
-    static func defaultToReopen(cancelling c: CampaignInfo, existing: [CampaignInfo], calendar cal: Calendar = .current) -> UUID? {
-        let dayBefore = addDays(-1, to: c.start, cal)
-        return existing.first { $0.isDefault && $0.end == dayBefore }?.id
-    }
-
-    /// Last planned day (inclusive), nil for open-ended campaigns.
+    /// Last planned day (inclusive); nil only for an old automatic maintenance campaign.
     static func plannedEnd(_ c: CampaignInfo, calendar cal: Calendar = .current) -> Date? {
         c.plannedWeeks.map { addDays($0 * 7 - 1, to: c.start, cal) }
     }
 
+    /// The last day a campaign covers: the day it ended, else its planned last day. Only an old automatic maintenance campaign that was
+    /// never closed has neither, and covers every day from its start.
+    static func lastDay(_ c: CampaignInfo, calendar cal: Calendar = .current) -> Date? {
+        c.end ?? plannedEnd(c, calendar: cal)
+    }
+
+    /// A campaign covers its start to its last day and nothing after: days outside every campaign belong to none.
     static func contains(_ c: CampaignInfo, day: Date, calendar cal: Calendar = .current) -> Bool {
         let d = cal.startOfDay(for: day)
-        return d >= c.start && (c.end.map { d <= $0 } ?? true)
+        return d >= c.start && (lastDay(c, calendar: cal).map { d <= $0 } ?? true)
     }
 
     /// The campaign a day belongs to (latest start wins if ever ambiguous).
@@ -171,23 +182,8 @@ enum CampaignRules {
 
     static func nextNumber(_ all: [CampaignInfo]) -> Int { (all.map(\.number).max() ?? 0) + 1 }
 
-    /// The default maintenance campaign to create when nothing is open, else nil.
-    /// It starts the day after the last campaign ended; with no history it starts on the
-    /// first logged day, or today.
-    static func defaultNeeded(existing: [CampaignInfo], earliestLog: Date?, today: Date,
-                              calendar cal: Calendar = .current) -> CampaignInfo? {
-        guard !existing.contains(where: isOpen) else { return nil }
-        let start: Date
-        if let lastEnd = existing.compactMap(\.end).max() {
-            start = addDays(1, to: lastEnd, cal)
-        } else {
-            start = cal.startOfDay(for: earliestLog ?? today)
-        }
-        return CampaignInfo(number: nextNumber(existing), kind: .maintenance, isDefault: true, start: start)
-    }
-
-    /// Plan for starting a real campaign. A running real campaign must be ended first;
-    /// a running default is closed the day before the new one starts.
+    /// Plan for starting a campaign. It always has a start and a length, so a start and an end. Days between two campaigns belong to none.
+    /// (A running automatic maintenance campaign from an older version, if one is still open, is closed the day before.)
     static func plan(start: Date, kind: CampaignKind, targetKg: Double?, weeks: Int,
                      existing: [CampaignInfo], label: String? = nil, startWeightKg: Double? = nil, today: Date = Date(),
                      calendar cal: Calendar = .current) -> Result<StartPlan, CampaignError> {
@@ -201,11 +197,9 @@ enum CampaignRules {
                 return .failure(.campaignRunning)
             }
             if s <= pe { return .failure(.startsBeforeCurrent) }
-            let gapStart = addDays(1, to: pe, cal)
-            let filler: (start: Date, end: Date)? = s > gapStart ? (gapStart, addDays(-1, to: s, cal)) : nil
-            let new = CampaignInfo(number: nextNumber(existing) + (filler == nil ? 0 : 1), kind: kind, isDefault: false,
+            let new = CampaignInfo(number: nextNumber(existing), kind: kind, isDefault: false,
                                    targetWeightKg: targetKg, start: s, plannedWeeks: weeks, label: cleanLabel(label), startWeightKg: startWeightKg)
-            return .success(StartPlan(new: new, endDefault: nil, deleteDefault: nil, filler: filler))
+            return .success(StartPlan(new: new, endDefault: nil, deleteDefault: nil))
         }
 
         var endDefault: (id: UUID, on: Date)?

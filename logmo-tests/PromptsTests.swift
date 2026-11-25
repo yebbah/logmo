@@ -64,7 +64,7 @@ final class PromptsTests: XCTestCase {
         CampaignStore.finish(context, c, today: today)
         XCTAssertEqual(c.end, CampaignRules.plannedEnd(CampaignInfo(number: 1, kind: .cut, start: start, plannedWeeks: 1)))
         XCTAssertFalse(c.endedEarly)
-        XCTAssertTrue(try context.fetch(FetchDescriptor<Campaign>()).contains { $0.isDefault && $0.end == nil })   // default carries on
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Campaign>()).count, 1)           // nothing is created to carry on: the next one is the user's to start
     }
 }
 

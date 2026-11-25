@@ -61,7 +61,8 @@ struct CampaignsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    if let current { nowCard(current, busy: busy, upcoming: upcoming != nil, report: report(current.info)) }
+                    if let current, !current.isDefault { nowCard(current, busy: busy, upcoming: upcoming != nil, report: report(current.info)) }
+                    else { noCampaignCard(busy: busy) }
                     if let upcoming { upcomingCard(upcoming) }
 
                     HStack(alignment: .firstTextBaseline) {
@@ -91,7 +92,7 @@ struct CampaignsView: View {
                         .disabled(busy)
                 }
             }
-            .onAppear { CampaignStore.ensureDefault(context); openNewIfAsked() }
+            .onAppear { CampaignStore.tidy(context); openNewIfAsked() }
             .onChange(of: nav.openNewCampaign) { _, _ in openNewIfAsked() }
             .sheet(isPresented: $showNew) { NewCampaignForm(minStart: newMinStart) }
             .sheet(item: $startWeightTarget) { StartWeightSheet(campaign: $0) }
@@ -111,13 +112,23 @@ struct CampaignsView: View {
         }
     }
 
-    /// The earliest start for a new campaign: the running default's start, or the day after a running campaign's planned end.
+    /// The earliest start for a new campaign: the day after the last day any campaign covers, so campaigns never overlap. With none yet,
+    /// the first day logged (so earlier days can be covered too), else today.
     private var newMinStart: Date {
-        if let r = campaigns.first(where: { !$0.isDefault && $0.end == nil && !CampaignRules.isUpcoming($0.info, today: today) }),
-           let pe = CampaignRules.plannedEnd(r.info) {
-            return Calendar.current.date(byAdding: .day, value: 1, to: pe)!
+        if let last = campaigns.compactMap({ CampaignRules.lastDay($0.info) }).max() {
+            return Calendar.current.date(byAdding: .day, value: 1, to: last)!
         }
-        return campaigns.first { $0.isDefault && $0.end == nil }?.start ?? today
+        return logs.first.map { Calendar.current.startOfDay(for: $0.day) } ?? today
+    }
+
+    /// Nothing covers today: say so and offer to start one. There is no automatic campaign.
+    private func noCampaignCard(busy: Bool) -> some View {
+        Card(title: "No campaign running") {
+            Text(busy ? "A campaign is planned and hasn't started yet."
+                      : "Every campaign has a start and an end. Start one to set goals and follow your progress. Days between campaigns belong to none.")
+                .font(.subheadline).foregroundStyle(theme.muted)
+            actionButton("Start a campaign", prominent: true) { showNew = true }.disabled(busy)
+        }
     }
 
     // MARK: Running now
@@ -159,7 +170,7 @@ struct CampaignsView: View {
                     actionButton("End campaign", destructive: true) { confirmEnd = true }
                         .confirmationDialog("End \(c.name) today?", isPresented: $confirmEnd, titleVisibility: .visible) {
                             Button("End campaign", role: .destructive) { CampaignStore.end(context, m) }
-                        } message: { Text("It stays in your history. A default maintenance campaign starts tomorrow.") }
+                        } message: { Text("It stays in your history. The days after it belong to no campaign until you start the next one.") }
                 }
             }
             if !real {
@@ -193,7 +204,7 @@ struct CampaignsView: View {
                 actionButton("Cancel it", destructive: true) { confirmCancel = true }
                     .confirmationDialog("Cancel \(c.name)?", isPresented: $confirmCancel, titleVisibility: .visible) {
                         Button("Cancel campaign", role: .destructive) { CampaignStore.cancelUpcoming(context, m) }
-                    } message: { Text("It is removed, and the current campaign carries on.") }
+                    } message: { Text("It is removed.") }
             }
         }
     }

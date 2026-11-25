@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 1)**, built to PRD v19.1, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 1)**, built to PRD v20.0, 25 November 2026. This is the first version, installed on the owner's iPhone. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -31,7 +31,8 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 - **Compliance** that counts required trackers fully logged, daily goals met and the week's goals on track.
 
 ### Campaigns
-- **Cut, bulk or maintenance** campaigns with an optional label, target weight, start date (up to a year ahead) and length in weeks. A default maintenance campaign fills the days between campaigns.
+- **No automatic campaign.** Every campaign has a start and an end that you set, maintenance included; days outside any campaign belong to none, and the app asks you to start one when none covers today.
+- **Cut, bulk or maintenance** campaigns with an optional label, target weight, start date (up to a year ahead) and length in weeks. Days between campaigns belong to none.
 - **Campaigns tab:** the running campaign (weekly plan, rename, extend 1/2/4/8 weeks, end), an upcoming card, and a look back at every campaign (weight change, compliance, averages, weekly goals results).
 - **Queue the next campaign** behind the running one; **edit an upcoming campaign's start date and length**; **past campaigns are read-only**.
 - **Prompts:** a closing-soon card in the last week of a campaign (extend, or move the next one's start date), a finished-campaign card, and a first-run **Get set up** checklist that also asks you to set up a campaign when none exists.
@@ -43,6 +44,9 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 - **Strength workouts ask** whether to rate the day or mark it not a lifting day; nothing is rated automatically.
 - **Sleep, scored:** Health's hours and, from a watch, sleep stages (time awake, deep and REM) are turned into a 1 to 5 sleep rating with a plain explanation, filled in as a changeable Health value. Also **cycle** filling "on your period" (off by default, needs cycle tracking), **resting heart rate and HRV** as recovery context in the weekly suggestion, and **body fat and lean mass** under weight and on a Dashboard card. Sleep, heart rate and body composition are in the backup and the CSV.
 - Imported values count for goals, streaks, compliance, reminders and the weekly suggestion like typed ones.
+
+### The week and the weekly rate of change
+- The Dashboard shows **which week you are in** ("Week 4 of 8" and this week's dates) and a **Weekly rate of change** card like the workbook's weekly line.
 
 ### Starting weight and days left
 - **Every campaign asks for a starting weight**, filled in with your current trend weight so a campaign that continues an earlier one carries the trend on. The trend is seeded from it on the campaign's first day. It can be changed on a running or upcoming campaign.
@@ -105,3 +109,4 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 | v17 – v18 | Sleep from Health scored 1 to 5, with stages; estimated maintenance (TDEE) on the Dashboard and in the weekly suggestion; About you profile; roomier plan banner |
 | v18.1 | Maintenance card shows the seven-day average and warns on incomplete logs; Health marks inline with their labels; keyboard can always be dismissed |
 | v19 | Starting weight per campaign seeds the trend; maintenance needs four weeks of logging in all and carries across campaigns; days-left badge |
+| v20 | No automatic or open-ended campaigns; the Dashboard's week line and weekly rate-of-change card |

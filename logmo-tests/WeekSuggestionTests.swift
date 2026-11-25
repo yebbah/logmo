@@ -423,7 +423,7 @@ final class GuidanceGoalsTests: XCTestCase {
         let c = try ModelContainer(for: DayLog.self, WeekGoal.self, Campaign.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         container = c
         let context = c.mainContext
-        CampaignStore.ensureDefault(context)
+        CampaignStore.start(context, kind: .cut, targetKg: nil, start: Date(), weeks: 8, startWeightKg: 80)
         let camp = try context.fetch(FetchDescriptor<Campaign>())[0]
         let monday = Metrics.weekStart(of: Date())
         PlanStore.save(context, campaignID: camp.id, week: monday, goals: GoalSet(proteinDaily: 150, carbsDaily: 210, fatDaily: 58))

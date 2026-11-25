@@ -71,9 +71,10 @@ Choose which trackers count as required in **Settings → Required for a complet
 
 ## 6. Campaigns and the weekly plan
 
-The Dashboard's top-left corner shows how many **days are left** in your running campaign. Tap it to open the Campaigns tab.
+The Dashboard opens with **which week you are in** ("Week 4 of 8") and this week's dates. A **Weekly rate of change** card, like your workbook's weekly line, lists each week's trend weight and how far it moved from the week before. The Dashboard's top-left corner shows how many **days are left** in your running campaign. Tap it to open the Campaigns tab.
 
 ### Campaigns tab
+- **Every campaign has a start and an end.** There is no automatic campaign: you start each one, with a start date and a length (maintenance too). When none covers today the Dashboard and this tab say **No campaign running** and offer **Start a campaign**. Days between campaigns belong to none, so goals, goal streaks and compliance only count days inside a campaign; logging and your charts don't need one. A new campaign can start in the past to cover earlier days you logged.
 - **Running now** shows your campaign, the week and days left. Buttons: **Weekly plan**, **Rename**, **Extend** (1, 2, 4 or 8 weeks) and **End campaign**.
 - **+ New** starts a campaign. It asks for a **starting weight** (filled in with your current trend weight; change it to start afresh). The trend starts from it on the campaign's first day. You can change it later on a running or upcoming campaign, but not once it has ended. It can start today, in the past, or up to a year ahead, and can have a label such as "Summer cut".
 - If a campaign is running, the next one is planned to start after its last day. If you choose a later start, maintenance fills the days in between. Only one campaign can be planned at a time.

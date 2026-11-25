@@ -50,14 +50,14 @@ enum DemoData {
             context.insert(log)
         }
         if CommandLine.arguments.contains("-demo-long") {
-            // Four campaigns, the current one being a default with a long name: #4 Maintenance (default).
+            // Four campaigns, the current one a maintenance campaign with an explicit end.
             func d(_ n: Int) -> Date { cal.date(byAdding: .day, value: n, to: today)! }
             context.insert(Campaign(CampaignInfo(number: 1, kind: .maintenance, isDefault: true, start: d(-days), end: d(-43))))
             context.insert(Campaign(CampaignInfo(number: 2, kind: .cut, targetWeightKg: 78, start: d(-42), plannedWeeks: 8, end: d(-29), endedEarly: true)))
             context.insert(Campaign(CampaignInfo(number: 3, kind: .bulk, start: d(-28), plannedWeeks: 2, end: d(-15))))
-            context.insert(Campaign(CampaignInfo(number: 4, kind: .maintenance, isDefault: true, start: d(-14))))
+            context.insert(Campaign(CampaignInfo(number: 4, kind: .maintenance, start: d(-14), plannedWeeks: 8, startWeightKg: 80)))
         } else if CommandLine.arguments.contains("-demo-upcoming") {
-            // A cut planned to start in ten days; the default carries on until then.
+            // A cut planned to start in ten days; the maintenance campaign before it has its own end.
             func d(_ n: Int) -> Date { cal.date(byAdding: .day, value: n, to: today)! }
             context.insert(Campaign(CampaignInfo(number: 1, kind: .maintenance, isDefault: true, start: d(-days), end: d(9))))
             context.insert(Campaign(CampaignInfo(number: 2, kind: .cut, targetWeightKg: 78, start: d(10), plannedWeeks: 8)))

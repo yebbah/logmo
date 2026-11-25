@@ -44,6 +44,7 @@ struct DashboardView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 16) {
+                        weekHeadline(infos)
                         setupCard(infos)
                         finishedCard(infos)
                         closingCard(infos)
@@ -68,6 +69,7 @@ struct DashboardView: View {
                                         smoothing: smoothing, timeline: timeline).id("weight")
                         MaintenanceCard(snaps: snaps, timeline: timeline, scope: scope, smoothing: smoothing, seeds: seeds, profile: MaintenanceProfile.load()).id("maintenance")
                         BodyCompositionCard(logs: logs, scope: scope, unit: unit).id("body")
+                        WeeklyRateCard(trend: trend, scope: scope, unit: unit).id("weekly")
                         RateCard(trend: trend, scope: scope).id("rate")
                         StepsCaloriesCard(snaps: snaps, scope: scope).id("steps")
                         BiofeedbackBarsCard(snaps: snaps, scope: scope).id("bio")
@@ -75,7 +77,7 @@ struct DashboardView: View {
                     .padding()
                 }
                 .onAppear {
-                    CampaignStore.ensureDefault(context)
+                    CampaignStore.tidy(context)
                     #if DEBUG
                     // Debug aid for screenshots: -scrollTo goals|performance|weight|rate|steps|bio|protein
                     if let id = UserDefaults.standard.string(forKey: "scrollTo") {
@@ -110,6 +112,18 @@ struct DashboardView: View {
                 EditUpcomingForm(campaign: m, earliest: CampaignRules.earliestUpcomingStart(existing: infos, excluding: m.id, today: today))
             }
         }
+    }
+
+    /// Which week we are in: the campaign's week and this week's dates.
+    private func weekHeadline(_ infos: [CampaignInfo]) -> some View {
+        let h = CampaignRules.weekHeadline(infos, today: today)
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(h.title).font(.title3.weight(.bold))
+            Text(h.dates).font(.subheadline).foregroundStyle(theme.muted)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Setup and finished-campaign prompts
@@ -288,7 +302,8 @@ struct DashboardView: View {
 
     private func campaignCard(_ c: CampaignInfo?, _ scope: DateScope, _ trend: [TrendPoint], _ infos: [CampaignInfo]) -> some View {
         let df = Date.FormatStyle().day().month(.abbreviated)
-        return Card(title: c?.name ?? "Overall") {
+        let noCampaign = c == nil && filterRaw != "overall"       // "Current" with nothing running: days outside a campaign belong to none
+        return Card(title: c?.name ?? (noCampaign ? "No campaign running" : "Overall")) {
             if let c {
                 let upcoming = CampaignRules.isUpcoming(c, today: today)
                 let number = "#\(c.number) \(c.kind.title)\(c.isDefault ? " (default)" : "")"
@@ -331,6 +346,11 @@ struct DashboardView: View {
                             .foregroundStyle(theme.muted)
                     }.font(.subheadline)
                 }
+            } else if noCampaign {
+                Text("Every campaign has a start and an end, and none covers today. Start one to set goals and follow its progress. Meanwhile the charts below show all your data.")
+                    .font(.subheadline).foregroundStyle(theme.muted)
+                Button { nav.openNewCampaign = true; nav.tab = 3 } label: { Text("Start a campaign").fontWeight(.semibold).frame(maxWidth: .infinity) }
+                    .buttonStyle(.borderedProminent)
             } else {
                 let first = trend.first?.date
                 Text(first.map { "All data since \($0.formatted(date: .abbreviated, time: .omitted)), across \(infos.count) campaign\(infos.count == 1 ? "" : "s")" }

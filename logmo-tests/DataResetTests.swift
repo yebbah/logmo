@@ -8,7 +8,7 @@ final class DataResetTests: XCTestCase {
         let container = try ModelContainer(for: DayLog.self, WeekGoal.self, Campaign.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let context = container.mainContext
-        CampaignStore.ensureDefault(context)
+        CampaignStore.start(context, kind: .cut, targetKg: nil, start: Date(), weeks: 8, startWeightKg: 80)
         let log = DayLog(day: Date()); log.weightKg = 80; log.onPeriod = true
         context.insert(log)
         let campaignID = try context.fetch(FetchDescriptor<Campaign>())[0].id
@@ -20,9 +20,8 @@ final class DataResetTests: XCTestCase {
         try DataReset.deleteAll(context)
 
         XCTAssertEqual(try context.fetch(FetchDescriptor<DayLog>()).count, 0)
-        let campaigns = try context.fetch(FetchDescriptor<Campaign>())
-        XCTAssertEqual(campaigns.count, 1); XCTAssertTrue(campaigns[0].isDefault)
-        XCTAssertTrue(try context.fetch(FetchDescriptor<WeekGoal>()).allSatisfy { $0.campaignID == campaigns[0].id })
+        XCTAssertTrue(try context.fetch(FetchDescriptor<Campaign>()).isEmpty)         // nothing is created for the user: they start their own
+        XCTAssertTrue(try context.fetch(FetchDescriptor<WeekGoal>()).isEmpty)
     }
 }
 
@@ -32,7 +31,7 @@ final class BackupTests: XCTestCase {
         let container = try ModelContainer(for: DayLog.self, WeekGoal.self, Campaign.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let context = container.mainContext
-        CampaignStore.ensureDefault(context)
+        CampaignStore.start(context, kind: .cut, targetKg: nil, start: Date(), weeks: 8, startWeightKg: 80)
         let campaign = try context.fetch(FetchDescriptor<Campaign>())[0]
         let log = DayLog(day: Date()); log.weightKg = 81.2; log.sleep = 4; log.performanceNA = true; log.onPeriod = true; log.isSick = true
         context.insert(log)

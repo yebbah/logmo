@@ -40,24 +40,24 @@ final class CampaignTests: XCTestCase {
         XCTAssertEqual(CampaignRules.campaign(for: day(10), in: all, calendar: cal)?.number, 2)
         XCTAssertEqual(CampaignRules.campaign(for: day(16), in: all, calendar: cal)?.number, 2)
         XCTAssertEqual(CampaignRules.campaign(for: day(17), in: all, calendar: cal)?.number, 3)
-        XCTAssertEqual(CampaignRules.campaign(for: day(25), in: all, calendar: cal)?.number, 3)   // open-ended
+        XCTAssertEqual(CampaignRules.campaign(for: day(25), in: all, calendar: cal)?.number, 3)
         XCTAssertNil(CampaignRules.campaign(for: day(1) .addingTimeInterval(-86400 * 5), in: all, calendar: cal))
     }
 
-    // MARK: default campaign
-    func testDefaultCreatedWhenNothingExists() {
-        let d = CampaignRules.defaultNeeded(existing: [], earliestLog: day(5), today: day(20), calendar: cal)!
-        XCTAssertEqual(d.number, 1); XCTAssertEqual(d.kind, .maintenance); XCTAssertTrue(d.isDefault)
-        XCTAssertEqual(d.start, day(5))
-        XCTAssertEqual(CampaignRules.defaultNeeded(existing: [], earliestLog: nil, today: day(20), calendar: cal)!.start, day(20))
+    // MARK: no automatic campaign, nothing open-ended
+    func testACampaignCoversItsStartToItsLastDayAndNothingAfter() {
+        let c = real(1, start: 2, weeks: 2)                                            // days 2 to 15
+        XCTAssertEqual(CampaignRules.lastDay(c, calendar: cal), day(15))
+        XCTAssertNotNil(CampaignRules.campaign(for: day(15), in: [c], calendar: cal))
+        XCTAssertNil(CampaignRules.campaign(for: day(16), in: [c], calendar: cal))     // the planned days are over: no campaign covers it
+        var ended = c; ended.end = day(9); ended.endedEarly = true
+        XCTAssertEqual(CampaignRules.lastDay(ended, calendar: cal), day(9))
+        XCTAssertNil(CampaignRules.campaign(for: day(10), in: [ended], calendar: cal))
     }
-    func testNoDefaultWhileSomethingIsOpen() {
-        XCTAssertNil(CampaignRules.defaultNeeded(existing: [real(1, start: 2, weeks: 4)], earliestLog: nil, today: day(5), calendar: cal))
-    }
-    func testDefaultFollowsAnEndedCampaignWithNextNumber() {
-        let ended = real(1, start: 2, weeks: 4, end: 12, early: true)
-        let d = CampaignRules.defaultNeeded(existing: [ended], earliestLog: day(2), today: day(12), calendar: cal)!
-        XCTAssertEqual(d.number, 2); XCTAssertEqual(d.start, day(13))
+    func testDaysBetweenCampaignsBelongToNone() {
+        let a = real(1, start: 2, weeks: 1, end: 8), b = real(2, start: 20, weeks: 2)
+        XCTAssertNil(CampaignRules.campaign(for: day(12), in: [a, b], calendar: cal))
+        XCTAssertEqual(CampaignRules.campaign(for: day(20), in: [a, b], calendar: cal)?.number, 2)
     }
 
     // MARK: starting
@@ -81,7 +81,7 @@ final class CampaignTests: XCTestCase {
         XCTAssertEqual(r, .failure(.startsBeforeCurrent))
         let queued = try! CampaignRules.plan(start: day(58), kind: .cut, targetKg: nil, weeks: 4,
                                              existing: [real(1, start: 2, weeks: 8)], today: day(10), calendar: cal).get()
-        XCTAssertNil(queued.filler); XCTAssertEqual(queued.new.number, 2)
+        XCTAssertEqual(queued.new.number, 2)
     }
     func testCannotStartBeforeCurrentOrOverlapPrevious() {
         XCTAssertEqual(CampaignRules.plan(start: day(3), kind: .cut, targetKg: nil, weeks: 4,
@@ -112,18 +112,9 @@ final class CampaignTests: XCTestCase {
         XCTAssertTrue(CampaignRules.isUpcoming(plan.new, today: day(10), calendar: cal))
         XCTAssertFalse(CampaignRules.isUpcoming(plan.new, today: day(20), calendar: cal))
         XCTAssertEqual(CampaignRules.daysUntilStart(plan.new, today: day(10), calendar: cal), 10)
-        // Until the start date, today still belongs to the default.
-        let all = [CampaignInfo(id: existing[0].id, number: 1, kind: .maintenance, isDefault: true, start: day(2), end: day(19)), plan.new]
-        XCTAssertEqual(CampaignRules.campaign(for: day(10), in: all, calendar: cal)?.number, 1)
-        XCTAssertEqual(CampaignRules.campaign(for: day(20), in: all, calendar: cal)?.number, 2)
-        // No second default is created while the upcoming campaign is open.
-        XCTAssertNil(CampaignRules.defaultNeeded(existing: all, earliestLog: nil, today: day(10), calendar: cal))
-    }
-    func testCancellingAnUpcomingCampaignReopensTheDefault() {
-        let d = dflt(1, start: 2, end: 19)
-        let up = real(2, start: 20, weeks: 8)
-        XCTAssertEqual(CampaignRules.defaultToReopen(cancelling: up, existing: [d, up], calendar: cal), d.id)
-        XCTAssertNil(CampaignRules.defaultToReopen(cancelling: up, existing: [up], calendar: cal))
+        // Until the start date, today belongs to no campaign: nothing is created to fill the days.
+        XCTAssertNil(CampaignRules.campaign(for: day(10), in: [plan.new], calendar: cal))
+        XCTAssertEqual(CampaignRules.campaign(for: day(20), in: [plan.new], calendar: cal)?.number, 2)
     }
     func testOnlyOneRealCampaignEvenIfItIsUpcoming() {
         let up = real(2, start: 20, weeks: 8)

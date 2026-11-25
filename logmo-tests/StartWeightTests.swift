@@ -149,7 +149,6 @@ final class StartWeightStoreTests: XCTestCase {
 
     func testEditingAnUpcomingCampaignCanChangeItsStartingWeight() throws {
         let context = try makeContext()
-        CampaignStore.ensureDefault(context)
         let later = Calendar.current.date(byAdding: .day, value: 5, to: today)!
         CampaignStore.start(context, kind: .cut, targetKg: nil, start: later, weeks: 4, startWeightKg: 55.5)
         let u = CampaignStore.upcoming(context)!
@@ -157,5 +156,47 @@ final class StartWeightStoreTests: XCTestCase {
         if case .failure = r { XCTFail("refused") }
         XCTAssertEqual(u.startWeightKg, 56.2)
         if case .success = CampaignStore.reschedule(context, u, start: later, weeks: 4, startWeightKg: 2) { XCTFail("accepted 2 kg") }
+    }
+}
+
+final class WeeklyRateAndWeekHeadlineTests: XCTestCase {
+    var cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; c.firstWeekday = 2; return c }()
+    func day(_ n: Int) -> Date { cal.date(byAdding: .day, value: n - 1, to: cal.date(from: DateComponents(year: 2025, month: 12, day: 1))!)! }    // day 1 = Monday 1 Dec 2025
+
+    /// The workbook's example moved to start on a Monday: weigh-ins of 55.8, 55.1, 55.5 and 55.8 on days 2, 3, 5 and 18, trend seeded at 55.5.
+    func trend() -> [TrendPoint] {
+        let days = [(2, 55.8), (3, 55.1), (5, 55.5), (18, 55.8)].map { DaySnapshot(date: day($0.0), weightKg: $0.1, logged: []) }
+        return Metrics.weightTrend(days, through: day(21), smoothingDays: 20, seeds: [day(1): 55.5], calendar: cal)
+    }
+
+    func testWeeklyRowsGiveEachWeeksTrendAndItsChangeFromTheWeekBefore() {
+        let rows = Metrics.weeklyTrendRows(trend(), from: day(1), through: day(21), calendar: cal)
+        XCTAssertEqual(rows.count, 3)
+        XCTAssertEqual(rows.map(\.weekStart), [day(15), day(8), day(1)])                 // newest first
+        XCTAssertEqual(String(format: "%.2f", rows[2].trendKg), "55.49")                 // week 1, as in the workbook
+        XCTAssertNil(rows[2].changeKg)                                                   // nothing before it: N/A
+        XCTAssertEqual(rows[1].changeKg!, 0, accuracy: 1e-9)                             // week 2: no weigh-ins, the trend holds
+        XCTAssertEqual(String(format: "%.2f", rows[0].trendKg), "55.52")                 // week 3, as in the workbook
+        XCTAssertEqual(rows[0].changeKg!, 0.03, accuracy: 0.005)                         // "0.03 kg"
+        XCTAssertEqual(rows[0].changePercent!, 0.05, accuracy: 0.01)                     // "or 0.05%"
+        XCTAssertTrue(rows.allSatisfy { !$0.inProgress })
+    }
+
+    func testTheWeekInProgressIsMarkedAndUsesTheDaysSoFar() {
+        let rows = Metrics.weeklyTrendRows(trend(), from: day(1), through: day(18), calendar: cal)      // day 18 is a Wednesday
+        XCTAssertTrue(rows[0].inProgress); XCTAssertEqual(rows[0].endDay, day(18))
+        XCTAssertEqual(Metrics.weeklyTrendRows(trend(), from: day(1), through: day(21), limit: 2, calendar: cal).count, 2)
+        XCTAssertTrue(Metrics.weeklyTrendRows([], from: day(1), through: day(21), calendar: cal).isEmpty)
+    }
+
+    func testTheWeekHeadlineSaysWhichWeekOfTheCampaign() {
+        let c = CampaignInfo(number: 2, kind: .cut, start: day(1), plannedWeeks: 8)
+        let h = CampaignRules.weekHeadline([c], today: day(10), calendar: cal)              // Wednesday of the second week
+        XCTAssertEqual(h.title, "Week 2 of 8")
+        XCTAssertTrue(h.dates.contains("8 Dec") || h.dates.contains("Dec 8"), h.dates)
+        let none = CampaignRules.weekHeadline([], today: day(10), calendar: cal)
+        XCTAssertEqual(none.title, "This week")
+        let past = CampaignInfo(number: 1, kind: .cut, start: day(1), plannedWeeks: 2)      // over by day 20
+        XCTAssertEqual(CampaignRules.weekHeadline([past], today: day(20), calendar: cal).title, "This week")
     }
 }

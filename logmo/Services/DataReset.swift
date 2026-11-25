@@ -13,6 +13,6 @@ enum DataReset {
         // Back to a fresh start: one open default campaign, and the dashboard shows the current one.
         UserDefaults.standard.set("current", forKey: "campaignFilter")
         UserDefaults.standard.set("", forKey: "setupDismissedOn")
-        CampaignStore.ensureDefault(context, today: today)
+        CampaignStore.tidy(context, today: today)
     }
 }
