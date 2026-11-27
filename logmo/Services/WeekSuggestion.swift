@@ -20,6 +20,28 @@ struct MetricConfidence: Equatable {
     var forCalories: DataConfidence { min(weight, nutrition) }
 }
 
+/// How hard a suggestion pushes: a small, easy-to-keep change, or a faster one. The Settings preference decides which leads.
+enum SuggestionPace: String, CaseIterable, Identifiable {
+    case conservative, aggressive
+    var id: String { rawValue }
+    var title: String { self == .conservative ? "Conservative" : "Aggressive" }
+    static func saved() -> SuggestionPace { SuggestionPace(rawValue: UserDefaults.standard.string(forKey: SettingsKey.pace) ?? "") ?? .conservative }
+}
+
+/// How body measurements moved over the campaign so far: latest reading minus the first, in cm, where two readings a week apart exist.
+struct MeasureFacts: Equatable {
+    var readings: Int
+    var spanDays: Int
+    var changes: [MeasureSite: Double]
+}
+
+/// One plain-language reason behind a suggestion.
+struct WhyItem: Equatable {
+    enum Kind: Equatable { case good, info, warn }
+    var kind: Kind
+    var text: String
+}
+
 /// What the assistant is allowed to see about one week: numbers only, all calculated on the phone. No name,
 /// email, campaign label, dates, notes or anything typed by the user. Shown to the user before anything runs.
 struct WeekSummary: Equatable {
@@ -64,6 +86,10 @@ struct WeekSummary: Equatable {
     var periodDays: Int?                       // nil when not shared
     var sickDays: Int?                         // nil when not shared
     var current: GoalSet                       // the goals in force this week
+    var pace: SuggestionPace = .conservative   // which pace this assessment leads with
+    var measures: MeasureFacts? = nil          // body measurements over the campaign; nil without two readings a week apart
+    var targetGapKg: Double? = nil             // trend weight minus the campaign's target weight; nil without a target (used locally only)
+    var useLb: Bool = false                    // how to word weights in the text (used locally only)
 }
 
 enum RateStatus: Equatable { case unknown, onTrack, aboveBand, belowBand }
@@ -91,6 +117,9 @@ struct Assessment: Equatable {
     var evidence: [String]
     var cautions: [String]
     var needMoreData: [String]
+    var conservativeDelta: Int = 0             // the calorie move at the conservative pace
+    var aggressiveDelta: Int? = nil            // the calorie move at the aggressive pace; nil when it isn't offered
+    var aggressiveNote: String? = nil          // why it isn't offered (or what it means)
 }
 
 /// Next week's proposed goals with the evidence behind them. Every text in it is written from calculated facts.
@@ -111,6 +140,9 @@ struct PlanSuggestion: Equatable {
     var needMoreData: [String] = []
     var note: String?                          // Apple Intelligence's own words, kept only if it passes the checks
     var source: Source = .basic
+    var pace: SuggestionPace = .conservative
+    var expectedKgPerWeek: Double? = nil       // the trend change this calorie target points to, from estimated maintenance
+    var why: [WhyItem] = []                    // the reasons in plain language
 
     /// The goals to save: judging modes (at or under, steps as average) are kept from this week.
     func goalSet(keeping base: GoalSet) -> GoalSet {
@@ -132,6 +164,7 @@ enum SuggestionRules {
     static let lowCalorieThreshold = 1500
     static let hardCalorieFloor = 1200
     static let maxDeficitFromMaintenance = 0.25
+    static let aggressiveStepLimit = 250                 // kcal a day: the most the aggressive pace moves the target in one week (conservative moves by 100 to 150)
 
     /// Weekly weight change, as a percentage of body weight, that each campaign aims for.
     static func targetBand(_ kind: CampaignKind) -> ClosedRange<Double> {
@@ -146,6 +179,7 @@ enum SuggestionRules {
 
     static func summary(campaign c: CampaignInfo, snaps: [DaySnapshot], current: GoalSet?, window: AssessedWeek,
                         includeCycle: Bool, includeSick: Bool, today: Date, smoothingDays: Int = 16, seeds: [Date: Double] = [:], profile: MaintenanceProfile? = nil,
+                        pace: SuggestionPace = .conservative, measurements: [MeasureEntry] = [], useLb: Bool = false,
                         calendar cal: Calendar = .current) -> WeekSummary {
         let thisWeek = Metrics.weekStart(of: today, calendar: cal)
         let start = window == .thisWeekSoFar ? thisWeek : cal.date(byAdding: .day, value: -7, to: thisWeek)!
@@ -203,6 +237,13 @@ enum SuggestionRules {
         let trendKg = Metrics.weightTrend(snaps, through: end, smoothingDays: smoothingDays, seeds: seeds, calendar: cal).last?.trendKg
 
         let met = days.filter { Metrics.dayGoalStatus(map[$0], goals: current).allMet }.count
+        var measureFacts: MeasureFacts?
+        let mine = MeasureRules.entries(measurements, in: c, through: end, calendar: cal)
+        if mine.count >= 2 {
+            let ch = MeasureRules.changes(mine, calendar: cal)
+            if !ch.isEmpty { measureFacts = MeasureFacts(readings: mine.count, spanDays: cal.dateComponents([.day], from: mine.first!.day, to: mine.last!.day).day ?? 0, changes: ch) }
+        }
+        let gap: Double? = c.targetWeightKg.flatMap { t in trendKg.map { $0 - t } }
         return WeekSummary(kind: c.kind, weekNumber: CampaignRules.weekNumber(c, today: today, calendar: cal), totalWeeks: c.plannedWeeks,
                            daysCovered: days.count, daysLogged: inWindow.filter { !$0.logged.isEmpty }.count,
                            weightChangeKgPerWeek: perWeek, weightChangePercentPerWeek: pct, weighIns: pts.count,
@@ -218,7 +259,8 @@ enum SuggestionRules {
                            avgHRV: hv.map { Int($0.rounded()) }, hrvChangePercent: hv.flatMap { h in hvPrev.map { $0 > 0 ? (h - $0) / $0 * 100 : 0 } },
                            sleepNights: inWindow.filter { $0.sleepMinutes != nil }.count, avgSleepMinutes: sleep.map { Int($0.rounded()) },
                            periodDays: includeCycle ? inWindow.filter(\.onPeriod).count : nil,
-                           sickDays: includeSick ? inWindow.filter(\.isSick).count : nil, current: goals)
+                           sickDays: includeSick ? inWindow.filter(\.isSick).count : nil, current: goals,
+                           pace: pace, measures: measureFacts, targetGapKg: gap, useLb: useLb)
     }
 
     private static func fit(_ pts: [(x: Double, y: Double)]) -> (slope: Double, mean: Double, scatter: Double?)? {
@@ -446,13 +488,47 @@ enum SuggestionRules {
         var workoutsDelta = 0
         if (sick >= 2 || strain) && baseWork > 1 { workoutsDelta = -1 }
         let steps: Int? = sick > 0 ? nil : stepsTarget                    // illness is no moment to rework the steps goal
-        let lo = min(baseCal, baseCal + delta), hi = max(baseCal, baseCal + delta)
+
+        // Pace. The conservative move is the one worked out above. The aggressive pace aims for the faster end of what the campaign allows,
+        // sized from estimated maintenance, held to the same rails (calorie floor, no more than a quarter below maintenance) and offered only
+        // when the data is reliable and nothing (illness, strain, hunger) argues against it. It never moves less than the conservative one.
+        let conservativeDelta = delta
+        var aggressiveDelta: Int?
+        var aggressiveNote: String?
+        let blocked: String? = sick > 0 ? "you were sick" : (strain ? "recovery looks strained" : ((s.kind == .cut && (hunger ?? 0) >= 4.2) ? "hunger is high" : nil))
+        if s.kind == .maintenance {
+            aggressiveNote = "Maintenance has one pace: calories stay near maintenance."
+        } else if conf.forCalories < .medium {
+            aggressiveNote = "A faster option needs more weigh-ins and calorie logs first."
+        } else if let m = maintenance, trendMaintenance || s.maintenanceSource == .formula, let tw = s.trendWeightKg {
+            if let b = blocked {
+                aggressiveNote = "A faster pace isn't offered because \(b)."
+            } else if (s.kind == .cut && rate == .belowBand) || (s.kind == .bulk && rate == .aboveBand) {
+                aggressiveNote = "Your weight is already moving faster than a \(s.kind.title.lowercased()) aims for, so there is no faster option."
+            } else if s.kind == .cut && lowTarget {
+                aggressiveNote = "Your calorie target is already low, so there is no faster option."
+            } else {
+                let aimPct = s.kind == .cut ? -0.9 : 0.45
+                let wanted = Double(m) + aimPct / 100 * tw * Maintenance.kcalPerKgPerWeekAsDaily
+                var target = Int((wanted / 10).rounded()) * 10
+                if s.kind == .cut { target = max(target, Int(0.75 * Double(m)), hardCalorieFloor) } else { target = min(target, Int(1.2 * Double(m))) }
+                var move = min(max(target - baseCal, -aggressiveStepLimit), aggressiveStepLimit)
+                move = s.kind == .cut ? min(move, conservativeDelta) : max(move, conservativeDelta)
+                if move != conservativeDelta { aggressiveDelta = move }
+                else { aggressiveNote = "Your target already sits where a faster pace would put it, so both options are the same." }
+            }
+        } else {
+            aggressiveNote = "A faster option needs an estimate of your maintenance calories first. Add your details in Settings → About you, or keep logging."
+        }
+        let chosen = s.pace == .aggressive ? (aggressiveDelta ?? conservativeDelta) : conservativeDelta
+        let lo = min(baseCal, baseCal + chosen), hi = max(baseCal, baseCal + chosen)
         return Assessment(confidence: conf, rate: rate, intake: intake, adherence: adherence, recovery: recovery,
-                          baseCalories: baseCal, baseSteps: baseSteps, baseWorkouts: baseWork, caloriesDelta: delta, stepsTarget: steps,
+                          baseCalories: baseCal, baseSteps: baseSteps, baseWorkouts: baseWork, caloriesDelta: chosen, stepsTarget: steps,
                           workoutsDelta: workoutsDelta, allowedCalories: lo...hi,
                           allowedSteps: min(baseSteps, steps ?? baseSteps)...baseSteps,
                           allowedWorkouts: max(baseWork + workoutsDelta, 0)...baseWork,
-                          evidence: evidence, cautions: cautions, needMoreData: needMore)
+                          evidence: evidence, cautions: cautions, needMoreData: needMore,
+                          conservativeDelta: conservativeDelta, aggressiveDelta: aggressiveDelta, aggressiveNote: aggressiveNote)
     }
 
     /// Size of a calorie move, by campaign. Raising a cut or a bulk is always the larger of the two when the
@@ -494,9 +570,13 @@ enum SuggestionRules {
             evidence.append("Lifting stays at \(wk) days. Check-in scores are self-reports, so they don't show whether pushing harder is wise.")
         }
         if st < a.baseSteps { evidence.append("The steps goal comes down to \(fmt(st)) because your logged average has been well below it.") }
-        return PlanSuggestion(caloriesPerDay: cal, proteinG: m.protein, carbsG: m.carbs, fatG: m.fat, steps: st, workoutDays: wk,
-                              waterMl: s.current.waterDailyMl, confidence: overall, metricConfidence: a.confidence, headline: head,
-                              evidence: evidence, cautions: a.cautions, needMoreData: a.needMoreData, note: note, source: source)
+        var p = PlanSuggestion(caloriesPerDay: cal, proteinG: m.protein, carbsG: m.carbs, fatG: m.fat, steps: st, workoutDays: wk,
+                               waterMl: s.current.waterDailyMl, confidence: overall, metricConfidence: a.confidence, headline: head,
+                               evidence: evidence, cautions: a.cautions, needMoreData: a.needMoreData, note: note, source: source)
+        p.pace = s.pace
+        if let mt = s.estimatedMaintenance { p.expectedKgPerWeek = Double(cal - mt) / Maintenance.kcalPerKgPerWeekAsDaily }
+        p.why = why(s, a, calories: cal, steps: st, workouts: wk)
+        return p
     }
 
     /// Protein stays as set; fat is a share of the calories; carbs take the rest, so 4P + 4C + 9F matches the calories.

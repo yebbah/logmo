@@ -83,9 +83,15 @@ final class DayLog {
     var healthHRV: Int?                   // SDNN, ms
     var healthBodyFat: Double?            // percent
     var healthLeanKg: Double?
+    var measurementsRaw: String?          // body measurements typed that day, in cm (see BodyMeasures); nil = none taken
 
     init(day: Date) {
         self.day = Calendar.current.startOfDay(for: day)
+    }
+
+    var measures: BodyMeasures {
+        get { BodyMeasures(raw: measurementsRaw) }
+        set { measurementsRaw = newValue.raw }
     }
 
     func rating(_ r: Rating) -> Int? {
@@ -166,6 +172,7 @@ final class DayLog {
         return ExportRow(day: day, weightKg: weightKg, calories: calories, proteinG: proteinG,
                          fatG: fatG, carbsG: carbsG, waterMl: waterMl, steps: steps, ratings: r,
                          performanceNA: performanceNA, onPeriod: onPeriod, isSick: isSick, sleepMinutes: healthSleepMinutes,
-                         restingHR: healthRestingHR, hrv: healthHRV, bodyFatPercent: healthBodyFat, leanKg: healthLeanKg)
+                         restingHR: healthRestingHR, hrv: healthHRV, bodyFatPercent: healthBodyFat, leanKg: healthLeanKg,
+                         measures: measures.values)
     }
 }

@@ -266,8 +266,9 @@ final class MetricsTests: XCTestCase {
         func cells(_ l: Substring) -> [String] { l.split(separator: ",", omittingEmptySubsequences: false).map(String.init) }
         XCTAssertEqual(cells(lines[0]), ["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps",
                                          "sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness", "performance_na", "on_period", "sick", "sleep_hours_health", "resting_hr_bpm", "hrv_ms", "body_fat_pct", "lean_mass_kg",
-                                         "campaign_number", "campaign", "campaign_kind", "goal_calories_per_day", "goal_calories_basis", "goal_protein_g", "goal_steps", "goal_steps_basis", "goal_water_ml", "goal_workout_days", "goal_carbs_g", "goal_fat_g"])
-        XCTAssertEqual(cells(lines[1]), ["2026-11-01", "80.250", "", "150", "60", "", "", "", "", "", "", "", "", "", "", "", "false", ""] + Array(repeating: "", count: 17))
-        XCTAssertEqual(cells(lines[2]), ["2026-11-02", "", "2000", "", "", "250", "0", "8000", "", "", "", "", "", "", "4", "true", "", ""] + Array(repeating: "", count: 17))
+                                         "campaign_number", "campaign", "campaign_kind", "goal_calories_per_day", "goal_calories_basis", "goal_protein_g", "goal_steps", "goal_steps_basis", "goal_water_ml", "goal_workout_days", "goal_carbs_g", "goal_fat_g",
+                                         "measure_navel_cm", "measure_belowNavel_cm", "measure_aboveNavel_cm", "measure_chest_cm", "measure_thighs_cm", "measure_calves_cm", "measure_biceps_cm"])
+        XCTAssertEqual(cells(lines[1]), ["2026-11-01", "80.250", "", "150", "60", "", "", "", "", "", "", "", "", "", "", "", "false", ""] + Array(repeating: "", count: 24))
+        XCTAssertEqual(cells(lines[2]), ["2026-11-02", "", "2000", "", "", "250", "0", "8000", "", "", "", "", "", "", "4", "true", "", ""] + Array(repeating: "", count: 24))
     }
 }

@@ -38,9 +38,18 @@ Open the **Log** tab. The date at the top shows today; tap it to pick another da
 
 Everything saves by itself; the top right shows **Saved**. To put the keyboard away, tap **Done** above it or drag the screen down. A day with nothing entered isn't a record.
 
-**Still to log:** under the date, a row of icons shows the trackers you've chosen as required (scale, fork and knife, drop, walking figure, checklist). An icon turns green with a tick when that tracker is complete. Food needs all four numbers; the check-in needs all seven ratings.
+**Still to log:** under the date, a row of icons shows the trackers you've chosen as required (scale, fork and knife, drop, walking figure, checklist). Each icon has three colours: **green** with a tick when that tracker is done and the day's goal is reached, **amber** with a ring when something is logged but it isn't complete or the goal isn't reached yet (for example water under its goal, or food without every number), and **grey** when nothing is logged. Food needs all four numbers; the check-in needs all seven ratings. When your campaign asks for body measurements, **Measurements due** appears under the icons.
 
 Fields show a hint when you have a goal, for example "goal 150" for protein, and "guide 210" for carbs and fat.
+
+### Body measurements
+
+Measure with a tape, in centimetres, relaxed and at about the same time of day: **waist at the navel**, **waist 2 in (about 5 cm) below** and **2 in above** the navel, **chest**, **thighs**, **calves** and **biceps** (relaxed). Everything is optional.
+
+- **Set how often per campaign.** When you start a campaign (or edit one that hasn't started), choose **Take body measurements: Off, Weekly, Biweekly or Monthly** (monthly means every four weeks). The first one is due on the campaign's start day.
+- **On the Log screen,** a **Measurements** section opens on a due day, marked **Due today**, with your last reading beside each field. On other days it waits behind **Add measurements**, so you can add one any day. It stays due until you measure.
+- **See the results** on the Dashboard and in a campaign's detailed view: a line for each site showing how it has changed since your first reading, a switch for each line, and a table with the latest reading and the change.
+- The weekly suggestion reads them as a second opinion beside the scale. They explain what is happening but never change your goals on their own. Measurements are typed here only; they don't come from Apple Health.
 
 ## 4. Goals
 
@@ -100,7 +109,8 @@ Tap **Suggest** on the Goals card, the sparkles button on the Weekly plan, or th
 1. **See what's shared.** A sheet lists exactly what the assistant sees: numbers only (your campaign type, weight trend, averages against goals, workouts, check-in averages, and period and sick days if you track them, each with an off switch). No name, dates or notes. Choose **This week so far** or **Last week**. The more days you've logged, the more confident it can be.
 2. **Get a suggestion.** logmo works out the facts first: your weight trend over up to 3 weeks, what you actually ate and walked against your goals, how you've been following the plan, and your check-ins. It then proposes next week's calories, protein, carbs, fat, steps, lifting days and water.
 3. **If Apple Intelligence is slow,** logmo waits up to 25 seconds and then shows the suggestion it calculated itself, and says so.
-4. **Read why.** You see a short headline (keep, raise or lower calories), a **confidence** level (high, medium or low, with a breakdown for weigh-ins, calorie logs, steps and check-ins), the evidence behind it, anything worth knowing, and what more to log if the data is thin. Days you didn't log are never counted as zero.
+4. **Choose a pace.** When your data supports a faster option you see a **Conservative** and an **Aggressive** option side by side, each with its calories and the weight change it points to (tap one to compare). **Settings → Weekly suggestion → Preferred pace** decides which is selected first and which one Apple Intelligence writes about. Aggressive is only offered when your maintenance can be estimated, your logs are reliable, and nothing argues against it (illness, strained recovery, high hunger on a cut); otherwise you get one pace and the reason. Both keep the same safety limits.
+4b. **Read why.** You see a short headline (keep, raise or lower calories), a **confidence** level (high, medium or low, with a breakdown for weigh-ins, calorie logs, steps and check-ins), a plain-language **Why** (what your weight, intake, check-ins and measurements say, in a few short lines; the numbers behind it are one tap away), anything worth knowing, and what more to log if the data is thin. Days you didn't log are never counted as zero.
 5. **Decide.** **Use for next week** saves it as "Set by you". **Edit first** opens the week editor with it filled in. **Not now** saves nothing.
 
 How it decides: calories change only when your weight is outside what your campaign aims for, there's enough data to trust that, the last few days agree, and you've actually been eating near your target. If you've been well off your target, it keeps the target and says following it comes first. With low confidence it keeps your targets and tells you what to log. It won't lower a calorie target that is already low, never cuts harder in a sick or strained week, and never raises steps or lifting days by itself. Check-in scores are self-reports, so it never says whether training is safe.
@@ -125,7 +135,7 @@ Neither counts against your compliance or streaks. Turning one off hides the que
 
 ## 10. The Dashboard
 
-Choose what to look at with **Showing**: your current campaign, **Overall (all time)**, or any past campaign. Charts include weight with its smoothed trend, steps and calories, and how you feel (biofeedback). Tap the expand button on a chart to open it full screen in landscape.
+Choose what to look at with **Showing**: your current campaign, **Overall (all time)**, or any past campaign. From the top: the week you're in, **Recent performance** (with your target weight and how far you are from it), **Estimated maintenance**, **Weigh-ins and trend**, the **Weekly rate of change** as a bar graph (one bar per week), **Body measurements**, steps and calories, and how you feel (biofeedback). Tap the expand button on a chart to open it full screen in landscape.
 
 - Change how smooth the trend line is in **Settings → Trend → Weight smoothing**.
 - Turn the biofeedback lines on or off with **Show biofeedback** on the chart.

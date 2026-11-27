@@ -50,7 +50,7 @@ struct DashboardView: View {
                         closingCard(infos)
                         startWeightCard()
                         campaignPicker(infos)
-                        campaignCard(selected, scope, trend, infos)
+                        campaignCard(selected, infos)
                         if let gc = goalCampaign(selected, infos) {
                             let explicit = PlanStore.explicitWeeks(weekGoals, campaignID: gc.id)
                             let rawPrompt = PlanRules.prompt(gc, hasAnyGoals: weekGoals.contains { $0.campaignID == gc.id },
@@ -64,12 +64,13 @@ struct DashboardView: View {
                                       onPlan: { planCampaign = gc },
                                       onSuggest: { suggestCampaign = gc }).id("goals")
                         }
-                        PerformanceCard(snaps: snaps, trend: trend, scope: scope).id("performance")
+                        PerformanceCard(snaps: snaps, trend: trend, scope: scope, targetKg: selected?.targetWeightKg).id("performance")
+                        MaintenanceCard(snaps: snaps, timeline: timeline, scope: scope, smoothing: smoothing, seeds: seeds, profile: MaintenanceProfile.load()).id("maintenance")
                         WeightChartCard(title: "Weigh-ins and trend", trend: trend, snaps: snaps, scope: scope,
                                         smoothing: smoothing, timeline: timeline).id("weight")
-                        MaintenanceCard(snaps: snaps, timeline: timeline, scope: scope, smoothing: smoothing, seeds: seeds, profile: MaintenanceProfile.load()).id("maintenance")
-                        BodyCompositionCard(logs: logs, scope: scope, unit: unit).id("body")
                         WeeklyRateCard(trend: trend, scope: scope, unit: unit).id("weekly")
+                        MeasurementsChartCard(entries: dashboardMeasurements(selected, infos, scope), kind: selected?.kind).id("measurements")
+                        BodyCompositionCard(logs: logs, scope: scope, unit: unit).id("body")
                         StepsCaloriesCard(snaps: snaps, scope: scope).id("steps")
                         BiofeedbackBarsCard(snaps: snaps, scope: scope).id("bio")
                     }
@@ -244,6 +245,13 @@ struct DashboardView: View {
         }
     }
 
+    /// The measurements of the campaign shown, or all of them for the overall view.
+    private func dashboardMeasurements(_ c: CampaignInfo?, _ infos: [CampaignInfo], _ scope: DateScope) -> [MeasureEntry] {
+        let all = logs.compactMap { l in l.measures.isEmpty ? nil : MeasureEntry(day: l.day, values: l.measures.values) }
+        if let c { return MeasureRules.entries(all, in: c) }
+        return all.filter { $0.day >= scope.start && $0.day <= scope.end }.sorted { $0.day < $1.day }
+    }
+
     /// Everything on this tab is limited to this range.
     private func scopeFor(_ c: CampaignInfo?, _ snaps: [DaySnapshot]) -> DateScope {
         if let c { return DateScope(start: c.start, end: min(c.end ?? today, today)) }
@@ -294,61 +302,28 @@ struct DashboardView: View {
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(theme.border, lineWidth: 1))
     }
 
-    private func campaignCard(_ c: CampaignInfo?, _ scope: DateScope, _ trend: [TrendPoint], _ infos: [CampaignInfo]) -> some View {
-        let df = Date.FormatStyle().day().month(.abbreviated)
+    /// Only for the two cases the week line and the days-left badge don't cover: a campaign that hasn't started, and no campaign at all.
+    @ViewBuilder
+    private func campaignCard(_ c: CampaignInfo?, _ infos: [CampaignInfo]) -> some View {
         let noCampaign = c == nil && filterRaw != "overall"       // "Current" with nothing running: days outside a campaign belong to none
-        return Card(title: c?.name ?? (noCampaign ? "No campaign running" : "Overall")) {
-            if let c {
-                let upcoming = CampaignRules.isUpcoming(c, today: today)
-                let number = "#\(c.number) \(c.kind.title)\(c.isDefault ? " (default)" : "")"
-                Text("\(number) · \(CampaignRules.periodText(c, today: today))" + (c.endedEarly ? " · ended early" : ""))
-                    .font(.caption).foregroundStyle(theme.muted)
-
-                if upcoming {
-                    let n = CampaignRules.daysUntilStart(c, today: today)
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("\(n)").font(.system(size: 44, weight: .bold, design: .rounded))
-                        Text(n == 1 ? "day until it starts" : "days until it starts").foregroundStyle(theme.muted)
-                        Spacer()
-                        Text("\(c.plannedWeeks ?? 0) weeks").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-                    }
-                    Text("The current campaign carries on until then.").font(.caption).foregroundStyle(theme.muted)
-                } else if c.plannedWeeks != nil, c.end == nil, let left = CampaignRules.daysLeft(c, today: today) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("\(left)").font(.system(size: 44, weight: .bold, design: .rounded))
-                        Text(left == 1 ? "day left" : "days left").foregroundStyle(theme.muted)
-                        Spacer()
-                        Text("week \(CampaignRules.weekNumber(c, today: today)) of \(c.plannedWeeks ?? 0)")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-                    }
-                    let total = Double((c.plannedWeeks ?? 1) * 7)
-                    ProgressView(value: min(max(1 - Double(left) / total, 0), 1))
-                } else if let planned = c.plannedWeeks {
-                    Text("\(planned)-week campaign" + (c.end != nil ? ", finished" : ""))
-                        .font(.subheadline).foregroundStyle(theme.muted)
-                } else {
-                    Text("Automatic maintenance period between campaigns.").font(.subheadline).foregroundStyle(theme.muted)
+        if let c, CampaignRules.isUpcoming(c, today: today) {
+            let n = CampaignRules.daysUntilStart(c, today: today)
+            Card(title: c.name) {
+                Text("#\(c.number) \(c.kind.title) · \(CampaignRules.periodText(c, today: today))").font(.caption).foregroundStyle(theme.muted)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("\(n)").font(.system(size: 44, weight: .bold, design: .rounded))
+                    Text(n == 1 ? "day until it starts" : "days until it starts").foregroundStyle(theme.muted)
+                    Spacer()
+                    Text("\(c.plannedWeeks ?? 0) weeks").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
                 }
-
-                if let target = c.targetWeightKg, let now = trend.last(where: { $0.date <= scope.end }) {
-                    let diff = unit.fromKg(now.trendKg) - unit.fromKg(target)
-                    HStack {
-                        Text("Target \(String(format: "%.1f", unit.fromKg(target))) \(unit.rawValue)")
-                        Spacer()
-                        Text(abs(diff) < 0.05 ? "At target" : String(format: "%.1f %@ %@", abs(diff), unit.rawValue,
-                                                                      diff > 0 ? "above" : "below"))
-                            .foregroundStyle(theme.muted)
-                    }.font(.subheadline)
-                }
-            } else if noCampaign {
+                Text("The current campaign carries on until then.").font(.caption).foregroundStyle(theme.muted)
+            }
+        } else if noCampaign {
+            Card(title: "No campaign running") {
                 Text("Every campaign has a start and an end, and none covers today. Start one to set goals and follow its progress. Meanwhile the charts below show all your data.")
                     .font(.subheadline).foregroundStyle(theme.muted)
                 Button { nav.openNewCampaign = true; nav.tab = 3 } label: { Text("Start a campaign").fontWeight(.semibold).frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent)
-            } else {
-                let first = trend.first?.date
-                Text(first.map { "All data since \($0.formatted(date: .abbreviated, time: .omitted)), across \(infos.count) campaign\(infos.count == 1 ? "" : "s")" }
-                     ?? "No data yet.").font(.subheadline).foregroundStyle(theme.muted)
             }
         }
     }

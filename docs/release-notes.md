@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 2)**, built to PRD v20.9, 25 November 2026. Build 1 was the first version, installed on the owner's iPhone. See the change log (docs/changelog.md) for what changed in each build. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 3)**, built to PRD v21.0, 25 November 2026. Build 1 was the first version, installed on the owner's iPhone. See the change log (docs/changelog.md) for what changed in each build. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -46,6 +46,10 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 - Imported values count for goals, streaks, compliance, reminders and the weekly suggestion like typed ones.
 
 ### The week and the weekly rate of change
+- **Body measurements** (waist at the navel, 2 in below and above it, chest, thighs, calves, biceps): cadence per campaign (Off, Weekly, Biweekly, Monthly), a Measurements section and a Measurements due prompt on the Log screen, a line chart per campaign on the Dashboard and in the campaign's detailed view, included in the CSV export and the backup.
+- **Still to log** shows amber for a daily tracker that is started but not complete or short of its goal.
+- **Dashboard:** the campaign card under Showing is gone (the target weight moved into Recent performance), Estimated maintenance follows Recent performance, and the weekly rate of change is a bar graph after the weigh-ins chart.
+- **Weekly suggestion:** a conservative and an aggressive option, led by a new Settings preference; a plain-language Why; body measurements as inputs.
 - The protein ring is gone from the Dashboard. Each week of the weekly plan now shows how many days its protein goal was reached, beside that week's weight trend and change.
 - **Repeat for the weeks after** now replaces weeks you already set or confirmed, and the editor says how many; before, those weeks were skipped without a word.
 - The Dashboard keeps one rate-of-change view, the weekly table; each week of a campaign's weekly plan (and the campaign's detailed view) shows that week's trend weight and change as history.

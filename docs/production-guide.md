@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v20.9 and app version 1.0.0 (build 2).
+Version of this guide: matches PRD v21.0 and app version 1.0.0 (build 3).
 
 ---
 
@@ -41,7 +41,8 @@ SwiftUI views  ──►  Services (pure rules + stores)  ──►  SwiftData m
 
 - **DayLog**: one row per calendar day. Weight (always kg), calories and macros, water, steps, seven 1–5 ratings, `performanceNA`, `onPeriod`, `isSick`. A value never entered is `nil`, never 0.
 - **WeekGoal**: one row per campaign per Monday. Calories (stored as a weekly total), at-or-under flag, protein, steps and whether it is a weekly average, water, workout days, carbs and fat (guidance only), `confirmed` (false = carried over).
-- **Campaign**: number, kind, default or real, target weight, start, planned weeks, end, ended early, label.
+- **Campaign**: number, kind, default or real, target weight, start, planned weeks, end, ended early, label, start weight, and `measureEveryDays` (0 off, 7, 14 or 28: body measurement cadence).
+- **Body measurements** are not a table: they are a small text on the day's `DayLog.measurementsRaw` (`navel:83.5,chest:97`, cm), parsed by `BodyMeasures`. `MeasureRules` (Measurements.swift) holds the due dates, the change per site and the campaign filter. The CSV gains `measure_<site>_cm` columns and the backup carries `measurementsRaw` and `measureEveryDays` (both optional, so older backups restore).
 
 Invariants the code keeps: every campaign has a start and an end (no open-ended or automatic campaigns; `CampaignStore.tidy` closes any open automatic one from an older version and creates nothing); a campaign covers its start to `CampaignRules.lastDay` and nothing after, so days outside every campaign belong to none; a campaign has its own goals; only one campaign can be planned but not started; past campaigns and past weeks are locked.
 
@@ -88,6 +89,8 @@ The suggestion is calculated first and explained second:
 2. `SuggestionRules.assess` turns it into an `Assessment`: per-metric `DataConfidence`, rate status against the campaign's band, intake and adherence, recovery, contradictions, the supported calorie, steps and lifting changes, the **allowed ranges**, and the evidence, caution and "needs more data" texts. All text is written from the facts.
 3. `AIAdvisor` (Foundation Models, iOS 26+ with Apple Intelligence) gets the facts and ranges as structured context, picks calories, steps and lifting days **inside the ranges**, and writes a one- or two-sentence note.
 4. `SuggestionRules.compose` clamps the model's choices to the ranges, rebuilds macros so they add up, and writes the headline. `NoteValidator` drops the note if it uses a number not in the facts or targets, makes a safety or medical claim, or is too long.
+
+Pace and the Why: `assess` also works out `conservativeDelta`, an optional `aggressiveDelta` (faster end of the campaign's range, sized from estimated maintenance, at most `aggressiveStepLimit` = 250 kcal a day from the current goal, inside the same floor and maintenance limit, withheld with a reason when data or recovery argue against it) and `aggressiveNote`. `WeekSummary.pace` picks which one is the decision; `SuggestionRules.options` builds both. `SuggestionWhy.swift` writes the plain-language `WhyItem`s and the measurement lines from calculated facts. The Settings preference is `SettingsKey.pace` and is in the backup.
 
 If the model is unavailable, fails, or takes longer than 25 seconds (`SuggestSheet.withTimeout`), steps 1, 2 and 4 stand alone. "Edit first" hands the goals to the parent, which opens the editor from the suggestion sheet's `onDismiss` (a fixed delay is not reliable on a slower device). No network is involved. Thresholds (confidence cut-offs, rate bands, the 1,500 kcal and 25% deficit low-target rules, step sizes) are constants in `WeekSuggestion.swift`; changing one means updating `WeekSuggestionTests`.
 
@@ -139,7 +142,7 @@ Compiled only in Debug (`#if DEBUG`): launch arguments such as `-demo-data` (in-
 5. Fast-forward merge to `main` (`git merge --ff-only`), push `main`.
 6. Build and install on the phone (section 3).
 7. Raise `CURRENT_PROJECT_VERSION` by one for every push to `main` and add the build to `docs/changelog.md`.
-8. Bump `MARKETING_VERSION` in `project.yml` when a release should show a new version in Settings → About and on the landing screen (it is still 1.0.0, build 2).
+8. Bump `MARKETING_VERSION` in `project.yml` when a release should show a new version in Settings → About and on the landing screen (it is still 1.0.0, build 3).
 
 Mock-ups for screen changes are made first on the design canvas and agreed before building.
 

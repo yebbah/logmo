@@ -14,10 +14,12 @@ struct DayDraft: Equatable {
     var performanceNA = false          // training performance answered "n/a" (not a lifting day)
     var onPeriod: Bool?                // "on your period today?" nil = not answered
     var isSick: Bool?                  // "are you sick today?" nil = not answered
+    var measures: [MeasureSite: String] = [:]   // body measurements in cm, as typed
 
     var isEmpty: Bool {
         weight.isEmpty && calories.isEmpty && protein.isEmpty && fat.isEmpty && carbs.isEmpty
             && water.isEmpty && steps.isEmpty && ratings.isEmpty && !performanceNA && onPeriod == nil && isSick == nil
+            && measures.values.allSatisfy { $0.isEmpty }
     }
 
     init() {}
@@ -50,6 +52,7 @@ struct DayDraft: Equatable {
         performanceNA = log.performanceNA
         onPeriod = log.onPeriod
         isSick = log.isSick
+        measures = Dictionary(uniqueKeysWithValues: log.measures.values.map { ($0.key, String(format: "%.1f", $0.value)) })
     }
 
     func apply(to log: DayLog, unit: WeightUnit) {
@@ -71,6 +74,9 @@ struct DayDraft: Equatable {
         log.performanceNA = performanceNA
         log.onPeriod = onPeriod
         log.isSick = isSick
+        var typed: [MeasureSite: Double] = [:]
+        for (s, t) in measures { if let d = Double(t.replacingOccurrences(of: ",", with: ".")), BodyMeasures.isPlausible(d) { typed[s] = d } }
+        log.measures = BodyMeasures(values: typed)
         var imp = log.imported, over = log.overridden                       // a Health value the user changed or cleared is now theirs
         HealthMerge.markEdits(old: before, new: log.healthValues, imported: &imp, overridden: &over)
         log.imported = imp; log.overridden = over
@@ -145,35 +151,56 @@ struct LogView: View {
         date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated).year())
     }
 
-    /// Which required trackers are complete for this day, so it's clear what is still missing.
+    /// Which required trackers are complete for this day, so it's clear what is still missing. Green: done (and the day's goal
+    /// reached, where there is one). Amber: started but not complete or the goal isn't reached yet. Grey: nothing logged.
     @ViewBuilder private var completenessStrip: some View {
         let required = Tracker.allCases.filter(RequiredTrackers.parse(requiredRaw).contains)
-        if !required.isEmpty {
-            let done = draft.completeTrackers
+        let due = measurementsDue
+        if !required.isEmpty || due {
+            let states = Dictionary(uniqueKeysWithValues: required.map { ($0, draft.state($0, goals: goals)) })
+            let allDone = states.values.allSatisfy { $0 == .done }
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(required.allSatisfy(done.contains) ? "Everything required is logged" : "Still to log")
-                            .font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Text("\(required.filter(done.contains).count) of \(required.count)").font(.footnote).foregroundStyle(theme.muted)
-                    }
-                    HStack(spacing: 0) {
-                        ForEach(required) { t in
-                            let ok = done.contains(t)
-                            Image(systemName: t.icon)
-                                .font(.title3.weight(.semibold))
-                                .frame(width: 46, height: 46)
-                                .foregroundStyle(ok ? theme.good : theme.muted)
-                                .background((ok ? theme.good : theme.muted).opacity(0.14), in: Circle())
-                                .overlay(alignment: .bottomTrailing) {
-                                    if ok {
-                                        Image(systemName: "checkmark.circle.fill").font(.caption)
-                                            .foregroundStyle(theme.good, theme.card)
+                    if !required.isEmpty {
+                        HStack {
+                            Text(allDone ? "Everything required is logged" : "Still to log")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Text("\(states.values.filter { $0 == .done }.count) of \(required.count)").font(.footnote).foregroundStyle(theme.muted)
+                        }
+                        HStack(spacing: 0) {
+                            ForEach(required) { t in
+                                let st = states[t] ?? .none
+                                let amber = Color(red: 0.88, green: 0.66, blue: 0)
+                                let color: Color = st == .done ? theme.good : (st == .inProgress ? theme.warn : theme.muted)
+                                Image(systemName: t.icon)
+                                    .font(.title3.weight(.semibold))
+                                    .frame(width: 46, height: 46)
+                                    .foregroundStyle(color)
+                                    .background((st == .inProgress ? amber : color).opacity(st == .inProgress ? 0.25 : 0.14), in: Circle())
+                                    .overlay { if st == .inProgress { Circle().stroke(amber, lineWidth: 2) } }
+                                    .overlay(alignment: .bottomTrailing) {
+                                        if st == .done {
+                                            Image(systemName: "checkmark.circle.fill").font(.caption)
+                                                .foregroundStyle(theme.good, theme.card)
+                                        }
                                     }
-                                }
-                                .frame(maxWidth: .infinity)
-                                .accessibilityLabel("\(t.title), \(ok ? "done" : "not done")")
+                                    .frame(maxWidth: .infinity)
+                                    .accessibilityLabel("\(t.title), \(st == .done ? "done" : (st == .inProgress ? "in progress" : "not started"))")
+                            }
+                        }
+                        HStack(spacing: 14) {
+                            legend(theme.good, "done"); legend(Color(red: 0.88, green: 0.66, blue: 0), "in progress"); legend(theme.muted, "not started")
+                        }.font(.caption2).foregroundStyle(theme.muted)
+                    }
+                    if due {
+                        HStack(spacing: 10) {
+                            Image(systemName: "ruler").frame(width: 36, height: 36)
+                                .foregroundStyle(theme.accent).background(theme.accent.opacity(0.12), in: Circle())
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Measurements due").font(.subheadline.weight(.semibold))
+                                Text("Body measurements for this campaign are due today.").font(.caption).foregroundStyle(theme.muted)
+                            }
                         }
                     }
                 }
@@ -181,6 +208,31 @@ struct LogView: View {
             }
             .listRowBackground(theme.card)
         }
+    }
+
+    private func legend(_ c: Color, _ text: String) -> some View {
+        HStack(spacing: 4) { Circle().fill(c).frame(width: 7, height: 7); Text(text) }
+    }
+
+    /// The campaign asks for measurements today and none has been taken since the latest due date.
+    private var measurementsDue: Bool {
+        guard date == today, let c = CampaignRules.campaign(for: date, in: campaigns.map(\.info)) else { return false }
+        return MeasureRules.isDue(c, entries: measureEntries, today: date)
+    }
+
+    /// Shown when the day's campaign asks for measurements, or any day once something has been measured (so any day can add one).
+    private var showMeasurements: Bool {
+        guard let c = CampaignRules.campaign(for: date, in: campaigns.map(\.info)) else { return !draft.measures.isEmpty }
+        return c.measureEveryDays > 0 || !draft.measures.isEmpty || !measureEntries.isEmpty
+    }
+
+    /// The most recent measurements before the day being edited, shown beside each field.
+    private var lastMeasurement: MeasureEntry? {
+        measureEntries.filter { $0.day < date }.max { $0.day < $1.day }
+    }
+
+    private var measureEntries: [MeasureEntry] {
+        logs.compactMap { l in l.measures.isEmpty ? nil : MeasureEntry(day: l.day, values: l.measures.values) }
     }
 
     var body: some View {
@@ -245,6 +297,10 @@ struct LogView: View {
                         field("Steps", $draft.steps, hint(goals?.dailyStepsGoal), health: .steps)
                     }
                     .listRowBackground(theme.card)
+
+                    if showMeasurements {
+                        MeasurementsSection(texts: $draft.measures, due: measurementsDue, last: lastMeasurement)
+                    }
 
                 }
 

@@ -18,6 +18,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.reminderWeekday) private var reminderWeekday = Reminders.defaultWeekday
     @AppStorage(SettingsKey.reminderMinutes) private var reminderMinutes = Reminders.defaultMinutes
     @AppStorage(SettingsKey.dailyReminderOn) private var dailyOn = false
+    @AppStorage(SettingsKey.pace) private var paceRaw = SuggestionPace.conservative.rawValue
     @AppStorage(SettingsKey.dailyReminderMinutes) private var dailyMinutes = DailyReminderRules.defaultMinutes
     @AppStorage(HealthSettings.connected) private var healthConnected = false
     @State private var reminderDenied = false
@@ -88,6 +89,14 @@ struct SettingsView: View {
                 }
                 .listRowBackground(theme.card)
 
+                Section {
+                    Picker("Preferred pace", selection: $paceRaw) {
+                        ForEach(SuggestionPace.allCases) { Text($0.title).tag($0.rawValue) }
+                    }.pickerStyle(.segmented)
+                } header: { Text("Weekly suggestion") } footer: {
+                    Text("The weekly suggestion shows both a conservative and an aggressive option when the data supports a faster one. Your preference decides which is selected first and which one Apple Intelligence writes about. Conservative: a smaller, easier-to-keep change. Aggressive: a faster change that is harder to sustain. The safety limits are the same for both.")
+                }
+                .listRowBackground(theme.card)
                 Section("Trend") {
                     Picker("Weight smoothing", selection: $smoothing) {
                         ForEach([7, 10, 14, 16, 20], id: \.self) { Text("\($0)-day").tag($0) }

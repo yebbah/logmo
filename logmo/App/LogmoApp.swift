@@ -139,6 +139,7 @@ enum SettingsKey {
     static let reminderMinutes = "reminderMinutes"
     static let dailyReminderOn = "dailyReminderOn"
     static let dailyReminderMinutes = "dailyReminderMinutes"
+    static let pace = "suggestionPace"                  // "conservative" or "aggressive": which pace the weekly suggestion leads with
 }
 
 #if DEBUG

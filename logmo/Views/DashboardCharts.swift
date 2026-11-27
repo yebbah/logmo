@@ -359,6 +359,7 @@ struct PerformanceCard: View {
     let snaps: [DaySnapshot]
     let trend: [TrendPoint]
     let scope: DateScope
+    var targetKg: Double? = nil
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
 
@@ -377,6 +378,22 @@ struct PerformanceCard: View {
             HStack(alignment: .top, spacing: 12) {
                 tile(a.proteinG.map { "\(Int($0.rounded())) g" } ?? "—", "Average protein, last 14 days")
                 tile(a.steps.map { "\(Int($0.rounded()).formatted())" } ?? "—", "Average steps, last 14 days")
+            }
+            if let target = targetKg, let now = trend.last(where: { $0.date <= scope.end }) {
+                let diff = unit.fromKg(now.trendKg) - unit.fromKg(target)
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Target weight").font(.caption2).foregroundStyle(theme.muted)
+                        Text(String(format: "%.1f %@", unit.fromKg(target), unit.rawValue)).font(.system(size: 20, weight: .bold, design: .rounded))
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(String(format: "Trend now %.1f %@", unit.fromKg(now.trendKg), unit.rawValue)).font(.caption2).foregroundStyle(theme.muted)
+                        Text(abs(diff) < 0.05 ? "At target" : String(format: "%.1f %@ %@", abs(diff), unit.rawValue, diff > 0 ? "above" : "below"))
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(theme.accent)
+                    }
+                }
+                .padding(10).background(theme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
             }
             Divider()
             Text("Weight change from the trend").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
@@ -681,42 +698,40 @@ struct WeeklyRateCard: View {
                         if let p = latest.changePercent { Text(String(format: "%+.2f%% of body weight", p)).font(.caption).foregroundStyle(theme.muted) }
                     }
                 }
-                VStack(spacing: 8) {
-                    HStack {
-                        Text("Week").frame(maxWidth: .infinity, alignment: .leading)
-                        Text("Trend").frame(width: 78, alignment: .trailing)
-                        Text("Change").frame(width: 124, alignment: .trailing)
-                    }
-                    .font(.caption2.weight(.semibold)).foregroundStyle(theme.muted)
-                    ForEach(rows) { r in
-                        HStack(alignment: .firstTextBaseline) {
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(label(r)).font(.subheadline)
-                                if r.inProgress { Text("so far").font(.caption2).foregroundStyle(theme.muted) }
-                            }.frame(maxWidth: .infinity, alignment: .leading)
-                            Text(String(format: "%.2f %@", unit.fromKg(r.trendKg), unit.rawValue)).font(.subheadline).monospacedDigit().frame(width: 78, alignment: .trailing)
-                            Text(change(r)).font(.caption).monospacedDigit().foregroundStyle(r.changeKg == nil ? theme.muted : Color.primary)
-                                .multilineTextAlignment(.trailing).frame(width: 124, alignment: .trailing)
+                let ordered = Array(rows.reversed())        // oldest first, left to right
+                Chart {
+                    RuleMark(y: .value("No change", 0)).foregroundStyle(theme.muted.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 1))
+                    ForEach(ordered) { r in
+                        if let d = delta(r) {
+                            BarMark(x: .value("Week", r.weekStart, unit: .weekOfYear), y: .value("Change", d), width: .ratio(0.7))
+                                .foregroundStyle(theme.accent.opacity(r.inProgress ? 0.4 : 1))
+                                .cornerRadius(3)
+                                .annotation(position: d >= 0 ? .top : .bottom, spacing: 2) {
+                                    Text(String(format: "%+.2f", d)).font(.system(size: 9)).monospacedDigit().foregroundStyle(Color.primary)
+                                }
+                        } else {
+                            PointMark(x: .value("Week", r.weekStart, unit: .weekOfYear), y: .value("Change", 0))
+                                .opacity(0)
+                                .annotation(position: .top, spacing: 2) { Text("N/A").font(.system(size: 9)).foregroundStyle(theme.muted) }
                         }
-                        Divider()
                     }
                 }
-                Text("The trend weight at the end of each week (Monday to Sunday) and how far it moved from the end of the week before. A week with no earlier trend to compare shows N/A.")
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .weekOfYear, count: ordered.count > 8 ? 2 : 1)) { _ in
+                        AxisValueLabel(format: .dateTime.day().month(.abbreviated), centered: true)
+                    }
+                }
+                .chartYAxis { AxisMarks(position: .leading) }
+                .chartYScale(domain: .automatic(includesZero: true))
+                .frame(height: 200)
+                Text("One bar per week (Monday to Sunday, labelled by its Monday): how far the trend weight moved from the end of the week before, in \(unit.rawValue). The pale bar is the week in progress. N/A: nothing earlier to compare, or the campaign restarted the trend. Each week's numbers are also in the weekly plan.")
                     .font(.caption).foregroundStyle(theme.muted)
             }
         }
     }
 
-    private func label(_ r: WeeklyTrendRow) -> String {
-        let f = Date.FormatStyle().day().month(.abbreviated)
-        let end = Calendar.current.date(byAdding: .day, value: 6, to: r.weekStart)!
-        return "\(r.weekStart.formatted(f)) – \(end.formatted(f))"
-    }
-
-    private func change(_ r: WeeklyTrendRow) -> String {
-        guard let kg = r.changeKg else { return "N/A" }
-        let delta = unit.fromKg(r.trendKg) - unit.fromKg(r.trendKg - kg)
-        let pct = r.changePercent.map { String(format: " · %+.2f%%", $0) } ?? ""
-        return String(format: "%+.2f %@", delta, unit.rawValue) + pct
+    private func delta(_ r: WeeklyTrendRow) -> Double? {
+        guard let kg = r.changeKg else { return nil }
+        return unit.fromKg(r.trendKg) - unit.fromKg(r.trendKg - kg)
     }
 }

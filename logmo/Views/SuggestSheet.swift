@@ -10,6 +10,8 @@ struct SuggestSheet: View {
     @AppStorage(SettingsKey.trackCycle) private var trackCycle = false
     @AppStorage(SettingsKey.trackSick) private var trackSick = false
     @AppStorage(SettingsKey.smoothing) private var smoothing = 16
+    @AppStorage(SettingsKey.unit) private var unitRaw = WeightUnit.kg.rawValue
+    @AppStorage(SettingsKey.pace) private var paceRaw = SuggestionPace.conservative.rawValue
     @Query(sort: \DayLog.day) private var logs: [DayLog]
     @Query private var weekGoals: [WeekGoal]
     @Query(sort: \Campaign.number) private var campaigns: [Campaign]
@@ -19,7 +21,10 @@ struct SuggestSheet: View {
     /// finished dismissing (its `onDismiss`), because SwiftUI won't present a second sheet while the first is still on its way out.
     var onEdit: (GoalSet, Date) -> Void
 
-    enum Phase: Equatable { case preview, working, result(PlanSuggestion) }
+    /// Both paces worked out, and which one the Settings preference leads with.
+    struct Outcome: Equatable { var options: SuggestionRules.PaceOptions; var preferred: SuggestionPace }
+    enum Phase: Equatable { case preview, working, result(Outcome) }
+    @State private var pick: SuggestionPace = .conservative
     @State private var phase: Phase = .preview
     @State private var window: AssessedWeek = .thisWeekSoFar
     @State private var includeCycle = true
@@ -35,10 +40,14 @@ struct SuggestSheet: View {
     private var timeline: GoalTimeline { GoalTimeline(weekGoals, campaigns: campaigns.map(\.info)) }
     private var thisWeeksGoals: GoalSet? { timeline.goals(forDay: today) }
 
+    private var preferredPace: SuggestionPace { SuggestionPace(rawValue: paceRaw) ?? .conservative }
+    private var measureEntries: [MeasureEntry] { logs.compactMap { l in l.measures.isEmpty ? nil : MeasureEntry(day: l.day, values: l.measures.values) } }
+
     private var summary: WeekSummary {
         SuggestionRules.summary(campaign: campaign, snaps: logs.map(\.snapshot), current: thisWeeksGoals, window: window,
                                 includeCycle: trackCycle && includeCycle, includeSick: trackSick && includeSick, today: today,
-                                smoothingDays: smoothing, seeds: CampaignRules.trendSeeds(campaigns.map(\.info)), profile: MaintenanceProfile.load())
+                                smoothingDays: smoothing, seeds: CampaignRules.trendSeeds(campaigns.map(\.info)), profile: MaintenanceProfile.load(),
+                                pace: preferredPace, measurements: measureEntries, useLb: unitRaw == WeightUnit.lb.rawValue)
     }
 
     private var nextWeekLabel: String {
@@ -53,7 +62,7 @@ struct SuggestSheet: View {
                 switch phase {
                 case .preview: preview
                 case .working: working
-                case .result(let p): result(p)
+                case .result(let o): result(o)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -100,6 +109,9 @@ struct SuggestSheet: View {
                 row("Protein, carbs, fat", "\(s.avgProteinG.map(String.init) ?? "—") / \(s.avgCarbsG.map(String.init) ?? "—") / \(s.avgFatG.map(String.init) ?? "—") g")
                 row("Steps", "\(s.avgSteps.map { $0.formatted() } ?? "—") a day", goal: s.current.stepsDaily.map { "goal \($0.formatted())" })
                 row("Workouts", "\(s.workoutDays)", goal: s.current.workoutDaysWeekly.map { "goal \($0)" })
+                if let m = s.measures {
+                    row("Body measurements", MeasureSite.allCases.compactMap { x in m.changes[x].map { "\(x.short) \(String(format: "%+.1f", $0))" } }.joined(separator: " · "), goal: "cm over \(m.spanDays) days")
+                }
                 row("Days with daily goals met", "\(s.dailyGoalDaysMet) of \(s.daysCovered)")
                 row("Logged on", "calories \(s.calorieDays) · steps \(s.stepsDays) · check-in \(s.ratingDays) of \(s.daysCovered) days")
                 row("Check-in averages", ratingsText(s))
@@ -160,14 +172,21 @@ struct SuggestSheet: View {
         phase = .working
         aiTimedOut = false
         Task {
-            let basic = SuggestionRules.baseline(s)
-            // Apple Intelligence gets a limited time. If it doesn't answer, the calculated suggestion is shown rather than a spinner forever.
-            let answer = await Self.withTimeout(seconds: 25) { await AIAdvisor.suggest(s, baseline: basic) }
+            var options = SuggestionRules.options(s)
+            let preferred: SuggestionPace = (s.pace == .aggressive && options.aggressive != nil) ? .aggressive : .conservative
+            let basic = options.suggestion(preferred)
+            // Apple Intelligence gets a limited time, and writes about the pace the user prefers. If it doesn't answer, the calculated
+            // suggestion is shown rather than a spinner forever.
+            var sp = s; sp.pace = preferred
+            let answer = await Self.withTimeout(seconds: 25) { await AIAdvisor.suggest(sp, baseline: basic) }
             if answer.timedOut { aiTimedOut = true }
-            phase = .result(answer.value ?? basic)
+            if let p = answer.value { if preferred == .aggressive { options.aggressive = p } else { options.conservative = p } }
+            pick = preferred
+            phase = .result(Outcome(options: options, preferred: preferred))
             #if DEBUG
             // Debug aid for screenshots: -suggestEdit 1 taps "Edit first" as soon as the suggestion is ready
-            if UserDefaults.standard.bool(forKey: "suggestEdit"), case .result(let p) = phase {
+            if UserDefaults.standard.bool(forKey: "suggestEdit"), case .result(let o) = phase {
+                let p = o.options.suggestion(preferred)
                 try? await Task.sleep(for: .seconds(1))
                 onEdit(p.goalSet(keeping: thisWeeksGoals ?? GoalSet()), nextWeek); dismiss()
             }
@@ -187,10 +206,14 @@ struct SuggestSheet: View {
 
     // MARK: Result
 
-    private func result(_ p: PlanSuggestion) -> some View {
+    private func result(_ o: Outcome) -> some View {
+        let two = o.options.aggressive != nil
+        let p = o.options.suggestion(two ? pick : .conservative)
         let cur = thisWeeksGoals ?? GoalSet()
         let curCal = cur.caloriesWeekly.map { Int((Double($0) / 7).rounded()) }
         return Form {
+            paceSection(o)
+
             Section {
                 goalRow("Calories", p.caloriesPerDay.formatted() + " kcal/day", was: curCal.map { $0.formatted() }, changed: curCal != p.caloriesPerDay)
                 goalRow("Protein", "\(p.proteinG) g", was: cur.proteinDaily.map(String.init), changed: cur.proteinDaily != p.proteinG)
@@ -225,12 +248,21 @@ struct SuggestSheet: View {
             .listRowBackground(theme.card)
 
             Section {
-                ForEach(Array(p.evidence.enumerated()), id: \.offset) { _, r in
-                    Label { Text(r).font(.subheadline) } icon: { Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(theme.muted) }
+                ForEach(Array(p.why.enumerated()), id: \.offset) { _, w in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: whyIcon(w.kind)).font(.caption.weight(.bold)).frame(width: 24, height: 24)
+                            .foregroundStyle(whyColor(w.kind)).background(whyColor(w.kind).opacity(0.14), in: Circle())
+                        Text(w.text).font(.subheadline).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-            } header: { Text("What the data says") } footer: {
-                Text("Every figure here is calculated from what you logged. Days you didn't log are never counted as zero.")
-            }
+                DisclosureGroup("The numbers behind it") {
+                    ForEach(Array(p.evidence.enumerated()), id: \.offset) { _, r in
+                        Label { Text(r).font(.footnote) } icon: { Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(theme.muted) }
+                    }
+                    Text("Every figure here is calculated from what you logged. Days you didn't log are never counted as zero.")
+                        .font(.caption).foregroundStyle(theme.muted)
+                }
+            } header: { Text("Why") }
             .listRowBackground(theme.card)
 
             if !p.cautions.isEmpty {
@@ -254,7 +286,7 @@ struct SuggestSheet: View {
             }
 
             Section {
-                Button { use(p) } label: { Text("Use for next week").fontWeight(.semibold).frame(maxWidth: .infinity) }
+                Button { use(p) } label: { Text(two ? "Use \(p.pace.title)" : "Use for next week").fontWeight(.semibold).frame(maxWidth: .infinity) }
                 Button("Edit first") {
                     let goals = p.goalSet(keeping: thisWeeksGoals ?? GoalSet())
                     let week = nextWeek
@@ -265,6 +297,39 @@ struct SuggestSheet: View {
             }
             .listRowBackground(theme.card)
         }
+    }
+
+    private func whyIcon(_ k: WhyItem.Kind) -> String { k == .good ? "checkmark" : (k == .warn ? "exclamationmark" : "info") }
+    private func whyColor(_ k: WhyItem.Kind) -> Color { k == .good ? theme.good : (k == .warn ? theme.warn : theme.accent) }
+
+    /// Both paces side by side, the preferred one selected first.
+    @ViewBuilder private func paceSection(_ o: Outcome) -> some View {
+        Section {
+            if let agg = o.options.aggressive {
+                HStack(alignment: .top, spacing: 10) {
+                    Button { pick = .conservative } label: { paceTile(o.options.conservative, selected: pick == .conservative) }.buttonStyle(.plain)
+                    Button { pick = .aggressive } label: { paceTile(agg, selected: pick == .aggressive) }.buttonStyle(.plain)
+                }
+                Text("Tap one to compare. Your setting is \(o.preferred.title.lowercased()), so that one is selected first. Expected change is the trend weight over a week, from your estimated maintenance and this calorie target.")
+                    .font(.caption).foregroundStyle(theme.muted)
+            } else {
+                Text("One pace this week").font(.subheadline.weight(.semibold))
+                Text(o.options.aggressiveNote ?? "Only one pace is offered this week.").font(.caption).foregroundStyle(theme.muted)
+            }
+        } header: { Text("Pace") }
+        .listRowBackground(theme.card)
+    }
+
+    private func paceTile(_ p: PlanSuggestion, selected: Bool) -> some View {
+        let u = WeightUnit(rawValue: unitRaw) ?? .kg
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(p.pace.title).font(.caption).foregroundStyle(theme.muted)
+            Text(p.expectedKgPerWeek.map { String(format: "%+.1f %@/wk", u.fromKg($0) - u.fromKg(0), u.rawValue) } ?? "—").font(.headline)
+            Text("about \(p.caloriesPerDay.formatted()) kcal/day").font(.caption).foregroundStyle(theme.muted)
+        }
+        .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+        .background(selected ? theme.accent.opacity(0.1) : theme.track.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(selected ? theme.accent : Color.clear, lineWidth: 1.5))
     }
 
     private func confidenceIcon(_ c: DataConfidence) -> String { c == .high ? "checkmark.seal.fill" : (c == .medium ? "checkmark.seal" : "questionmark.circle") }

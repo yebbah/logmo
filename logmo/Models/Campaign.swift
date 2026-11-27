@@ -17,6 +17,7 @@ final class Campaign {
     var endedEarly: Bool = false
     var label: String?                    // optional name chosen by the user
     var startWeightKg: Double?            // the weight the trend starts from on the campaign's first day
+    var measureEveryDays: Int = 0         // body measurements every this many days from the start; 0 = off
     var updatedAt: Date = Date()
 
     init(_ info: CampaignInfo) {
@@ -31,11 +32,12 @@ final class Campaign {
         endedEarly = info.endedEarly
         label = info.label
         startWeightKg = info.startWeightKg
+        measureEveryDays = info.measureEveryDays
     }
 
     var info: CampaignInfo {
         CampaignInfo(id: id, number: number, kind: CampaignKind(rawValue: kindRaw) ?? .maintenance,
                      isDefault: isDefault, targetWeightKg: targetWeightKg, start: start,
-                     plannedWeeks: plannedWeeks, end: end, endedEarly: endedEarly, label: label, startWeightKg: startWeightKg)
+                     plannedWeeks: plannedWeeks, end: end, endedEarly: endedEarly, label: label, startWeightKg: startWeightKg, measureEveryDays: measureEveryDays)
     }
 }

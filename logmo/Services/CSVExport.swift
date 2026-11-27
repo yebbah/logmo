@@ -26,13 +26,14 @@ struct ExportRow: Equatable {
     var campaign: String = ""
     var campaignKind: String = ""
     var goals: GoalSet?
+    var measures: [MeasureSite: Double] = [:]      // body measurements, cm
 }
 
 enum CSVExport {
     static let ratingColumns = ["sleep", "fatigue", "stress", "hunger", "performance", "appetite", "soreness"]
     static let header = (["date", "weight_kg", "calories_kcal", "protein_g", "fat_g", "carbs_g", "water_ml", "steps"] + ratingColumns + ["performance_na", "on_period", "sick", "sleep_hours_health", "resting_hr_bpm", "hrv_ms", "body_fat_pct", "lean_mass_kg", "campaign_number", "campaign", "campaign_kind",
                                                                                        "goal_calories_per_day", "goal_calories_basis", "goal_protein_g", "goal_steps", "goal_steps_basis",
-                                                                                       "goal_water_ml", "goal_workout_days", "goal_carbs_g", "goal_fat_g"])
+                                                                                       "goal_water_ml", "goal_workout_days", "goal_carbs_g", "goal_fat_g"] + MeasureSite.allCases.map { "measure_\($0.rawValue)_cm" })
         .joined(separator: ",")
 
     static func quote(_ t: String) -> String {
@@ -102,6 +103,7 @@ enum CSVExport {
             fields.append(r.bodyFatPercent.map { String(format: "%.1f", $0) } ?? ""); fields.append(r.leanKg.map { String(format: "%.2f", $0) } ?? "")
             fields.append(cell(r.campaignNumber)); fields.append(quote(r.campaign)); fields.append(r.campaignKind)
             fields.append(contentsOf: goalCells(r.goals))
+            for s in MeasureSite.allCases { fields.append(r.measures[s].map { String(format: "%.1f", $0) } ?? "") }
             lines.append(fields.joined(separator: ","))
         }
         return ([header] + lines).joined(separator: "\n") + "\n"

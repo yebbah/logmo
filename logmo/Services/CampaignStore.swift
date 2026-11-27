@@ -73,7 +73,8 @@ enum CampaignStore {
 
     @discardableResult
     static func start(_ context: ModelContext, kind: CampaignKind, targetKg: Double?, start: Date,
-                      weeks: Int, label: String? = nil, startWeightKg: Double?, today: Date = Date()) -> Result<Void, CampaignError> {
+                      weeks: Int, label: String? = nil, startWeightKg: Double?, measureEveryDays: Int = 0,
+                      today: Date = Date()) -> Result<Void, CampaignError> {
         // Every real campaign starts with a weight, so the trend always has a known starting point.
         guard CampaignRules.isPlausibleStartWeight(startWeightKg) else { return .failure(.invalidStartWeight) }
         let campaigns = all(context)
@@ -90,8 +91,10 @@ enum CampaignStore {
             if let e = plan.endDefault, let m = campaigns.first(where: { $0.id == e.id }) {
                 m.end = e.on; m.updatedAt = Date()
             }
-            context.insert(Campaign(plan.new))
-            seedGoals(context, for: plan.new, from: source)
+            var new = plan.new
+            new.measureEveryDays = measureEveryDays
+            context.insert(Campaign(new))
+            seedGoals(context, for: new, from: source)
             try? context.save()
             return .success(())
         }
@@ -131,7 +134,7 @@ enum CampaignStore {
     /// Change when an upcoming campaign starts and how long it runs. Only a campaign that hasn't started can change.
     @discardableResult
     static func reschedule(_ context: ModelContext, _ campaign: Campaign, start: Date, weeks: Int, startWeightKg: Double? = nil,
-                           today: Date = Date()) -> Result<Void, CampaignError> {
+                           measureEveryDays: Int? = nil, today: Date = Date()) -> Result<Void, CampaignError> {
         let cal = Calendar.current
         guard !campaign.isDefault, campaign.end == nil, CampaignRules.isUpcoming(campaign.info, today: today) else { return .failure(.notEditable) }
         guard weeks >= 1 else { return .failure(.invalidWeeks) }
@@ -145,6 +148,7 @@ enum CampaignStore {
         campaign.start = s
         campaign.plannedWeeks = weeks
         if let w = startWeightKg { campaign.startWeightKg = w }
+        if let m = measureEveryDays { campaign.measureEveryDays = m }
         campaign.updatedAt = Date()
         seedGoals(context, for: campaign.info, from: source)         // its goals are copied again for the new weeks
         try? context.save()

@@ -55,6 +55,10 @@ enum AIAdvisor {
         if let m = s.estimatedMaintenance {
             l.append("estimated maintenance kcal per day: \(m) (from \(s.maintenanceSource == .trend ? "weight trend and intake" : "a height, age, sex and activity formula"); status \(s.maintenanceStatus == .updating ? "updating" : "holding"))")
         }
+        l.append("pace being suggested: \(s.pace.rawValue)" + (a.aggressiveDelta != nil ? "; a faster option exists" : ""))
+        if let m = s.measures {
+            l.append("body measurements over \(m.spanDays) days, change in cm: " + MeasureSite.allCases.compactMap { site in m.changes[site].map { "\(site.short) \(String(format: "%+.1f", $0))" } }.joined(separator: ", "))
+        }
         if let p = s.periodDays { l.append("period days: \(p)") }
         if let k = s.sickDays { l.append("sick days: \(k)") }
         if !a.cautions.isEmpty { l.append("cautions found by the app: " + a.cautions.joined(separator: " ")) }

@@ -47,6 +47,10 @@ enum DemoData {
                 log.healthWorkoutMinutes = 52
                 log.performance = nil; log.performanceNA = false
             }
+            if let step = [27: 0.0, 20: 1.0, 12: 2.0][i] {       // measurements every week from the cut's start: the next one is due now
+                log.measures = BodyMeasures(values: [.navel: 85.0 - 0.75 * step, .belowNavel: 94.0 - 0.3 * step, .aboveNavel: 79.0 - 0.5 * step,
+                                                     .chest: 97.0, .thighs: 58.0 - 0.25 * step, .calves: 37.0, .biceps: 32.5 + 0.25 * step])
+            }
             context.insert(log)
         }
         if CommandLine.arguments.contains("-demo-long") {
@@ -68,7 +72,7 @@ enum DemoData {
                                              start: cal.date(byAdding: .day, value: -days, to: today)!,
                                              end: cal.date(byAdding: .day, value: -1, to: cutStart)!)))
         context.insert(Campaign(CampaignInfo(number: 2, kind: .cut, targetWeightKg: 78.0, start: cutStart, plannedWeeks: 8,
-                                             label: CommandLine.arguments.contains("-demo-label") ? "Summer cut" : nil)))
+                                             label: CommandLine.arguments.contains("-demo-label") ? "Summer cut" : nil, measureEveryDays: 7)))
         }
         try? context.save()
         let infos = (try? context.fetch(FetchDescriptor<Campaign>()))?.map(\.info) ?? []
