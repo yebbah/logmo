@@ -76,33 +76,47 @@ struct MeasureEntry: Equatable {
 }
 
 enum MeasureRules {
-    /// The days a campaign asks for measurements: its first day, then every cadence, up to `through` and the campaign's last day.
+    /// The days a campaign asks for measurements and photos: its first day (the baseline), then every cadence, and once more in its
+    /// last week (the end state), which is due from the first day of that final week (its last seven days).
     static func dueDates(_ c: CampaignInfo, through: Date, calendar cal: Calendar = .current) -> [Date] {
         guard c.measureEveryDays > 0 else { return [] }
-        let limit = min(cal.startOfDay(for: through), CampaignRules.lastDay(c, calendar: cal) ?? cal.startOfDay(for: through))
+        let today = cal.startOfDay(for: through)
+        let last = CampaignRules.lastDay(c, calendar: cal)
+        let limit = last.map { min(today, $0) } ?? today
+        // The final week starts six days before the last day, but never before the campaign's first day.
+        let finalDue: Date? = last.map { max(c.start, cal.date(byAdding: .day, value: -6, to: $0)!) }
         var out: [Date] = []
         var d = c.start
-        while d <= limit {
+        while d <= limit, finalDue.map({ d < $0 }) ?? true {
             out.append(d)
             d = cal.date(byAdding: .day, value: c.measureEveryDays, to: d)!
         }
+        if let f = finalDue, f <= limit, !out.contains(f) { out.append(f) }
         return out
     }
 
     /// Due when the campaign asks for measurements, today is inside it, and nothing has been measured since the latest due date.
     static func isDue(_ c: CampaignInfo, entries: [MeasureEntry], today: Date, calendar cal: Calendar = .current) -> Bool {
+        isDue(c, doneDays: entries.map(\.day), today: today, calendar: cal)
+    }
+
+    /// Progress photos are asked about on the same days, when the campaign has them switched on, until a day since the latest due date says yes.
+    static func isPhotoDue(_ c: CampaignInfo, photoDays: [Date], today: Date, calendar cal: Calendar = .current) -> Bool {
+        c.photoPrompt && isDue(c, doneDays: photoDays, today: today, calendar: cal)
+    }
+
+    private static func isDue(_ c: CampaignInfo, doneDays: [Date], today: Date, calendar cal: Calendar) -> Bool {
         guard c.measureEveryDays > 0, CampaignRules.contains(c, day: today, calendar: cal),
               let latest = dueDates(c, through: today, calendar: cal).last else { return false }
-        return !entries.contains { cal.startOfDay(for: $0.day) >= latest && cal.startOfDay(for: $0.day) <= cal.startOfDay(for: today) }
+        let t = cal.startOfDay(for: today)
+        return !doneDays.contains { cal.startOfDay(for: $0) >= latest && cal.startOfDay(for: $0) <= t }
     }
 
     /// The next due date after today, nil when off or none is left inside the campaign.
     static func nextDue(_ c: CampaignInfo, today: Date, calendar cal: Calendar = .current) -> Date? {
-        guard c.measureEveryDays > 0 else { return nil }
-        let last = CampaignRules.lastDay(c, calendar: cal)
-        var d = c.start
-        while d <= cal.startOfDay(for: today) { d = cal.date(byAdding: .day, value: c.measureEveryDays, to: d)! }
-        return last.map { d <= $0 } ?? true ? d : nil
+        guard c.measureEveryDays > 0, let last = CampaignRules.lastDay(c, calendar: cal) else { return nil }
+        let t = cal.startOfDay(for: today)
+        return dueDates(c, through: last, calendar: cal).first { $0 > t }
     }
 
     /// The entries inside a campaign (up to `through`, when given), oldest first.

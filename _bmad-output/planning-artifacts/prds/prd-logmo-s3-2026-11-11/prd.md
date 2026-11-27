@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 21.0
+version: 21.1
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v21.0)
+# logmo: Product Requirements (v21.1)
 
 ## Vision and outcome
 
@@ -49,7 +49,7 @@ Success means the user can log a full day in under a minute and see at a glance 
 
 Direction differs by category: higher is better for sleep and training performance, and higher means "more" for the rest. Values 2–4 are the steps between. All seven anchors are confirmed by the user (D6).
 
-**Still to log** (the strip of required trackers) has three states for the daily trackers: **green** when done and the day's goal reached, **amber** (with a ring) when something is logged but the form isn't complete or the goal isn't reached yet (food with a protein goal not reached or missing fields, water or a daily steps total under its goal, a partly filled check-in), and **grey** when nothing is logged. Weight is done once logged. A tracker with no goal is done once logged. Weekly items are not part of the strip: **Measurements due** shows as its own line when the campaign asks for them today (FR-27).
+**Still to log** (the strip of required trackers) has three states for the daily trackers, shown by colour alone with no legend: **green** when done and the day's goal reached, **amber** (with a ring) when something is logged but the form isn't complete or the goal isn't reached yet (food with a protein goal not reached or missing fields, water or a daily steps total under its goal, a partly filled check-in), and **grey** when nothing is logged. Weight is done once logged. A tracker with no goal is done once logged. Weekly items are not part of the strip: **Measurements due**, **Progress photos due** or **Measurements and photos due** shows as its own line when the campaign asks for them (FR-27).
 
 **Saving is automatic**: changes are saved shortly after you stop typing, when you change the date or leave the screen, and when the app goes to the background. A "Saved" indicator shows the state; there is no Save button. Empty fields stay empty. A day with nothing entered is not saved: clearing every field of a day removes its record. Where a goal exists, the empty field shows it as a hint (for example "goal 140").
 
@@ -229,8 +229,10 @@ The three streaks (logging, daily goals, weekly goals) are **not campaign-specif
 
 **FR-27. Body measurements.** Typed in, in centimetres, never read from Apple Health.
 - **Sites.** Waist at the navel, waist 2 in (about 5 cm) below the navel, waist 2 in above the navel, chest, thighs, calves and biceps (relaxed), one value each. All are optional on any day.
-- **Cadence, per campaign.** The new-campaign form and the form for editing an upcoming campaign have **Take body measurements: Off, Weekly, Biweekly or Monthly** (Monthly means every four weeks), counted from the campaign's first day, with the first dates shown. It is stored on the campaign and kept in the backup.
-- **On the Log screen.** A **Measurements** section: on a due day it is open and marked **Due today**, with the last reading beside each field; on other days it is collapsed behind **Add measurements**, so a measurement can be added any day. A campaign is due on its start day and every cadence after, until something is measured on or after the latest due date. Still to log shows **Measurements due** while due. Readings are saved with the day like everything else; implausible values (under 5 or over 300 cm) are ignored.
+- **Cadence and photos, per campaign.** The new-campaign form and the form for editing an upcoming campaign have one setting, **Measurements and photos: Off, Weekly, Biweekly or Monthly** (Monthly means every four weeks), with the dates it gives, and, once it is on, a switch **Ask about progress photos on those days**. Stored on the campaign and kept in the backup.
+- **Baseline and end state.** When it is on, a measurement is always due on the campaign's **first day** (the baseline) and again in its **last week** (the end state, due from the first day of the final seven days, or the first day of a campaign shorter than that), whatever the cadence: Monthly on an 8-week campaign is the start, one in the middle and the last week. The regular dates stop before the last week.
+- **Progress photos.** On the same days, when switched on, the Log screen asks **"Have you taken your progress photos?"** (a switch in the Measurements and photos section) and Still to log says Progress photos due, until a day since the latest due date answers yes. logmo records only the yes (not the photos), in the backup and as a `progress_photos` column in the CSV.
+- **On the Log screen.** A **Measurements** section (**Measurements and photos** when photos are on): on a due day it is open and marked **Due**, with the last reading beside each field; on other days it is collapsed behind **Add measurements**, so a measurement can be added any day. A campaign is due on its start day and every cadence after, until something is measured on or after the latest due date. Still to log shows **Measurements due** while due. Readings are saved with the day like everything else; implausible values (under 5 or over 300 cm) are ignored.
 - **Charts.** The Dashboard (for the campaign shown, or all data for Overall) and a campaign's detailed view show **Body measurements**: one line per measured site, drawn as the change in cm from its own first reading so that sites of different sizes share a scale, a legend that switches sites on and off, and a table with the latest reading and the change since the first (needs two readings a week apart). Green marks a change that fits the campaign (down on a cut, up on a bulk); the waist stays grey on a bulk.
 - **In the weekly suggestion.** The change over the campaign is one of the facts (FR-23): it appears in "What the assistant sees" and in the Why, as a second opinion beside the scale. Measurements never change a goal on their own.
 - **Data.** Stored on the day's log; the CSV export gains seven `measure_<site>_cm` columns; the full backup keeps readings and each campaign's cadence (older backups restore with none).
@@ -413,3 +415,6 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D144 | Measurement lines are drawn as change from the first reading, and the waist is not marked good on a bulk | Assumption: sites of 37 to 97 cm on one scale would be flat lines, and a larger waist on a bulk is not progress |
 | D145 | The weekly suggestion offers a conservative and an aggressive pace, led by a Settings preference; the aggressive one moves up to 250 kcal a day (conservative 100 to 150) inside the same floor and maintenance limit and is withheld when the evidence argues against it | Decided: the user asked for both; the 250 limit and the conditions are assumptions to review |
 | D146 | The suggestion explains itself in a plain-language Why, with the numbers one tap away; body measurements inform the Why and the model's facts but never move a goal | Decided: the user liked the mock-up and the Why |
+| D147 | Still to log has no legend: the three colours stand on their own | Decided: the user found the interface understandable without it |
+| D148 | With measurements on, one is always due on the first day (baseline) and in the last week (end state), whatever the cadence | Decided: the user asked |
+| D149 | The measurement setting becomes "Measurements and photos": a switch asks "Have you taken your progress photos?" on the same days; only the yes is recorded | Decided: the user asked; not keeping the photos themselves is an assumption (privacy, size) |

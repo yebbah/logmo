@@ -84,6 +84,7 @@ final class DayLog {
     var healthBodyFat: Double?            // percent
     var healthLeanKg: Double?
     var measurementsRaw: String?          // body measurements typed that day, in cm (see BodyMeasures); nil = none taken
+    var photosTaken: Bool?                // "have you taken your progress photos?" answered yes that day (the photos themselves are not kept)
 
     init(day: Date) {
         self.day = Calendar.current.startOfDay(for: day)
@@ -173,6 +174,6 @@ final class DayLog {
                          fatG: fatG, carbsG: carbsG, waterMl: waterMl, steps: steps, ratings: r,
                          performanceNA: performanceNA, onPeriod: onPeriod, isSick: isSick, sleepMinutes: healthSleepMinutes,
                          restingHR: healthRestingHR, hrv: healthHRV, bodyFatPercent: healthBodyFat, leanKg: healthLeanKg,
-                         measures: measures.values)
+                         measures: measures.values, photosTaken: photosTaken)
     }
 }

@@ -77,7 +77,7 @@ final class ExportTests: XCTestCase {
         r.campaignNumber = 2; r.campaign = "Lean, bulk"; r.campaignKind = "bulk"
         r.goals = GoalSet(caloriesWeekly: 14000, proteinDaily: 150, stepsDaily: 9000, stepsIsWeeklyAverage: true, workoutDaysWeekly: 4)
         let line = CSVExport.render([r], calendar: cal).split(separator: "\n")[1]
-        XCTAssertTrue(line.hasSuffix(",2,\"Lean, bulk\",bulk,2000,at_or_under,150,9000,weekly_average,,4,,,,,,,,,"), String(line))
+        XCTAssertTrue(line.hasSuffix(",2,\"Lean, bulk\",bulk,2000,at_or_under,150,9000,weekly_average,,4,,,,,,,,,,"), String(line))
     }
 
     func testCampaignsAndGoalsFiles() {

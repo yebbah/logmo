@@ -72,7 +72,7 @@ enum DemoData {
                                              start: cal.date(byAdding: .day, value: -days, to: today)!,
                                              end: cal.date(byAdding: .day, value: -1, to: cutStart)!)))
         context.insert(Campaign(CampaignInfo(number: 2, kind: .cut, targetWeightKg: 78.0, start: cutStart, plannedWeeks: 8,
-                                             label: CommandLine.arguments.contains("-demo-label") ? "Summer cut" : nil, measureEveryDays: 7)))
+                                             label: CommandLine.arguments.contains("-demo-label") ? "Summer cut" : nil, measureEveryDays: 7, photoPrompt: true)))
         }
         try? context.save()
         let infos = (try? context.fetch(FetchDescriptor<Campaign>()))?.map(\.info) ?? []

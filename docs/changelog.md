@@ -1,6 +1,16 @@
 # logmo: Change log by build
 
-Each push to `main` gets a new build number (`CURRENT_PROJECT_VERSION` in `project.yml`); the version (`MARKETING_VERSION`) stays 1.0.0 until a release is named. The build shows in Settings → About as "Version 1.0.0 (3)". The PRD version each build was made to is given next to it.
+Each push to `main` gets a new build number (`CURRENT_PROJECT_VERSION` in `project.yml`); the version (`MARKETING_VERSION`) stays 1.0.0 until a release is named. The build shows in Settings → About as "Version 1.0.0 (4)". The PRD version each build was made to is given next to it.
+
+## Build 4 (version 1.0.0), PRD v21.1, 27 November 2026
+
+**Changed**
+- **Measurements are always taken at the start and the end.** With measurements on, one is due on the campaign's first day (the baseline) and one in its last week (the end state), whatever the cadence (Weekly, Biweekly or Monthly) in between.
+- **Progress photos.** The campaign setting is now "Measurements and photos". Turn on "Ask about progress photos on those days" and the Log screen asks "Have you taken your progress photos?" on the same days; Still to log says Progress photos due until you answer yes. Only the yes is recorded (in the backup and the CSV's `progress_photos` column); the photos stay in your Photos app.
+- **Still to log** no longer shows the colour legend.
+
+**Documentation**
+- PRD v21.1 (FR-27 updated, decisions D147 to D149); user guide, release notes and production guide updated.
 
 ## Build 3 (version 1.0.0), PRD v21.0, 27 November 2026
 

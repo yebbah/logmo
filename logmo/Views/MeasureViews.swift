@@ -2,18 +2,23 @@ import SwiftUI
 import SwiftData
 import Charts
 
-/// The campaign setting: how often to take body measurements.
+/// The campaign setting: how often to take body measurements and progress photos.
 struct MeasureCadencePicker: View {
     @Environment(\.theme) private var theme
     @Binding var everyDays: Int
+    @Binding var photos: Bool
     let start: Date
+    let weeks: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Take body measurements").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-            Picker("Take body measurements", selection: $everyDays) {
+            Text("Measurements and photos").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
+            Picker("Measurements and photos", selection: $everyDays) {
                 ForEach(MeasureCadence.allCases) { Text($0.title).tag($0.rawValue) }
             }.pickerStyle(.segmented)
+            if everyDays > 0 {
+                Toggle("Ask about progress photos on those days", isOn: $photos)
+            }
             Text(caption).font(.caption).foregroundStyle(theme.muted)
         }
         .padding(.vertical, 2)
@@ -21,11 +26,11 @@ struct MeasureCadencePicker: View {
 
     private var caption: String {
         guard everyDays > 0 else { return "No measurements are asked for in this campaign. You can still add one any day." }
+        let c = CampaignInfo(number: 0, kind: .cut, start: Calendar.current.startOfDay(for: start), plannedWeeks: weeks, measureEveryDays: everyDays)
         let f = Date.FormatStyle().day().month(.abbreviated)
-        let cal = Calendar.current
-        let dates = (0..<3).map { cal.date(byAdding: .day, value: $0 * everyDays, to: cal.startOfDay(for: start))! }
-        let every = everyDays == 7 ? "every week" : (everyDays == 14 ? "every two weeks" : "every four weeks")
-        return "First on the start day (\(dates[0].formatted(f))), then \(every): \(dates[1].formatted(f)), \(dates[2].formatted(f)). Monthly means every four weeks."
+        let dates = MeasureRules.dueDates(c, through: CampaignRules.lastDay(c) ?? start).map { $0.formatted(f) }
+        let shown = dates.count > 5 ? Array(dates.prefix(4)) + ["…", dates.last!] : dates
+        return "Always on the first day (the baseline) and in the last week (the end state), and \(everyDays == 7 ? "every week" : (everyDays == 14 ? "every two weeks" : "every four weeks")) between: \(shown.joined(separator: ", ")). Monthly means every four weeks."
     }
 }
 
@@ -33,6 +38,8 @@ struct MeasureCadencePicker: View {
 struct MeasurementsSection: View {
     @Environment(\.theme) private var theme
     @Binding var texts: [MeasureSite: String]
+    @Binding var photosTaken: Bool
+    let askPhotos: Bool
     let due: Bool
     let last: MeasureEntry?
     @State private var open = false
@@ -57,10 +64,18 @@ struct MeasurementsSection: View {
             } else {
                 Button("Add measurements") { open = true }
             }
+            if askPhotos {
+                Toggle(isOn: $photosTaken) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Have you taken your progress photos?")
+                        Text(photosTaken ? "Yes, taken" : "Not yet").font(.caption).foregroundStyle(theme.muted)
+                    }
+                }
+            }
         } header: {
             HStack {
-                Text("Measurements")
-                if due { Text("Due today").font(.caption2.weight(.semibold)).foregroundStyle(theme.accent)
+                Text(askPhotos ? "Measurements and photos" : "Measurements")
+                if due { Text("Due").font(.caption2.weight(.semibold)).foregroundStyle(theme.accent)
                     .padding(.horizontal, 6).padding(.vertical, 2).background(theme.accent.opacity(0.12), in: Capsule()).textCase(nil) }
             }
         }

@@ -46,6 +46,36 @@ final class MeasurementTests: XCTestCase {
         XCTAssertNil(MeasureRules.nextDue(camp(every: 14, weeks: 2), today: day(20), calendar: cal))
     }
 
+    func testBaselineOnTheFirstDayAndAnEndStateInTheLastWeekAlways() {
+        // 8 weeks from 2 Nov: last day 27 Dec, so the final week starts 21 Dec. Monthly would otherwise skip it.
+        let c = camp(every: 28)
+        let all = MeasureRules.dueDates(c, through: cal.date(byAdding: .day, value: 60, to: day(2))!, calendar: cal)
+        XCTAssertEqual(all.first, day(2))                                                                  // the baseline
+        XCTAssertEqual(all.last, cal.date(byAdding: .day, value: 49, to: day(2)))                          // the end state: the first day of the last week
+        XCTAssertEqual(all.count, 3)                                                                       // start, one monthly, the end state
+        // Weekly: the regular ones stop before the last week and the end-state day joins them once.
+        let w = MeasureRules.dueDates(camp(every: 7), through: cal.date(byAdding: .day, value: 60, to: day(2))!, calendar: cal)
+        XCTAssertEqual(w.count, 8); XCTAssertEqual(Set(w).count, 8)
+        // A one-week campaign has just the one, on its first day.
+        XCTAssertEqual(MeasureRules.dueDates(camp(every: 14, weeks: 1), through: day(30), calendar: cal), [day(2)])
+        // Not due in the last week until that date is reached.
+        let m = [entry(2, [.navel: 85]), entry(30, [.navel: 84])]
+        XCTAssertFalse(MeasureRules.isDue(c, entries: m, today: cal.date(byAdding: .day, value: 48, to: day(2))!, calendar: cal))
+        XCTAssertTrue(MeasureRules.isDue(c, entries: m, today: cal.date(byAdding: .day, value: 49, to: day(2))!, calendar: cal))
+    }
+
+    func testPhotosAreAskedOnTheSameDaysOnlyWhenSwitchedOn() {
+        var c = camp(every: 14)
+        XCTAssertFalse(MeasureRules.isPhotoDue(c, photoDays: [], today: day(2), calendar: cal))           // off
+        c.photoPrompt = true
+        XCTAssertTrue(MeasureRules.isPhotoDue(c, photoDays: [], today: day(2), calendar: cal))
+        XCTAssertFalse(MeasureRules.isPhotoDue(c, photoDays: [day(2)], today: day(10), calendar: cal))
+        XCTAssertTrue(MeasureRules.isPhotoDue(c, photoDays: [day(2)], today: day(16), calendar: cal))
+        XCTAssertFalse(MeasureRules.isPhotoDue(c, photoDays: [day(2), day(16)], today: day(17), calendar: cal))
+        c.measureEveryDays = 0
+        XCTAssertFalse(MeasureRules.isPhotoDue(c, photoDays: [], today: day(2), calendar: cal))           // no cadence, no prompt
+    }
+
     func testChangeNeedsTwoReadingsAWeekApart() {
         let e = [entry(2, [.navel: 85, .chest: 97]), entry(5, [.navel: 84.5]), entry(16, [.navel: 83.5, .chest: 97])]
         let ch = MeasureRules.changes(e, calendar: cal)
@@ -87,20 +117,25 @@ final class MeasurementTests: XCTestCase {
         let c = try ModelContainer(for: DayLog.self, WeekGoal.self, Campaign.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         container = c
         let context = c.mainContext
-        let log = DayLog(day: day(5)); log.measures = BodyMeasures(values: [.navel: 83.5, .biceps: 33])
+        let log = DayLog(day: day(5)); log.measures = BodyMeasures(values: [.navel: 83.5, .biceps: 33]); log.photosTaken = true
         context.insert(log)
-        context.insert(Campaign(camp(every: 14)))
+        var withPhotos = camp(every: 14); withPhotos.photoPrompt = true
+        context.insert(Campaign(withPhotos))
         try context.save()
         let f = try Backup.decode(try Backup.encode(try Backup.make(context)))
         try Backup.restore(f, into: context)
         XCTAssertEqual(try context.fetch(FetchDescriptor<DayLog>()).first?.measures.values, [.navel: 83.5, .biceps: 33])
         XCTAssertEqual(try context.fetch(FetchDescriptor<Campaign>()).first?.measureEveryDays, 14)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<DayLog>()).first?.photosTaken, true)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Campaign>()).first?.photoPrompt, true)
         var row = log.exportRow
         row.campaign = ""
         let csv = CSVExport.render([row], calendar: cal)
         XCTAssertTrue(csv.hasPrefix(CSVExport.header))
         XCTAssertTrue(CSVExport.header.contains("measure_navel_cm") && CSVExport.header.contains("measure_biceps_cm"))
         XCTAssertTrue(csv.contains("83.5"))
+        XCTAssertTrue(CSVExport.header.hasSuffix("progress_photos"))
+        XCTAssertTrue(csv.split(separator: "\n")[1].hasSuffix(",true"))
     }
 
     @MainActor

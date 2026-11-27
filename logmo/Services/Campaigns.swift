@@ -30,6 +30,7 @@ struct CampaignInfo: Identifiable, Equatable, Hashable {
     var label: String? = nil           // the user's own name for it, optional
     var startWeightKg: Double? = nil   // the weight the trend starts from when this campaign begins; asked for every real campaign
     var measureEveryDays: Int = 0      // body measurements: 0 off, else every 7, 14 or 28 days from the start (see MeasureCadence)
+    var photoPrompt: Bool = false      // on the same days, ask "Have you taken your progress photos?"
 
     /// The standard name, used when there is no label.
     var title: String { "Campaign \(number) · \(kind.title)\(isDefault ? " (default)" : "")" }

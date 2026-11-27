@@ -577,6 +577,7 @@ struct NewCampaignForm: View {
     @State private var start = Calendar.current.startOfDay(for: Date())
     @State private var weeks = 8
     @State private var measureEvery = 0
+    @State private var photoPrompt = false
     @State private var error: String?
 
     private var unit: WeightUnit { WeightUnit(rawValue: unitRaw) ?? .kg }
@@ -610,7 +611,7 @@ struct NewCampaignForm: View {
                     }
                     DatePicker("Start date", selection: $start, in: minStart...max(farthest, minStart), displayedComponents: .date)
                     Stepper("Length: \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...104)
-                    MeasureCadencePicker(everyDays: $measureEvery, start: start)
+                    MeasureCadencePicker(everyDays: $measureEvery, photos: $photoPrompt, start: start, weeks: weeks)
                 } footer: {
                     Text((start > today ? "Starts in the future: until then the current campaign carries on. " : "")
                          + "The label is shown with the dates, which follow the start and length (\(CampaignRules.cleanLabel(label) ?? "Campaign") · \(periodPreview)). "
@@ -656,7 +657,7 @@ struct NewCampaignForm: View {
         if !target.isEmpty && kg == nil { error = "Enter the target weight as a number."; return }
         let sw = Double(startWeight.replacingOccurrences(of: ",", with: ".")).map(unit.toKg)
         guard CampaignRules.isPlausibleStartWeight(sw) else { error = "Enter your starting weight. The trend needs a starting point."; return }
-        switch CampaignStore.start(context, kind: kind, targetKg: kg, start: start, weeks: weeks, label: label, startWeightKg: sw, measureEveryDays: measureEvery) {
+        switch CampaignStore.start(context, kind: kind, targetKg: kg, start: start, weeks: weeks, label: label, startWeightKg: sw, measureEveryDays: measureEvery, photoPrompt: photoPrompt) {
         case .success: dismiss()
         case .failure(.campaignRunning): error = "A campaign is already planned. Change or cancel it first."
         case .failure(.startsBeforeCurrent): error = "The start date must be after the running campaign's planned end, or after the current campaign began."
@@ -742,6 +743,7 @@ struct EditUpcomingForm: View {
     @State private var weeks = 8
     @State private var startWeight = ""
     @State private var measureEvery = 0
+    @State private var photoPrompt = false
     @State private var error: String?
     @State private var loaded = false
 
@@ -758,7 +760,7 @@ struct EditUpcomingForm: View {
                     LabeledContent("Starting weight (\(WeightUnit(rawValue: unitRaw)?.rawValue ?? "kg"))") {
                         TextField("required", text: $startWeight).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                     }
-                    MeasureCadencePicker(everyDays: $measureEvery, start: start)
+                    MeasureCadencePicker(everyDays: $measureEvery, photos: $photoPrompt, start: start, weeks: weeks)
                 } footer: {
                     Text("Ends \(plannedEnd.formatted(date: .abbreviated, time: .omitted)). The earliest start is \(earliest.formatted(date: .abbreviated, time: .omitted)), after the campaign running now. Days in between stay maintenance. Its weekly goals are copied again from the latest ones for the new weeks.")
                 }
@@ -776,7 +778,7 @@ struct EditUpcomingForm: View {
             .onAppear {
                 guard !loaded else { return }
                 loaded = true
-                start = max(campaign.start, earliest); weeks = campaign.plannedWeeks ?? 8; measureEvery = campaign.measureEveryDays
+                start = max(campaign.start, earliest); weeks = campaign.plannedWeeks ?? 8; measureEvery = campaign.measureEveryDays; photoPrompt = campaign.photoPrompt
                 let u = WeightUnit(rawValue: unitRaw) ?? .kg
                 if let kg = campaign.startWeightKg { startWeight = String(format: "%.1f", u.fromKg(kg)) }
             }
@@ -788,7 +790,7 @@ struct EditUpcomingForm: View {
         let u = WeightUnit(rawValue: unitRaw) ?? .kg
         let sw = Double(startWeight.replacingOccurrences(of: ",", with: ".")).map(u.toKg)
         guard CampaignRules.isPlausibleStartWeight(sw) else { error = "Enter the starting weight. The trend needs a starting point."; return }
-        switch CampaignStore.reschedule(context, campaign, start: start, weeks: weeks, startWeightKg: sw, measureEveryDays: measureEvery) {
+        switch CampaignStore.reschedule(context, campaign, start: start, weeks: weeks, startWeightKg: sw, measureEveryDays: measureEvery, photoPrompt: photoPrompt) {
         case .success: dismiss()
         case .failure(.invalidStartWeight): error = "Enter a starting weight that makes sense."
 

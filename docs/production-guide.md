@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v21.0 and app version 1.0.0 (build 3).
+Version of this guide: matches PRD v21.1 and app version 1.0.0 (build 4).
 
 ---
 
@@ -41,7 +41,7 @@ SwiftUI views  ──►  Services (pure rules + stores)  ──►  SwiftData m
 
 - **DayLog**: one row per calendar day. Weight (always kg), calories and macros, water, steps, seven 1–5 ratings, `performanceNA`, `onPeriod`, `isSick`. A value never entered is `nil`, never 0.
 - **WeekGoal**: one row per campaign per Monday. Calories (stored as a weekly total), at-or-under flag, protein, steps and whether it is a weekly average, water, workout days, carbs and fat (guidance only), `confirmed` (false = carried over).
-- **Campaign**: number, kind, default or real, target weight, start, planned weeks, end, ended early, label, start weight, and `measureEveryDays` (0 off, 7, 14 or 28: body measurement cadence).
+- **Campaign**: number, kind, default or real, target weight, start, planned weeks, end, ended early, label, start weight, `measureEveryDays` (0 off, 7, 14 or 28: measurement cadence) and `photoPrompt` (ask about progress photos on those days). `DayLog.photosTaken` records a yes.
 - **Body measurements** are not a table: they are a small text on the day's `DayLog.measurementsRaw` (`navel:83.5,chest:97`, cm), parsed by `BodyMeasures`. `MeasureRules` (Measurements.swift) holds the due dates, the change per site and the campaign filter. The CSV gains `measure_<site>_cm` columns and the backup carries `measurementsRaw` and `measureEveryDays` (both optional, so older backups restore).
 
 Invariants the code keeps: every campaign has a start and an end (no open-ended or automatic campaigns; `CampaignStore.tidy` closes any open automatic one from an older version and creates nothing); a campaign covers its start to `CampaignRules.lastDay` and nothing after, so days outside every campaign belong to none; a campaign has its own goals; only one campaign can be planned but not started; past campaigns and past weeks are locked.
@@ -142,7 +142,7 @@ Compiled only in Debug (`#if DEBUG`): launch arguments such as `-demo-data` (in-
 5. Fast-forward merge to `main` (`git merge --ff-only`), push `main`.
 6. Build and install on the phone (section 3).
 7. Raise `CURRENT_PROJECT_VERSION` by one for every push to `main` and add the build to `docs/changelog.md`.
-8. Bump `MARKETING_VERSION` in `project.yml` when a release should show a new version in Settings → About and on the landing screen (it is still 1.0.0, build 3).
+8. Bump `MARKETING_VERSION` in `project.yml` when a release should show a new version in Settings → About and on the landing screen (it is still 1.0.0, build 4).
 
 Mock-ups for screen changes are made first on the design canvas and agreed before building.
 

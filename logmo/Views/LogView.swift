@@ -15,11 +15,12 @@ struct DayDraft: Equatable {
     var onPeriod: Bool?                // "on your period today?" nil = not answered
     var isSick: Bool?                  // "are you sick today?" nil = not answered
     var measures: [MeasureSite: String] = [:]   // body measurements in cm, as typed
+    var photosTaken = false            // progress photos: answered yes
 
     var isEmpty: Bool {
         weight.isEmpty && calories.isEmpty && protein.isEmpty && fat.isEmpty && carbs.isEmpty
             && water.isEmpty && steps.isEmpty && ratings.isEmpty && !performanceNA && onPeriod == nil && isSick == nil
-            && measures.values.allSatisfy { $0.isEmpty }
+            && measures.values.allSatisfy { $0.isEmpty } && !photosTaken
     }
 
     init() {}
@@ -53,6 +54,7 @@ struct DayDraft: Equatable {
         onPeriod = log.onPeriod
         isSick = log.isSick
         measures = Dictionary(uniqueKeysWithValues: log.measures.values.map { ($0.key, String(format: "%.1f", $0.value)) })
+        photosTaken = log.photosTaken == true
     }
 
     func apply(to log: DayLog, unit: WeightUnit) {
@@ -77,6 +79,7 @@ struct DayDraft: Equatable {
         var typed: [MeasureSite: Double] = [:]
         for (s, t) in measures { if let d = Double(t.replacingOccurrences(of: ",", with: ".")), BodyMeasures.isPlausible(d) { typed[s] = d } }
         log.measures = BodyMeasures(values: typed)
+        log.photosTaken = photosTaken ? true : nil
         var imp = log.imported, over = log.overridden                       // a Health value the user changed or cleared is now theirs
         HealthMerge.markEdits(old: before, new: log.healthValues, imported: &imp, overridden: &over)
         log.imported = imp; log.overridden = over
@@ -155,7 +158,7 @@ struct LogView: View {
     /// reached, where there is one). Amber: started but not complete or the goal isn't reached yet. Grey: nothing logged.
     @ViewBuilder private var completenessStrip: some View {
         let required = Tracker.allCases.filter(RequiredTrackers.parse(requiredRaw).contains)
-        let due = measurementsDue
+        let due = measurementsDue || photosDue
         if !required.isEmpty || due {
             let states = Dictionary(uniqueKeysWithValues: required.map { ($0, draft.state($0, goals: goals)) })
             let allDone = states.values.allSatisfy { $0 == .done }
@@ -189,17 +192,16 @@ struct LogView: View {
                                     .accessibilityLabel("\(t.title), \(st == .done ? "done" : (st == .inProgress ? "in progress" : "not started"))")
                             }
                         }
-                        HStack(spacing: 14) {
-                            legend(theme.good, "done"); legend(Color(red: 0.88, green: 0.66, blue: 0), "in progress"); legend(theme.muted, "not started")
-                        }.font(.caption2).foregroundStyle(theme.muted)
                     }
                     if due {
                         HStack(spacing: 10) {
                             Image(systemName: "ruler").frame(width: 36, height: 36)
                                 .foregroundStyle(theme.accent).background(theme.accent.opacity(0.12), in: Circle())
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("Measurements due").font(.subheadline.weight(.semibold))
-                                Text("Body measurements for this campaign are due today.").font(.caption).foregroundStyle(theme.muted)
+                                Text(measurementsDue && photosDue ? "Measurements and photos due" : (photosDue ? "Progress photos due" : "Measurements due"))
+                                    .font(.subheadline.weight(.semibold))
+                                Text(photosDue && measurementsDue ? "Take your measurements and progress photos." : (photosDue ? "Have you taken your progress photos?" : "Body measurements for this campaign are due."))
+                                    .font(.caption).foregroundStyle(theme.muted)
                             }
                         }
                     }
@@ -210,14 +212,20 @@ struct LogView: View {
         }
     }
 
-    private func legend(_ c: Color, _ text: String) -> some View {
-        HStack(spacing: 4) { Circle().fill(c).frame(width: 7, height: 7); Text(text) }
-    }
-
     /// The campaign asks for measurements today and none has been taken since the latest due date.
     private var measurementsDue: Bool {
         guard date == today, let c = CampaignRules.campaign(for: date, in: campaigns.map(\.info)) else { return false }
         return MeasureRules.isDue(c, entries: measureEntries, today: date)
+    }
+
+    /// The campaign asks for progress photos on its measurement days, and none has been confirmed since the latest due date.
+    private var photosDue: Bool {
+        guard date == today, let c = CampaignRules.campaign(for: date, in: campaigns.map(\.info)) else { return false }
+        return MeasureRules.isPhotoDue(c, photoDays: logs.filter { $0.photosTaken == true }.map(\.day), today: date)
+    }
+
+    private var photoPromptOn: Bool {
+        CampaignRules.campaign(for: date, in: campaigns.map(\.info))?.photoPrompt == true
     }
 
     /// Shown when the day's campaign asks for measurements, or any day once something has been measured (so any day can add one).
@@ -299,7 +307,7 @@ struct LogView: View {
                     .listRowBackground(theme.card)
 
                     if showMeasurements {
-                        MeasurementsSection(texts: $draft.measures, due: measurementsDue, last: lastMeasurement)
+                        MeasurementsSection(texts: $draft.measures, photosTaken: $draft.photosTaken, askPhotos: photoPromptOn, due: measurementsDue || photosDue, last: lastMeasurement)
                     }
 
                 }

@@ -26,6 +26,7 @@ struct BackupFile: Codable, Equatable {
         var performanceNA: Bool; var onPeriod: Bool?; var isSick: Bool?; var importedFields, overriddenFields: String?
         var healthSleepMinutes, healthSleepAwakeMinutes, healthSleepDeepMinutes, healthSleepREMMinutes, healthRestingHR, healthHRV: Int?; var healthBodyFat, healthLeanKg: Double?
         var measurementsRaw: String?         // body measurements (absent in older backups)
+        var photosTaken: Bool?               // progress photos answered yes (absent in older backups)
     }
     struct GoalRecord: Codable, Equatable {
         var id: UUID; var campaignID: UUID?; var weekStart: Date; var updatedAt: Date
@@ -38,6 +39,7 @@ struct BackupFile: Codable, Equatable {
         var targetWeightKg: Double?; var start: Date; var plannedWeeks: Int?
         var end: Date?; var endedEarly: Bool; var label: String?; var updatedAt: Date; var startWeightKg: Double?
         var measureEveryDays: Int?           // body measurement cadence (absent in older backups)
+        var photoPrompt: Bool?               // progress photo prompt on (absent in older backups)
     }
 }
 
@@ -53,7 +55,7 @@ enum Backup {
                   importedFields: $0.importedFields, overriddenFields: $0.overriddenFields,
                   healthSleepMinutes: $0.healthSleepMinutes, healthSleepAwakeMinutes: $0.healthSleepAwakeMinutes,
                   healthSleepDeepMinutes: $0.healthSleepDeepMinutes, healthSleepREMMinutes: $0.healthSleepREMMinutes, healthRestingHR: $0.healthRestingHR, healthHRV: $0.healthHRV,
-                  healthBodyFat: $0.healthBodyFat, healthLeanKg: $0.healthLeanKg, measurementsRaw: $0.measurementsRaw)
+                  healthBodyFat: $0.healthBodyFat, healthLeanKg: $0.healthLeanKg, measurementsRaw: $0.measurementsRaw, photosTaken: $0.photosTaken)
         }
         f.goals = try context.fetch(FetchDescriptor<WeekGoal>(sortBy: [SortDescriptor(\.weekStart)])).map {
             .init(id: $0.id, campaignID: $0.campaignID, weekStart: $0.weekStart, updatedAt: $0.updatedAt,
@@ -64,7 +66,7 @@ enum Backup {
         f.campaigns = try context.fetch(FetchDescriptor<Campaign>(sortBy: [SortDescriptor(\.number)])).map {
             .init(id: $0.id, number: $0.number, kindRaw: $0.kindRaw, isDefault: $0.isDefault, targetWeightKg: $0.targetWeightKg,
                   start: $0.start, plannedWeeks: $0.plannedWeeks, end: $0.end, endedEarly: $0.endedEarly,
-                  label: $0.label, updatedAt: $0.updatedAt, startWeightKg: $0.startWeightKg, measureEveryDays: $0.measureEveryDays)
+                  label: $0.label, updatedAt: $0.updatedAt, startWeightKg: $0.startWeightKg, measureEveryDays: $0.measureEveryDays, photoPrompt: $0.photoPrompt)
         }
         for k in BackupFile.settingKeys {
             if let v = UserDefaults.standard.object(forKey: k) { f.settings[k] = "\(v)" }
@@ -98,7 +100,7 @@ enum Backup {
             l.importedFields = r.importedFields ?? ""; l.overriddenFields = r.overriddenFields ?? ""
             l.healthSleepAwakeMinutes = r.healthSleepAwakeMinutes; l.healthSleepDeepMinutes = r.healthSleepDeepMinutes; l.healthSleepREMMinutes = r.healthSleepREMMinutes
             l.healthSleepMinutes = r.healthSleepMinutes; l.healthRestingHR = r.healthRestingHR; l.healthHRV = r.healthHRV
-            l.healthBodyFat = r.healthBodyFat; l.healthLeanKg = r.healthLeanKg; l.measurementsRaw = r.measurementsRaw
+            l.healthBodyFat = r.healthBodyFat; l.healthLeanKg = r.healthLeanKg; l.measurementsRaw = r.measurementsRaw; l.photosTaken = r.photosTaken
             context.insert(l)
         }
         for r in f.goals {
@@ -111,7 +113,7 @@ enum Backup {
         for r in f.campaigns {
             let c = Campaign(CampaignInfo(id: r.id, number: r.number, kind: CampaignKind(rawValue: r.kindRaw) ?? .maintenance,
                                           isDefault: r.isDefault, targetWeightKg: r.targetWeightKg, start: r.start,
-                                          plannedWeeks: r.plannedWeeks, end: r.end, endedEarly: r.endedEarly, label: r.label, startWeightKg: r.startWeightKg, measureEveryDays: r.measureEveryDays ?? 0))
+                                          plannedWeeks: r.plannedWeeks, end: r.end, endedEarly: r.endedEarly, label: r.label, startWeightKg: r.startWeightKg, measureEveryDays: r.measureEveryDays ?? 0, photoPrompt: r.photoPrompt ?? false))
             c.updatedAt = r.updatedAt
             context.insert(c)
         }

@@ -46,7 +46,8 @@ Fields show a hint when you have a goal, for example "goal 150" for protein, and
 
 Measure with a tape, in centimetres, relaxed and at about the same time of day: **waist at the navel**, **waist 2 in (about 5 cm) below** and **2 in above** the navel, **chest**, **thighs**, **calves** and **biceps** (relaxed). Everything is optional.
 
-- **Set how often per campaign.** When you start a campaign (or edit one that hasn't started), choose **Take body measurements: Off, Weekly, Biweekly or Monthly** (monthly means every four weeks). The first one is due on the campaign's start day.
+- **Set how often per campaign.** When you start a campaign (or edit one that hasn't started), choose **Measurements and photos: Off, Weekly, Biweekly or Monthly** (monthly means every four weeks). Measurements are always due on the **first day** (your baseline) and again in the **last week** (your end state), with the cadence in between.
+- **Progress photos.** Turn on **Ask about progress photos on those days** and the Log screen asks "Have you taken your progress photos?" on the same days. logmo records only your yes; the photos themselves stay in your Photos app.
 - **On the Log screen,** a **Measurements** section opens on a due day, marked **Due today**, with your last reading beside each field. On other days it waits behind **Add measurements**, so you can add one any day. It stays due until you measure.
 - **See the results** on the Dashboard and in a campaign's detailed view: a line for each site showing how it has changed since your first reading, a switch for each line, and a table with the latest reading and the change.
 - The weekly suggestion reads them as a second opinion beside the scale. They explain what is happening but never change your goals on their own. Measurements are typed here only; they don't come from Apple Health.
