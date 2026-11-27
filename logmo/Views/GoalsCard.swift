@@ -12,6 +12,7 @@ struct GoalsCard: View {
     let onEdit: () -> Void
     let onPlan: () -> Void
     var onSuggest: (() -> Void)? = nil     // "Suggest next week", only for a campaign that is running
+    var onReview: (() -> Void)? = nil      // "Review" the week, only for a campaign that is running
 
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: Date()) }
@@ -87,10 +88,11 @@ struct GoalsCard: View {
                 }
             }
             Divider()
-            HStack(spacing: 22) {
+            HStack(spacing: 16) {
                 if live || upcoming { Button("Edit goals", action: onEdit) }
                 Button("Weekly plan", action: onPlan)
                 if live, let onSuggest { Button { onSuggest() } label: { Label("Suggest", systemImage: "sparkles") } }
+                if live, let onReview { Button("Review", action: onReview) }
             }
         .font(.subheadline).buttonStyle(.borderless)
         }

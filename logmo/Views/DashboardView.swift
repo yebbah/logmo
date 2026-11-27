@@ -19,6 +19,9 @@ struct DashboardView: View {
     @State private var goalsTarget: GoalsTarget?
     @State private var planCampaign: CampaignInfo?
     @State private var suggestCampaign: CampaignInfo?
+    @State private var reviewCampaign: CampaignInfo?
+    @State private var suggestAfterReview: CampaignInfo?      // "Plan next week" in the review: the suggestion opens once the review has dismissed
+    @AppStorage("reviewDismissedOn") private var reviewDismissedOn = ""
     @State private var pendingGoals: GoalsTarget?      // "Edit first": opened once the suggestion sheet has dismissed
     @State private var startWeightFor: Campaign?
     @AppStorage("startWeightDismissedOn") private var startWeightDismissedOn = ""
@@ -45,6 +48,7 @@ struct DashboardView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         weekHeadline(infos)
+                        reviewPrompt(infos)
                         setupCard(infos)
                         finishedCard(infos)
                         closingCard(infos)
@@ -62,7 +66,8 @@ struct DashboardView: View {
                             GoalsCard(campaign: gc, snaps: snaps, timeline: timeline, explicitWeeks: explicit,
                                       onEdit: { goalsTarget = GoalsTarget(campaign: gc, week: nil) },
                                       onPlan: { planCampaign = gc },
-                                      onSuggest: { suggestCampaign = gc }).id("goals")
+                                      onSuggest: { suggestCampaign = gc },
+                                      onReview: { reviewCampaign = gc }).id("goals")
                         }
                         PerformanceCard(snaps: snaps, trend: trend, scope: scope, targetKg: selected?.targetWeightKg).id("performance")
                         MaintenanceCard(snaps: snaps, timeline: timeline, scope: scope, smoothing: smoothing, seeds: seeds, profile: MaintenanceProfile.load()).id("maintenance")
@@ -79,6 +84,12 @@ struct DashboardView: View {
                 .onAppear {
                     CampaignStore.tidy(context)
                     #if DEBUG
+                    // Debug aid for screenshots: -reviewOnAppear 1 opens the weekly review
+                    if UserDefaults.standard.bool(forKey: "reviewOnAppear"), let c = CampaignRules.campaign(for: today, in: infos) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { reviewCampaign = c }
+                    }
+                    #endif
+                    #if DEBUG
                     // Debug aid for screenshots: -scrollTo goals|performance|weight|rate|steps|bio|protein
                     if let id = UserDefaults.standard.string(forKey: "scrollTo") {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo(id, anchor: .top) }
@@ -89,6 +100,11 @@ struct DashboardView: View {
             .background(theme.bg)
             .navigationTitle("Dashboard")
             .sheet(item: $goalsTarget) { t in GoalsSheet(campaign: t.campaign, week: t.week, prefill: t.prefill) }
+            .sheet(item: $reviewCampaign, onDismiss: {
+                if let c = suggestAfterReview { suggestAfterReview = nil; suggestCampaign = c }
+            }) { c in
+                WeeklyReviewSheet(campaign: c) { suggestAfterReview = c }
+            }
             .sheet(item: $startWeightFor) { StartWeightSheet(campaign: $0) }
             .sheet(item: $suggestCampaign, onDismiss: {
                 if let p = pendingGoals { pendingGoals = nil; goalsTarget = p }
@@ -119,6 +135,41 @@ struct DashboardView: View {
             }
         }
         .padding(.horizontal, 4)
+    }
+
+    private var forceReviewPrompt: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "forceReviewPrompt")       // screenshot aid: show the Sunday card on any day
+        #else
+        return false
+        #endif
+    }
+
+    /// On the week's last day (Sunday), a card offering the weekly review. "Later" puts it off for the day.
+    @ViewBuilder
+    private func reviewPrompt(_ infos: [CampaignInfo]) -> some View {
+        if (ReviewRules.isLastDayOfWeek(today) || forceReviewPrompt), reviewDismissedOn != todayKey,
+           let c = CampaignRules.campaign(for: today, in: infos), !c.isDefault, !CampaignRules.isUpcoming(c, today: today) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "star.fill").foregroundStyle(.white).frame(width: 36, height: 36).background(theme.accent, in: Circle())
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Week \(CampaignRules.weekNumber(c, today: today)) ends today").font(.headline)
+                        Text("See how it went compared with last week: weight, food, training, how you felt and your measurements.")
+                            .font(.subheadline).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                HStack(spacing: 12) {
+                    Button { reviewDismissedOn = todayKey } label: { Text("Later").fontWeight(.semibold).frame(maxWidth: .infinity, minHeight: 28) }
+                        .buttonStyle(.bordered)
+                    Button { reviewDismissedOn = todayKey; reviewCampaign = c } label: { Text("Review my week").fontWeight(.semibold).frame(maxWidth: .infinity, minHeight: 28) }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(16)
+            .background(theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(theme.accent.opacity(0.25), lineWidth: 1))
+        }
     }
 
     // MARK: Setup and finished-campaign prompts

@@ -237,6 +237,8 @@ struct WeeklyPlanView: View {
     @State private var editing: EditTarget?
     @State private var suggesting = false
     @State private var pendingEdit: EditTarget?        // "Edit first": opened once the suggestion sheet has dismissed
+    @State private var reviewing = false
+    @State private var suggestAfterReview = false
 
     struct EditTarget: Identifiable { var week: Date; var prefill: GoalSet? = nil; var id: Date { week } }
 
@@ -306,7 +308,15 @@ struct WeeklyPlanView: View {
         }) {
             SuggestSheet(campaign: campaign) { goals, week in pendingEdit = EditTarget(week: week, prefill: goals) }
         }
+        .sheet(isPresented: $reviewing, onDismiss: { if suggestAfterReview { suggestAfterReview = false; suggesting = true } }) {
+            WeeklyReviewSheet(campaign: campaign) { suggestAfterReview = true }
+        }
         .toolbar {
+            if CampaignRules.contains(campaign, day: Date()) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { reviewing = true } label: { Label("Review the week", systemImage: "chart.bar.doc.horizontal") }
+                }
+            }
             if editable {
                 ToolbarItem(placement: .primaryAction) {
                     Button { suggesting = true } label: { Label("Suggest next week", systemImage: "sparkles") }

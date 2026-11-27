@@ -34,6 +34,7 @@ struct DaySnapshot: Equatable {
     var restingHR: Int? = nil            // from Apple Health, bpm
     var hrv: Int? = nil                  // from Apple Health, ms
     var sleepMinutes: Int? = nil         // asleep time from Apple Health
+    var strengthMinutes: Int? = nil      // minutes of strength training Apple Health recorded
 }
 
 // MARK: - Goals

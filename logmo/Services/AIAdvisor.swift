@@ -73,6 +73,27 @@ enum AIAdvisor {
         """
     }
 
+    static let reviewInstructions = """
+    You help someone read back on their week of training and eating. The app has already calculated every number and decided how the week went. \
+    Rewrite the draft summary in warm, plain, encouraging language, at most four short sentences, keeping what it says: what went well first, then what to watch. \
+    Use only numbers that appear in the facts. Never say training is safe or unsafe, never give medical advice, never invent measurements or causes.
+    """
+
+    /// The review's summary reworded by the on-device model, kept only if it passes the same checks as a suggestion's note.
+    static func polishReview(_ r: WeeklyReview) async -> String? {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *), availability == .available {
+            do {
+                let session = LanguageModelSession(instructions: reviewInstructions)
+                let facts = r.facts
+                let response = try await session.respond(to: "Facts:\n\(facts)\n\nDraft summary: \(r.summary)", generating: AIReviewText.self)
+                return NoteValidator.clean(response.content.summary, facts: facts + " " + r.summary, targets: [], maxLength: 700)
+            } catch { return nil }
+        }
+        #endif
+        return nil
+    }
+
     static let instructions = """
     You help someone plan next week's calories, steps and lifting days for a fitness campaign. The app has already calculated every number \
     and decided what the evidence supports. You do not calculate or judge the data. Choose values inside the ranges you are given; when unsure, \
@@ -124,9 +145,9 @@ enum NoteValidator {
     }
 
     /// The note if it is short, makes no banned claim and uses only known numbers; otherwise nil.
-    static func clean(_ note: String, facts: String, targets: [Int]) -> String? {
+    static func clean(_ note: String, facts: String, targets: [Int], maxLength: Int = 320) -> String? {
         let t = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !t.isEmpty, t.count <= 320 else { return nil }
+        guard !t.isEmpty, t.count <= maxLength else { return nil }
         let lower = t.lowercased()
         if banned.contains(where: { lower.contains($0) }) { return nil }
         var known = numbers(in: facts)
@@ -144,5 +165,13 @@ struct AIPlan {
     @Guide(description: "Steps per day for next week, inside the allowed range") var steps: Int
     @Guide(description: "Number of lifting days next week, inside the allowed range") var liftingDays: Int
     @Guide(description: "One or two short sentences explaining the choice using only numbers from the facts") var coachNote: String
+}
+#endif
+
+#if canImport(FoundationModels)
+@available(iOS 26.0, *)
+@Generable
+struct AIReviewText {
+    @Guide(description: "The week's summary in at most four short, warm sentences, using only numbers from the facts") var summary: String
 }
 #endif

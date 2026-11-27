@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 5)**, built to PRD v21.1, 25 November 2026. Build 1 was the first version, installed on the owner's iPhone. See the change log (docs/changelog.md) for what changed in each build. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 6)**, built to PRD v21.2, 25 November 2026. Build 1 was the first version, installed on the owner's iPhone. See the change log (docs/changelog.md) for what changed in each build. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 
@@ -46,6 +46,7 @@ logmo is a personal iPhone app to log weight, food, water, steps and a daily che
 - Imported values count for goals, streaks, compliance, reminders and the weekly suggestion like typed ones.
 
 ### The week and the weekly rate of change
+- **Weekly review:** on Sunday the Dashboard offers a review of the week against the week before (weight, calories, protein, steps, water, training, how you felt, measurements, biofeedback), also on demand any day for the week so far or last week, with a verdict, a plain summary and a button to plan next week.
 - **Body measurements** are always due on the first day and in the last week, and a campaign can also ask "Have you taken your progress photos?" on those days (the setting is now "Measurements and photos").
 - **Body measurements** (waist at the navel, 2 in below and above it, chest, thighs, calves, biceps): cadence per campaign (Off, Weekly, Biweekly, Monthly), a Measurements section and a Measurements due prompt on the Log screen, a line chart per campaign on the Dashboard and in the campaign's detailed view, included in the CSV export and the backup.
 - **Still to log** shows amber for a daily tracker that is started but not complete or short of its goal.

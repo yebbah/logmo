@@ -1,6 +1,17 @@
 # logmo: Change log by build
 
-Each push to `main` gets a new build number (`CURRENT_PROJECT_VERSION` in `project.yml`); the version (`MARKETING_VERSION`) stays 1.0.0 until a release is named. The build shows in Settings → About as "Version 1.0.0 (5)". The PRD version each build was made to is given next to it.
+Each push to `main` gets a new build number (`CURRENT_PROJECT_VERSION` in `project.yml`); the version (`MARKETING_VERSION`) stays 1.0.0 until a release is named. The build shows in Settings → About as "Version 1.0.0 (6)". The PRD version each build was made to is given next to it.
+
+## Build 6 (version 1.0.0), PRD v21.2, 27 November 2026
+
+**New**
+- **Weekly review.** On the week's last day (Sunday) the Dashboard offers "Week 4 ends today" with **Review my week** and **Later**. Any other day, the live Goals card has a **Review** link and the Weekly plan screen a review button, showing the week so far; the sheet can also show last week. It compares the week with the one before: weight trend (and distance to your target), calories, protein days, steps, water, training (lifting days, performance rating, Apple Health strength minutes), how you felt, and measurements, each marked green, amber or blue, plus the seven biofeedback ratings with their change, a verdict (on track, mostly on track, needs attention, not enough logged) and a plain summary. With Apple Intelligence on, the summary is reworded on your iPhone from the calculated numbers. **Plan next week** opens the suggestion. Nothing is stored and no goal changes.
+
+**Out of scope for now**
+- Workout progression from other apps such as Hevy (its API needs Pro and an API key, and people use different apps).
+
+**Documentation**
+- PRD v21.2 (FR-28 Weekly review, decisions D150 to D153); user guide, release notes and production guide updated.
 
 ## Build 5 (version 1.0.0), PRD v21.1, 27 November 2026
 

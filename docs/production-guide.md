@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v21.1 and app version 1.0.0 (build 5).
+Version of this guide: matches PRD v21.2 and app version 1.0.0 (build 6).
 
 ---
 
@@ -81,6 +81,10 @@ Two local notification types, both scheduled on the phone:
 - **Weekly plan reminder:** one repeating notification at a chosen day and time.
 - **Daily log reminder:** because iOS can't check conditions at delivery, the app schedules one notification per day for the next 7 days and re-plans them whenever a log is saved, the app opens or leaves the foreground, or the setting changes. Today's is cancelled once the day's goals are met. Identifiers start with `logmo.daily-reminder.`.
 
+### Weekly review
+
+`ReviewRules.review` (WeeklyReview.swift) turns a week's snapshots into a `WeeklyReview`: one `ReviewMetric` per row (weight trend from `Metrics.weeklyTrendRows`, calories, protein days from `Insights.proteinDays`, steps, water, training, felt, measurements), the biofeedback rows, notes, a verdict and a calculated summary, each compared with the seven days before. It is pure and stored nowhere. `AIAdvisor.polishReview` asks Foundation Models to reword the summary and keeps it only if `NoteValidator.clean` accepts it (20 s limit). `DaySnapshot.strengthMinutes` carries Apple Health's strength minutes. The Sunday card uses `ReviewRules.isLastDayOfWeek`; `-forceReviewPrompt YES` and `-reviewOnAppear YES` are debug aids.
+
 ### AI suggestion
 
 The suggestion is calculated first and explained second:
@@ -142,7 +146,7 @@ Compiled only in Debug (`#if DEBUG`): launch arguments such as `-demo-data` (in-
 5. Fast-forward merge to `main` (`git merge --ff-only`), push `main`.
 6. Build and install on the phone (section 3).
 7. Raise `CURRENT_PROJECT_VERSION` by one for every push to `main` and add the build to `docs/changelog.md`.
-8. Bump `MARKETING_VERSION` in `project.yml` when a release should show a new version in Settings → About and on the landing screen (it is still 1.0.0, build 5).
+8. Bump `MARKETING_VERSION` in `project.yml` when a release should show a new version in Settings → About and on the landing screen (it is still 1.0.0, build 6).
 
 Mock-ups for screen changes are made first on the design canvas and agreed before building.
 

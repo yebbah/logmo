@@ -118,6 +118,15 @@ How it decides: calories change only when your weight is outside what your campa
 
 It runs on your iPhone, so nothing leaves it. It needs iOS 26 or later with Apple Intelligence turned on. Without that you still get a simpler, rule-based suggestion. It is a suggestion, not medical advice.
 
+### Weekly review
+
+On the last day of the week (Sunday) a card on the Dashboard says **Week 4 ends today**. Tap **Review my week**, or **Later** to put it off for the day. Any other day, tap **Review** on the Goals card or the review button on the Weekly plan to see the week so far. You can switch between **This week** and **Last week**.
+
+- **At the top:** how the week went in one word (on track, mostly on track, needs attention) and a short summary. With Apple Intelligence on, the wording is polished on your iPhone using only the numbers.
+- **How the week went:** weight trend (and how far from your target), calories, protein days, steps, water, training (lifting days, how training felt, and strength minutes from Apple Health), how you felt, and measurements if you took them. Each row shows last week beside it, with a green, amber or blue mark.
+- **Biofeedback:** your seven ratings with their change on last week; green moved the better way.
+- **Plan next week** opens the weekly suggestion. The review is worked out from your logs each time and never changes your goals. Training from other apps (for example Hevy) isn't included yet.
+
 ## 8. Reminders
 
 In **Settings → Reminders**:

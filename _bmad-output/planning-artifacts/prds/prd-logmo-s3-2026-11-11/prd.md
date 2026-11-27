@@ -1,12 +1,12 @@
 ---
 title: logmo iPhone App
 status: approved
-version: 21.1
+version: 21.2
 created: 2026-11-11
 updated: 2026-11-25
 ---
 
-# logmo: Product Requirements (v21.1)
+# logmo: Product Requirements (v21.2)
 
 ## Vision and outcome
 
@@ -237,6 +237,14 @@ The three streaks (logging, daily goals, weekly goals) are **not campaign-specif
 - **In the weekly suggestion.** The change over the campaign is one of the facts (FR-23): it appears in "What the assistant sees" and in the Why, as a second opinion beside the scale. Measurements never change a goal on their own.
 - **Data.** Stored on the day's log; the CSV export gains seven `measure_<site>_cm` columns; the full backup keeps readings and each campaign's cadence (older backups restore with none).
 
+**FR-28. Weekly review.** A look back at the week, compared with the week before, worked out from the logs each time (nothing is stored, no goal changes).
+- **Offered.** On the week's last day (Sunday) the Dashboard shows a card under the week line, "Week 4 ends today", with **Later** (hides it for the day) and **Review my week**. Any other day, the live Goals card has a **Review** link beside Suggest, and the Weekly plan screen a **Review the week** button; these review the week so far. The review sheet can switch between **This week** and **Last week**.
+- **Top card.** A verdict (**On track**, **Mostly on track**, **Needs attention**, or **Not enough logged yet** under three logged days), the days complied, and a short plain summary written from the rows. When Apple Intelligence is available it rewords the summary on the iPhone from the calculated facts only, with the same checks as a suggestion's note (no number that isn't in the facts, no safety or medical claims, kept only if valid, 20 seconds at most); otherwise the calculated text stays.
+- **How the week went**, one row each with this week's value, last week's, a green, amber or blue mark and a sentence: **weight trend** (the week's change in the trend against the campaign's range, and the distance to the target weight; "N/A" when there is nothing earlier or the trend restarted), **calories** against the goal (and against estimated maintenance), **protein** (days the goal was reached, today left out until reached), **steps**, **water** (days the goal was reached), **training** (lifting days against the goal and last week, the training-performance rating and its change, and the strength minutes Apple Health recorded), **how you felt** (watch when fatigue, stress, soreness or hunger rose, or sleep or performance fell, by 0.4 or more), and **measurements** (the latest ones against the ones before, or "Not taken this week" with the next due date; only when the campaign asks for them or some exist).
+- **Biofeedback** as a table of the seven ratings with the average and the change, green when it moved the better way (FR-1's directions), and **Worth knowing** for thin check-ins or weigh-ins, period days (when tracked) and sick days.
+- **Verdict.** From the six core rows that can be judged (weight, calories, protein, steps, water, training): on track when at least 80% are green and neither how you felt nor the weight is amber, mostly on track from 50%, otherwise needs attention. A weight moving the wrong way is never plain "on track".
+- **Next.** **Plan next week** closes the review and opens the weekly suggestion (FR-23), and **Done**. Workout progression from other apps is not included (see Out of scope).
+
 ## Extensibility (provisions, not features)
 
 - **Apple Health:** a `HealthSource` interface exists; each weight records its source (`manual` now). When Health is added, imports must not overwrite a manual value for the same day.
@@ -245,7 +253,7 @@ The three streaks (logging, daily goals, weekly goals) are **not campaign-specif
 
 ## Out of scope
 
-Social features, Android, accounts, push notifications from a server (the app only schedules local ones), and everything listed under Later phases.
+Social features, Android, accounts, integrations with other training apps (for example Hevy, whose API needs a Pro subscription and an API key, and which would make the app talk to a server; people use different apps, so workout progression from them is left for later), push notifications from a server (the app only schedules local ones), and everything listed under Later phases.
 
 ## Later phases (carried over from the draft PRD)
 
@@ -418,3 +426,7 @@ These were in the earlier draft and are deliberately deferred. Open questions ar
 | D147 | Still to log has no legend: the three colours stand on their own | Decided: the user found the interface understandable without it |
 | D148 | With measurements on, one is always due on the first day (baseline) and in the last week (end state), whatever the cadence | Decided: the user asked |
 | D149 | The measurement setting becomes "Measurements and photos": a switch asks "Have you taken your progress photos?" on the same days; only the yes is recorded | Decided: the user asked; not keeping the photos themselves is an assumption (privacy, size) |
+| D150 | A weekly review of the week against the week before, offered on Sunday and any day on demand (the week so far), worked out each time and never stored | Decided: the user asked for an end-of-week assessment |
+| D151 | The review uses only what logmo has (logs, check-ins, measurements, Apple Health), so training progression is lifting days, the performance rating and Health's strength minutes | Decided: the user chose the review first and Hevy and other apps out of scope for now, since people use different apps |
+| D152 | The review's wording can be improved by Apple Intelligence under the suggestion's validation; the calculated text is the fallback | Assumption: matches the mock-up and the suggestion's rules |
+| D153 | A weight trend moving the wrong way keeps the verdict below "on track" | Assumption: the weight is what the campaign is for |

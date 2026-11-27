@@ -148,7 +148,7 @@ final class DayLog {
         return DaySnapshot(date: day, weightKg: weightKg, logged: loggedTrackers,
                            complete: completeTrackers, calories: calories, proteinG: proteinG,
                            carbsG: carbsG, fatG: fatG, waterMl: waterMl, steps: steps, ratings: r, performanceNA: performanceNA, onPeriod: onPeriod == true, isSick: isSick == true,
-                           restingHR: healthRestingHR, hrv: healthHRV, sleepMinutes: healthSleepMinutes)
+                           restingHR: healthRestingHR, hrv: healthHRV, sleepMinutes: healthSleepMinutes, strengthMinutes: healthWorkoutMinutes)
     }
 
     var healthValues: HealthFieldValues {
