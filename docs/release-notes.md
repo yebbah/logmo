@@ -1,6 +1,6 @@
 # logmo: Release notes
 
-**Current version: 1.0.0 (build 4)**, built to PRD v21.1, 25 November 2026. Build 1 was the first version, installed on the owner's iPhone. See the change log (docs/changelog.md) for what changed in each build. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
+**Current version: 1.0.0 (build 5)**, built to PRD v21.1, 25 November 2026. Build 1 was the first version, installed on the owner's iPhone. See the change log (docs/changelog.md) for what changed in each build. Everything below is in it. The version number has not been bumped since the first build, so these notes describe the whole app as it stands; the PRD tags (`prd-v1` to `prd-v14.0`) record how it grew.
 
 ---
 

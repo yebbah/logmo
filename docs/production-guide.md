@@ -2,7 +2,7 @@
 
 For the owner and anyone who maintains logmo. It covers how the app is built, how it runs on a phone, how to release and recover it, and what is known to be limited. Product behaviour is specified in the PRD (`_bmad-output/planning-artifacts/prds/prd-logmo-s3-2026-11-11/prd.md`); this guide does not repeat it.
 
-Version of this guide: matches PRD v21.1 and app version 1.0.0 (build 4).
+Version of this guide: matches PRD v21.1 and app version 1.0.0 (build 5).
 
 ---
 
@@ -142,7 +142,7 @@ Compiled only in Debug (`#if DEBUG`): launch arguments such as `-demo-data` (in-
 5. Fast-forward merge to `main` (`git merge --ff-only`), push `main`.
 6. Build and install on the phone (section 3).
 7. Raise `CURRENT_PROJECT_VERSION` by one for every push to `main` and add the build to `docs/changelog.md`.
-8. Bump `MARKETING_VERSION` in `project.yml` when a release should show a new version in Settings → About and on the landing screen (it is still 1.0.0, build 4).
+8. Bump `MARKETING_VERSION` in `project.yml` when a release should show a new version in Settings → About and on the landing screen (it is still 1.0.0, build 5).
 
 Mock-ups for screen changes are made first on the design canvas and agreed before building.
 

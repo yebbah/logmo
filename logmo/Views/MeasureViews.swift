@@ -11,17 +11,20 @@ struct MeasureCadencePicker: View {
     let weeks: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Measurements and photos").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
-            Picker("Measurements and photos", selection: $everyDays) {
-                ForEach(MeasureCadence.allCases) { Text($0.title).tag($0.rawValue) }
-            }.pickerStyle(.segmented)
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Measurements and photos").font(.subheadline.weight(.semibold)).foregroundStyle(theme.muted)
+                Picker("Measurements and photos", selection: $everyDays) {
+                    ForEach(MeasureCadence.allCases) { Text($0.title).tag($0.rawValue) }
+                }.pickerStyle(.segmented)
+                Text(caption).font(.caption).foregroundStyle(theme.muted)
+            }
             if everyDays > 0 {
+                Divider()
                 Toggle("Ask about progress photos on those days", isOn: $photos)
             }
-            Text(caption).font(.caption).foregroundStyle(theme.muted)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 6)
     }
 
     private var caption: String {

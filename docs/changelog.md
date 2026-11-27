@@ -1,6 +1,11 @@
 # logmo: Change log by build
 
-Each push to `main` gets a new build number (`CURRENT_PROJECT_VERSION` in `project.yml`); the version (`MARKETING_VERSION`) stays 1.0.0 until a release is named. The build shows in Settings → About as "Version 1.0.0 (4)". The PRD version each build was made to is given next to it.
+Each push to `main` gets a new build number (`CURRENT_PROJECT_VERSION` in `project.yml`); the version (`MARKETING_VERSION`) stays 1.0.0 until a release is named. The build shows in Settings → About as "Version 1.0.0 (5)". The PRD version each build was made to is given next to it.
+
+## Build 5 (version 1.0.0), PRD v21.1, 27 November 2026
+
+**Changed**
+- **Campaign setup:** the "Ask about progress photos" switch now sits apart from the frequency choice, below a divider with more space, so the two don't read as one control.
 
 ## Build 4 (version 1.0.0), PRD v21.1, 27 November 2026
 
